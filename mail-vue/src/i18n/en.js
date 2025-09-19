@@ -289,7 +289,10 @@ const en = {
     clear: 'Clear',
     include: 'Include',
     delAllEmailConfirm: 'Do you really want to delete it?',
-    s3Configuration: 'S3 Configuration'
+    s3Configuration: 'S3 Configuration',
+    allContent: 'All Content',
+    searchAllContent: 'Search subject, body, sender, recipient...',
+    foundEmails: 'Found {count} emails'
 }
 
 export default en

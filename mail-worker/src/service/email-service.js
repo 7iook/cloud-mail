@@ -458,6 +458,36 @@ const emailService = {
 		return list;
 	},
 
+	async allLatest(c, params) {
+		let { emailId } = params;
+		emailId = Number(emailId);
+
+		const list = await orm(c).select({ ...email, userEmail: user.email })
+			.from(email)
+			.leftJoin(user, eq(email.userId, user.userId))
+			.where(
+				and(
+					eq(email.isDel, isDel.NORMAL),
+					ne(email.status, emailConst.status.SAVING),
+					gt(email.emailId, emailId)
+				))
+			.orderBy(desc(email.emailId))
+			.limit(20);
+
+		const emailIds = list.map(item => item.emailId);
+
+		if (emailIds.length > 0) {
+			const attsList = await attService.selectByEmailIds(c, emailIds);
+
+			list.forEach(emailRow => {
+				const atts = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
+				emailRow.attList = atts;
+			});
+		}
+
+		return list;
+	},
+
 	async physicsDelete(c, params) {
 		let { emailIds } = params;
 		emailIds = emailIds.split(',').map(Number);
@@ -497,7 +527,7 @@ const emailService = {
 
 	async allList(c, params) {
 
-		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort } = params;
+		let { emailId, size, name, subject, accountEmail, userEmail, type, timeSort, allContent } = params;
 
 		size = Number(size);
 
@@ -556,6 +586,23 @@ const emailService = {
 
 		if (subject) {
 			conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${subject + '%'}`);
+		}
+
+		// 新增：全内容搜索功能
+		if (allContent) {
+			const searchPattern = `%${allContent}%`;
+			conditions.push(
+				or(
+					sql`${email.subject} COLLATE NOCASE LIKE ${searchPattern}`,
+					sql`${email.name} COLLATE NOCASE LIKE ${searchPattern}`,
+					sql`${email.sendEmail} COLLATE NOCASE LIKE ${searchPattern}`,
+					sql`${email.toEmail} COLLATE NOCASE LIKE ${searchPattern}`,
+					sql`${email.toName} COLLATE NOCASE LIKE ${searchPattern}`,
+					sql`${email.text} COLLATE NOCASE LIKE ${searchPattern}`,
+					sql`${email.content} COLLATE NOCASE LIKE ${searchPattern}`,
+					sql`${user.email} COLLATE NOCASE LIKE ${searchPattern}`
+				)
+			);
 		}
 
 		conditions.push(ne(email.status, emailConst.status.SAVING));

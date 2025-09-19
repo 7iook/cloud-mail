@@ -1,0 +1,74 @@
+@echo off
+echo 开始执行所有SQL批次...
+echo 执行批次 1/10...
+wrangler d1 execute email --local --file=batch-001.sql
+if errorlevel 1 (
+    echo 批次 1 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 2/10...
+wrangler d1 execute email --local --file=batch-002.sql
+if errorlevel 1 (
+    echo 批次 2 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 3/10...
+wrangler d1 execute email --local --file=batch-003.sql
+if errorlevel 1 (
+    echo 批次 3 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 4/10...
+wrangler d1 execute email --local --file=batch-004.sql
+if errorlevel 1 (
+    echo 批次 4 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 5/10...
+wrangler d1 execute email --local --file=batch-005.sql
+if errorlevel 1 (
+    echo 批次 5 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 6/10...
+wrangler d1 execute email --local --file=batch-006.sql
+if errorlevel 1 (
+    echo 批次 6 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 7/10...
+wrangler d1 execute email --local --file=batch-007.sql
+if errorlevel 1 (
+    echo 批次 7 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 8/10...
+wrangler d1 execute email --local --file=batch-008.sql
+if errorlevel 1 (
+    echo 批次 8 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 9/10...
+wrangler d1 execute email --local --file=batch-009.sql
+if errorlevel 1 (
+    echo 批次 9 执行失败
+    pause
+    exit /b 1
+)
+echo 执行批次 10/10...
+wrangler d1 execute email --local --file=batch-010.sql
+if errorlevel 1 (
+    echo 批次 10 执行失败
+    pause
+    exit /b 1
+)
+echo 所有批次执行完成！
+pause

@@ -289,7 +289,10 @@ const zh = {
     clear: '清除',
     include: '包含',
     delAllEmailConfirm: '确定要删除吗？',
-    s3Configuration: 'S3 配置'
+    s3Configuration: 'S3 配置',
+    allContent: '全部内容',
+    searchAllContent: '搜索邮件主题、正文、发件人、收件人...',
+    foundEmails: '找到 {count} 封邮件'
 
 }
 export default zh

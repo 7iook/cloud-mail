@@ -31,7 +31,9 @@
           <div v-if="(skeleton && !loading)" v-for="item in emailList" :key="item.emailId">
             <div class="email-row"
                  :data-checked="item.checked"
-                 @click="jumpDetails(item)"
+                 @click="handleEmailRowClick($event, item)"
+                 @mouseenter="handleMouseEnterEnhanced(item)"
+                 @mouseleave="handleMouseLeaveEnhanced(item)"
             >
               <el-checkbox :class=" props.type === 'all-email' ? 'all-email-checkbox' : 'checkbox'"
                            v-model="item.checked" @click.stop></el-checkbox>
@@ -90,7 +92,7 @@
                         {{ item.subject || '\u200B' }}
                       </slot>
                     </span>
-                    <span class="email-content">{{ htmlToText(item) || '\u200B' }}</span>
+                    <span class="email-content" v-html="getHighlightedContent(item)"></span>
                   </div>
                   <div class="user-info" v-if="showUserInfo">
                     <div class="user">
@@ -103,7 +105,13 @@
                       <span>
                         <Icon icon="mdi-light:email" width="20" height="20"/>
                       </span>
-                      <span>{{ item.type === 0 ? item.toEmail : item.sendEmail }}</span>
+                      <span
+                        class="email-address-display"
+                        :title="`点击复制邮箱地址: ${item.type === 0 ? item.toEmail : item.sendEmail}`"
+                        @click.stop="handleEmailAddressClick(item.type === 0 ? item.toEmail : item.sendEmail)"
+                      >
+                        {{ item.type === 0 ? item.toEmail : item.sendEmail }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -155,6 +163,14 @@
         </div>
       </el-scrollbar>
     </div>
+
+    <!-- 空格键预览组件 -->
+    <EmailPreview
+      v-model="previewVisible"
+      :email="previewEmail"
+      @view-details="handlePreviewViewDetails"
+      @closed="handlePreviewClosed"
+    />
   </div>
 </template>
 
@@ -170,6 +186,10 @@ import {useSettingStore} from "@/store/setting.js";
 import {sleep} from "@/utils/time-utils.js"
 import {fromNow} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
+import {highlightEmailContent, extractHighlightValue, isHighlightElement} from "@/utils/email-highlight-utils.js";
+import {copyTextWithFeedback} from "@/utils/clipboard-utils.js";
+import {useSpacePreview} from "@/composables/useSpacePreview.js";
+import EmailPreview from "@/components/email-preview/index.vue";
 
 const props = defineProps({
   getEmailList: Function,
@@ -225,6 +245,16 @@ const {t} = useI18n()
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const emailStore = useEmailStore();
+
+// 空格键预览功能
+const {
+  hoveredEmail,
+  previewVisible,
+  previewEmail,
+  handleMouseEnter,
+  handleMouseLeave,
+  handleEmailChange
+} = useSpacePreview();
 const loading = ref(false);
 const followLoading = ref(false);
 const noLoading = ref(false);
@@ -464,6 +494,140 @@ function updateCheckStatus() {
 
 function jumpDetails(email) {
   emit('jump', email)
+}
+
+/**
+ * 处理邮件行点击事件 - 实现双重点击逻辑 (2025年增强版)
+ * @param {Event} event - 点击事件
+ * @param {Object} email - 邮件对象
+ */
+function handleEmailRowClick(event, email) {
+  const clickedElement = event.target;
+
+  // 检查是否点击了高亮元素
+  if (isHighlightElement(clickedElement)) {
+    event.stopPropagation();
+    const value = extractHighlightValue(clickedElement);
+    const type = clickedElement.getAttribute('data-type') ||
+                 clickedElement.closest('.email-highlight, .code-highlight')?.getAttribute('data-type');
+
+    if (value) {
+      // 根据类型显示不同的成功消息
+      let successMessage;
+      if (type === 'email') {
+        successMessage = `📧 已复制邮箱: ${value}`;
+      } else if (type === 'code') {
+        successMessage = `🔐 已复制验证码: ${value}`;
+      } else {
+        successMessage = `📋 已复制: ${value}`;
+      }
+
+      // 复制高亮内容到剪贴板，使用增强的Toast通知
+      copyTextWithFeedback(value, {
+        successMessage,
+        errorMessage: '❌ 复制失败，请重试',
+        duration: 3000
+      });
+
+      // 添加点击反馈动画
+      addClickFeedback(clickedElement);
+    }
+    return;
+  }
+
+  // 默认行为：跳转到详情页
+  jumpDetails(email);
+}
+
+/**
+ * 添加点击反馈动画
+ * @param {HTMLElement} element - 被点击的元素
+ */
+function addClickFeedback(element) {
+  const targetElement = element.closest('.email-highlight, .code-highlight') || element;
+
+  // 添加点击动画类
+  targetElement.classList.add('highlight-clicked');
+
+  // 移除动画类
+  setTimeout(() => {
+    targetElement.classList.remove('highlight-clicked');
+  }, 200);
+}
+
+/**
+ * 处理邮箱地址点击事件
+ * @param {string} emailAddress - 邮箱地址
+ */
+function handleEmailAddressClick(emailAddress) {
+  if (emailAddress) {
+    copyTextWithFeedback(emailAddress, {
+      successMessage: `📧 已复制邮箱地址: ${emailAddress}`,
+      errorMessage: '❌ 复制失败，请重试',
+      duration: 3000
+    });
+  }
+}
+
+/**
+ * 增强的鼠标进入处理 - 集成空格键预览
+ * @param {Object} email - 邮件对象
+ */
+function handleMouseEnterEnhanced(email) {
+  // 调用空格键预览的鼠标进入处理
+  handleMouseEnter(email);
+
+  // 处理邮件变更逻辑
+  if (hoveredEmail.value && email) {
+    handleEmailChange(email);
+  }
+}
+
+/**
+ * 增强的鼠标离开处理 - 集成空格键预览
+ * @param {Object} email - 邮件对象
+ */
+function handleMouseLeaveEnhanced(email) {
+  // 调用空格键预览的鼠标离开处理
+  handleMouseLeave(email);
+}
+
+/**
+ * 获取高亮处理后的邮件内容
+ * @param {Object} email - 邮件对象
+ * @returns {string} 高亮处理后的HTML内容
+ */
+function getHighlightedContent(email) {
+  const plainText = htmlToText(email);
+  if (!plainText || plainText === '\u200B') {
+    return '\u200B';
+  }
+
+  // 应用高亮处理
+  return highlightEmailContent(plainText, {
+    highlightEmails: true,
+    highlightCodes: true
+  });
+}
+
+/**
+ * 处理预览窗口查看详情
+ * @param {Object} email - 邮件对象
+ */
+function handlePreviewViewDetails(email) {
+  if (email && email.emailId) {
+    jumpDetails(email);
+  }
+}
+
+/**
+ * 处理预览窗口关闭
+ */
+function handlePreviewClosed() {
+  // 预览窗口关闭时的清理工作
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔄 [EmailScroll] 预览窗口已关闭');
+  }
 }
 
 
@@ -923,6 +1087,156 @@ ul {
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+/* 邮箱地址高亮样式 - 简洁设计 */
+:deep(.email-highlight) {
+  color: #409EFF;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+:deep(.email-highlight:hover) {
+  color: #337ecc;
+  text-decoration-style: solid;
+  background-color: rgba(64, 158, 255, 0.1);
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+
+/* 验证码高亮样式 - 简洁设计 */
+:deep(.code-highlight) {
+  color: #67C23A;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+:deep(.code-highlight:hover) {
+  color: #529b2e;
+  text-decoration-style: solid;
+  background-color: rgba(103, 194, 58, 0.1);
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+
+/* 点击反馈动画 */
+:deep(.highlight-clicked) {
+  animation: highlightPulse 0.2s ease-out;
+}
+
+@keyframes highlightPulse {
+  0% {
+    transform: scale(1);
+    background-color: rgba(64, 158, 255, 0.2);
+  }
+  50% {
+    transform: scale(1.05);
+    background-color: rgba(64, 158, 255, 0.3);
+  }
+  100% {
+    transform: scale(1);
+    background-color: rgba(64, 158, 255, 0.1);
+  }
+}
+
+/* 邮箱地址显示样式 */
+:deep(.email-address-display) {
+  color: #409EFF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+:deep(.email-address-display:hover) {
+  background-color: rgba(64, 158, 255, 0.1);
+  color: #337ecc;
+}
+
+/* Toast通知样式 */
+:deep(.copy-feedback) {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 40px 12px 20px;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 300px;
+  word-break: break-all;
+  position: relative;
+  cursor: default;
+}
+
+:deep(.copy-feedback-close) {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+:deep(.copy-feedback-close:hover) {
+  opacity: 1;
+}
+
+:deep(.copy-feedback-success) {
+  background: linear-gradient(135deg, #67C23A, #85ce61);
+}
+
+:deep(.copy-feedback-error) {
+  background: linear-gradient(135deg, #F56C6C, #f78989);
+}
+
+:deep(.copy-feedback-show) {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+:deep(.copy-feedback-hide) {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  :deep(.copy-feedback) {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+    transform: translateY(-100%);
+  }
+
+  :deep(.copy-feedback-show) {
+    transform: translateY(0);
+  }
+
+  :deep(.copy-feedback-hide) {
+    transform: translateY(-100%);
+  }
 }
 
 </style>

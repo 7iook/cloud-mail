@@ -48,6 +48,104 @@ img {
     display: block;
 }
 
+/* 邮件内容高亮样式 - 2025年现代化设计 */
+.email-highlight {
+    color: #1976d2;
+    border-bottom: 1px solid #1976d2;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 1px 2px;
+    border-radius: 2px;
+    position: relative;
+}
+
+.email-highlight:hover {
+    color: #1565c0;
+    border-bottom-color: #1565c0;
+    background-color: rgba(25, 118, 210, 0.08);
+}
+
+.code-highlight {
+    color: #d32f2f;
+    border-bottom: 1px solid #d32f2f;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 1px 2px;
+    border-radius: 2px;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+    position: relative;
+}
+
+.code-highlight:hover {
+    color: #c62828;
+    border-bottom-color: #c62828;
+    background-color: rgba(211, 47, 47, 0.08);
+}
+
+/* 深色模式适配 */
+@media (prefers-color-scheme: dark) {
+    .email-highlight {
+        color: #64b5f6;
+        border-bottom-color: #64b5f6;
+    }
+
+    .email-highlight:hover {
+        color: #90caf9;
+        border-bottom-color: #90caf9;
+        background-color: rgba(100, 181, 246, 0.12);
+    }
+
+    .code-highlight {
+        color: #ef5350;
+        border-bottom-color: #ef5350;
+    }
+
+    .code-highlight:hover {
+        color: #f48fb1;
+        border-bottom-color: #f48fb1;
+        background-color: rgba(239, 83, 80, 0.12);
+    }
+}
+
+/* 复制反馈提示样式 - 2025年现代化设计 */
+.copy-feedback {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 9999;
+    transform: translateX(100%);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.copy-feedback-success {
+    background: rgba(76, 175, 80, 0.9);
+    color: white;
+}
+
+.copy-feedback-error {
+    background: rgba(244, 67, 54, 0.9);
+    color: white;
+}
+
+.copy-feedback-show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.copy-feedback-hide {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
 button, input, select, textarea {
     font-family: inherit;
     font-size: inherit;

@@ -46,3 +46,101 @@ export async function copyText(text) {
     })
 }
 
+/**
+ * 复制文本并显示现代化反馈提示
+ * @param {string} text - 要复制的文本
+ * @param {Object} options - 配置选项
+ * @returns {Promise} 复制结果
+ */
+export async function copyTextWithFeedback(text, options = {}) {
+    const {
+        successMessage = '复制成功',
+        errorMessage = '复制失败',
+        showToast = true,
+        duration = 2000
+    } = options;
+
+    try {
+        await copyText(text);
+
+        if (showToast) {
+            showCopyFeedback(successMessage, 'success', duration);
+        }
+
+        return { success: true, text };
+    } catch (error) {
+        console.error('Copy failed:', error);
+
+        if (showToast) {
+            showCopyFeedback(errorMessage, 'error', duration);
+        }
+
+        return { success: false, error };
+    }
+}
+
+/**
+ * 显示2025年现代化复制反馈提示 - 增强版
+ * @param {string} message - 提示消息
+ * @param {string} type - 提示类型 (success/error)
+ * @param {number} duration - 显示时长
+ */
+function showCopyFeedback(message, type = 'success', duration = 2000) {
+    // 移除现有的反馈提示，避免重叠
+    const existingFeedback = document.querySelector('.copy-feedback');
+    if (existingFeedback) {
+        existingFeedback.remove();
+    }
+
+    // 创建反馈元素
+    const feedback = document.createElement('div');
+    feedback.className = `copy-feedback copy-feedback-${type}`;
+
+    // 支持HTML内容（如emoji）
+    feedback.innerHTML = message;
+
+    // 添加关闭按钮
+    const closeBtn = document.createElement('span');
+    closeBtn.innerHTML = '×';
+    closeBtn.className = 'copy-feedback-close';
+    closeBtn.onclick = () => closeFeedback(feedback);
+    feedback.appendChild(closeBtn);
+
+    // 添加到页面
+    document.body.appendChild(feedback);
+
+    // 触发动画
+    requestAnimationFrame(() => {
+        feedback.classList.add('copy-feedback-show');
+    });
+
+    // 自动移除
+    const autoCloseTimer = setTimeout(() => {
+        closeFeedback(feedback);
+    }, duration);
+
+    // 鼠标悬停时暂停自动关闭
+    feedback.addEventListener('mouseenter', () => {
+        clearTimeout(autoCloseTimer);
+    });
+
+    feedback.addEventListener('mouseleave', () => {
+        setTimeout(() => closeFeedback(feedback), 1000);
+    });
+}
+
+/**
+ * 关闭反馈提示
+ * @param {HTMLElement} feedback - 反馈元素
+ */
+function closeFeedback(feedback) {
+    if (feedback && feedback.parentNode) {
+        feedback.classList.add('copy-feedback-hide');
+        setTimeout(() => {
+            if (feedback.parentNode) {
+                document.body.removeChild(feedback);
+            }
+        }, 300);
+    }
+}
+

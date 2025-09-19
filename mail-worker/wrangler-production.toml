@@ -1,0 +1,36 @@
+name = "cloud-mail"
+main = "src/index.js"
+compatibility_date = "2025-06-04"
+keep_vars = true
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "db"
+database_name = "email"
+database_id = "a4c1a63a-6ef5-4e6d-8e8c-b6d9e8feb810"
+
+[[kv_namespaces]]
+binding = "kv"
+id = "2io01d4b299e481b9de060ece9e7785c"
+
+#[[r2_buckets]]
+#binding = "r2"
+#bucket_name = "YOUR_R2_BUCKET_NAME"
+
+[assets]
+binding = "assets"
+directory = "./dist"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[triggers]
+crons = ["0 16 * * *"]
+
+# Production environment variables
+[vars]
+orm_log = false
+domain = ["7ix.asia", "augmentcode.site", "lx028l.xyz"]
+admin = "admin@7ix.asia"
+jwt_secret = "prod-7ix-asia-2025-jwt-9f8e7d6c5b4a3210-secure-token-cloud-mail"

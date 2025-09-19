@@ -1,0 +1,761 @@
+INSERT INTO email (id, userId, sendEmail, name, subject, content, text, createTime, isRead, attList, messageId, inReplyTo, references) VALUES
+  ('44d9c3c3-347f-48f0-8921-003bf048a247', 'admin@7ix.asia', 'contact@augmentcode.site', 'UnionPay', '双因素认证码', '
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <tr style="background: linear-gradient(90deg, #FF6B6B, #4ECDC4);">
+          <td style="padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 300;">支付验证</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 40px;">
+            <p style="font-size: 16px; color: #333; line-height: 1.6; margin: 0 0 20px 0;">
+              您好，您正在进行支付操作，请确认以下验证码：
+            </p>
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+              <tr>
+                <td style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px; padding: 25px; text-align: center;">
+                  <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 14px;">支付验证码</p>
+                  <div style="font-size: 36px; font-weight: bold; color: #FF6B6B; font-family: ''Courier New'', monospace; letter-spacing: 3px;">92911147</div>
+                  <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 12px;">5分钟内有效</p>
+                </td>
+              </tr>
+            </table>
+            
+            <div style="background: #e8f4fd; border-left: 4px solid #2196F3; padding: 15px; margin: 25px 0;">
+              <h4 style="color: #1976D2; margin: 0 0 10px 0; font-size: 16px;">安全须知</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #555;">
+                <li style="margin-bottom: 8px;">请勿向他人透露验证码 6MQNWF</li>
+                <li style="margin-bottom: 8px;">如有疑问请联系: noreply@7ix.asia</li>
+                <li style="margin-bottom: 8px;">客服热线: member6668@163.com</li>
+              </ul>
+            </div>
+            
+            <p style="font-size: 14px; color: #888; text-align: center; margin: 30px 0 0 0; border-top: 1px solid #eee; padding-top: 20px;">
+              此邮件由支付系统自动发送 | 服务邮箱: test5084@outlook.com
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>', '
+
+  
+    
+      
+        
+          
+            支付验证
+          
+        
+        
+          
+            
+              您好，您正在进行支付操作，请确认以下验证码：
+            
+            
+            
+              
+                
+                  支付验证码
+                  92911147
+                  5分钟内有效
+                
+              
+            
+            
+            
+              安全须知
+              
+                请勿向他人透露验证码 6MQNWF
+                如有疑问请联系: noreply@7ix.asia
+                客服热线: member6668@163.com
+              
+            
+            
+            
+              此邮件由支付系统自动发送 | 服务邮箱: test5084@outlook.com
+            
+          
+        
+      
+    
+  
+', '2025-09-04T17:31:08.359Z', 1, '[]', '<cea0b716-beed-44af-be0e-ec2fa18e7cc8@test.local>', NULL, NULL),
+  ('5c863af6-4ace-4b60-a864-5f4e697e7460', 'admin@7ix.asia', 'contact@7ix.asia', '网易云', '账户安全验证', '
+<div style="font-family: ''Segoe UI'', Tahoma, Geneva, Verdana, sans-serif; max-width: 650px; margin: 0 auto; padding: 25px; background: #ffffff;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #2c3e50; margin: 0;">安全验证</h1>
+  </div>
+  <p style="font-size: 16px; line-height: 1.6; color: #34495e;">尊敬的用户，</p>
+  <p style="font-size: 16px; line-height: 1.6; color: #34495e;">我们检测到您的账户有新的登录活动。为了确保账户安全，请使用以下验证码：</p>
+  
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; margin: 25px 0; text-align: center; border-radius: 12px; color: white;">
+    <p style="margin: 0; font-size: 14px; opacity: 0.9;">您的验证码</p>
+    <h2 style="margin: 10px 0; font-size: 32px; letter-spacing: 4px; font-weight: bold;">FBB188</h2>
+    <p style="margin: 0; font-size: 14px; opacity: 0.9;">有效期: 15分钟</p>
+  </div>
+  
+  <div style="background: #ecf0f1; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <h4 style="color: #e74c3c; margin-top: 0;">安全提醒:</h4>
+    <ul style="color: #7f8c8d; line-height: 1.8;">
+      <li>请勿将验证码 393-905 告诉任何人</li>
+      <li>如非本人操作，请立即联系客服 example6882@qq.com</li>
+      <li>技术支持邮箱: contact@7ix.asia</li>
+    </ul>
+  </div>
+  
+  <p style="font-size: 14px; color: #95a5a6; text-align: center; margin-top: 30px;">
+    此邮件由系统自动发送，请勿回复<br>
+    如需帮助，请联系 member7740@gmail.com
+  </p>
+</div>', '
+
+  
+    安全验证
+  
+  尊敬的用户，
+  我们检测到您的账户有新的登录活动。为了确保账户安全，请使用以下验证码：
+  
+  
+    您的验证码
+    FBB188
+    有效期: 15分钟
+  
+  
+  
+    安全提醒:
+    
+      请勿将验证码 393-905 告诉任何人
+      如非本人操作，请立即联系客服 example6882@qq.com
+      技术支持邮箱: contact@7ix.asia
+    
+  
+  
+  
+    此邮件由系统自动发送，请勿回复
+    如需帮助，请联系 member7740@gmail.com
+  
+', '2025-08-22T14:45:46.386Z', 0, '[]', '<8eda0dd9-a7be-41a5-9ffd-be244133904c@test.local>', NULL, NULL),
+  ('c35496fb-efdd-4662-839e-9a5bf7cd5f6a', 'admin@7ix.asia', 'tech@lx028l.xyz', 'Alipay', '账户安全验证', '
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <tr style="background: linear-gradient(90deg, #FF6B6B, #4ECDC4);">
+          <td style="padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 300;">支付验证</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 40px;">
+            <p style="font-size: 16px; color: #333; line-height: 1.6; margin: 0 0 20px 0;">
+              您好，您正在进行支付操作，请确认以下验证码：
+            </p>
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+              <tr>
+                <td style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px; padding: 25px; text-align: center;">
+                  <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 14px;">支付验证码</p>
+                  <div style="font-size: 36px; font-weight: bold; color: #FF6B6B; font-family: ''Courier New'', monospace; letter-spacing: 3px;">JDB1UB3T</div>
+                  <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 12px;">5分钟内有效</p>
+                </td>
+              </tr>
+            </table>
+            
+            <div style="background: #e8f4fd; border-left: 4px solid #2196F3; padding: 15px; margin: 25px 0;">
+              <h4 style="color: #1976D2; margin: 0 0 10px 0; font-size: 16px;">安全须知</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #555;">
+                <li style="margin-bottom: 8px;">请勿向他人透露验证码 TLJ349</li>
+                <li style="margin-bottom: 8px;">如有疑问请联系: admin@augmentcode.site</li>
+                <li style="margin-bottom: 8px;">客服热线: test7800@gmail.com</li>
+              </ul>
+            </div>
+            
+            <p style="font-size: 14px; color: #888; text-align: center; margin: 30px 0 0 0; border-top: 1px solid #eee; padding-top: 20px;">
+              此邮件由支付系统自动发送 | 服务邮箱: tech@7ix.asia
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>', '
+
+  
+    
+      
+        
+          
+            支付验证
+          
+        
+        
+          
+            
+              您好，您正在进行支付操作，请确认以下验证码：
+            
+            
+            
+              
+                
+                  支付验证码
+                  JDB1UB3T
+                  5分钟内有效
+                
+              
+            
+            
+            
+              安全须知
+              
+                请勿向他人透露验证码 TLJ349
+                如有疑问请联系: admin@augmentcode.site
+                客服热线: test7800@gmail.com
+              
+            
+            
+            
+              此邮件由支付系统自动发送 | 服务邮箱: tech@7ix.asia
+            
+          
+        
+      
+    
+  
+', '2025-09-07T12:07:01.330Z', 1, '[]', '<dada62fc-f85c-48d6-969c-2078048a8269@test.local>', NULL, NULL),
+  ('82d373d2-8dbc-41f2-b33f-f8d9e7f49d99', 'admin@7ix.asia', 'service@7ix.asia', 'Apple', '新设备登录验证', '
+<div style="font-family: ''Helvetica Neue'', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+  <div style="background: #667eea; padding: 40px 30px; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 200;">双因素认证</h1>
+    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Two-Factor Authentication</p>
+  </div>
+  
+  <div style="padding: 40px 30px;">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <div style="display: inline-block; background: #f8f9fa; border-radius: 50%; width: 80px; height: 80px; line-height: 80px; margin-bottom: 20px;">
+        <span style="font-size: 32px;">🔐</span>
+      </div>
+      <h2 style="color: #2c3e50; margin: 0; font-size: 24px;">安全验证码</h2>
+    </div>
+    
+    <p style="color: #5a6c7d; font-size: 16px; line-height: 1.6; text-align: center; margin-bottom: 30px;">
+      为了保护您的账户安全，请输入以下6位数字验证码：
+    </p>
+    
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 30px; text-align: center; margin: 30px 0;">
+      <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 20px; margin-bottom: 15px;">
+        <div style="color: white; font-size: 42px; font-weight: bold; font-family: ''Courier New'', monospace; letter-spacing: 8px;">IGECIN</div>
+      </div>
+      <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 14px;">此验证码将在10分钟后失效</p>
+    </div>
+    
+    <div style="background: #fff8e1; border: 1px solid #ffecb3; border-radius: 8px; padding: 20px; margin: 30px 0;">
+      <h4 style="color: #f57f17; margin: 0 0 15px 0; font-size: 16px;">⚠️ 安全提醒</h4>
+      <div style="color: #5d4037; font-size: 14px; line-height: 1.6;">
+        <p style="margin: 0 0 10px 0;">• 验证码 402-508 仅限本次使用</p>
+        <p style="margin: 0 0 10px 0;">• 请勿在非官方网站输入验证码</p>
+        <p style="margin: 0 0 10px 0;">• 如有异常，请联系 admin@7ix.asia</p>
+        <p style="margin: 0;">• 技术支持: customer1793@sohu.com</p>
+      </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #ecf0f1;">
+      <p style="color: #95a5a6; font-size: 12px; margin: 0;">
+        系统邮件，请勿回复 | 如需帮助请联系 guest2300@sohu.com
+      </p>
+    </div>
+  </div>
+</div>', '
+
+  
+    双因素认证
+    Two-Factor Authentication
+  
+  
+  
+    
+      
+        🔐
+      
+      安全验证码
+    
+    
+    
+      为了保护您的账户安全，请输入以下6位数字验证码：
+    
+    
+    
+      
+        IGECIN
+      
+      此验证码将在10分钟后失效
+    
+    
+    
+      ⚠️ 安全提醒
+      
+        • 验证码 402-508 仅限本次使用
+        • 请勿在非官方网站输入验证码
+        • 如有异常，请联系 admin@7ix.asia
+        • 技术支持: customer1793@sohu.com
+      
+    
+    
+    
+      
+        系统邮件，请勿回复 | 如需帮助请联系 guest2300@sohu.com
+      
+    
+  
+', '2025-09-09T18:57:24.239Z', 1, '[]', '<ed26c089-8a08-4422-a792-50b9e0309eb2@test.local>', NULL, NULL),
+  ('083a67ab-237c-4ebb-a0db-4f877ff21055', 'admin@7ix.asia', 'service@lx028l.xyz', '华为云', '新设备登录验证', '
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <tr style="background: linear-gradient(90deg, #FF6B6B, #4ECDC4);">
+          <td style="padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 300;">支付验证</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 40px;">
+            <p style="font-size: 16px; color: #333; line-height: 1.6; margin: 0 0 20px 0;">
+              您好，您正在进行支付操作，请确认以下验证码：
+            </p>
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+              <tr>
+                <td style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px; padding: 25px; text-align: center;">
+                  <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 14px;">支付验证码</p>
+                  <div style="font-size: 36px; font-weight: bold; color: #FF6B6B; font-family: ''Courier New'', monospace; letter-spacing: 3px;">WKIL1WWN</div>
+                  <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 12px;">5分钟内有效</p>
+                </td>
+              </tr>
+            </table>
+            
+            <div style="background: #e8f4fd; border-left: 4px solid #2196F3; padding: 15px; margin: 25px 0;">
+              <h4 style="color: #1976D2; margin: 0 0 10px 0; font-size: 16px;">安全须知</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #555;">
+                <li style="margin-bottom: 8px;">请勿向他人透露验证码 307155</li>
+                <li style="margin-bottom: 8px;">如有疑问请联系: user2293@sohu.com</li>
+                <li style="margin-bottom: 8px;">客服热线: sales@augmentcode.site</li>
+              </ul>
+            </div>
+            
+            <p style="font-size: 14px; color: #888; text-align: center; margin: 30px 0 0 0; border-top: 1px solid #eee; padding-top: 20px;">
+              此邮件由支付系统自动发送 | 服务邮箱: user8104@hotmail.com
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>', '
+
+  
+    
+      
+        
+          
+            支付验证
+          
+        
+        
+          
+            
+              您好，您正在进行支付操作，请确认以下验证码：
+            
+            
+            
+              
+                
+                  支付验证码
+                  WKIL1WWN
+                  5分钟内有效
+                
+              
+            
+            
+            
+              安全须知
+              
+                请勿向他人透露验证码 307155
+                如有疑问请联系: user2293@sohu.com
+                客服热线: sales@augmentcode.site
+              
+            
+            
+            
+              此邮件由支付系统自动发送 | 服务邮箱: user8104@hotmail.com
+            
+          
+        
+      
+    
+  
+', '2025-08-31T05:52:34.946Z', 0, '[]', '<841446ef-8ae4-4345-87f9-bccbd4b492f0@test.local>', NULL, NULL),
+  ('25f10a38-95f5-40f2-a86e-33c067257b25', 'admin@7ix.asia', 'visitor218@qq.com', 'PayPal', '安全登录提醒', '
+<div style="font-family: -apple-system, BlinkMacSystemFont, ''Segoe UI'', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #f8f9fa; padding: 20px;">
+  <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <div style="text-align: center; margin-bottom: 32px;">
+      <div style="width: 64px; height: 64px; background: #4CAF50; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+        <span style="color: white; font-size: 24px;">✓</span>
+      </div>
+      <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600;">注册成功</h1>
+    </div>
+    
+    <p style="color: #4a4a4a; font-size: 16px; line-height: 1.5; margin-bottom: 24px;">
+      恭喜您成功注册！请使用以下信息完成最后的验证步骤：
+    </p>
+    
+    <div style="background: #f1f8ff; border: 2px solid #e3f2fd; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+      <p style="color: #1976d2; font-size: 14px; margin: 0 0 8px 0; font-weight: 500;">激活码</p>
+      <div style="font-family: ''Courier New'', monospace; font-size: 28px; font-weight: bold; color: #1976d2; letter-spacing: 2px; margin: 8px 0;">PT7RC1</div>
+      <p style="color: #666; font-size: 12px; margin: 8px 0 0 0;">请在30分钟内使用</p>
+    </div>
+    
+    <div style="border-top: 1px solid #e0e0e0; padding-top: 24px; margin-top: 32px;">
+      <h3 style="color: #333; font-size: 16px; margin: 0 0 16px 0;">联系我们</h3>
+      <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+        <div style="flex: 1; min-width: 200px;">
+          <p style="margin: 4px 0; color: #666; font-size: 14px;">
+            <strong>客服邮箱:</strong> support@7ix.asia
+          </p>
+          <p style="margin: 4px 0; color: #666; font-size: 14px;">
+            <strong>技术支持:</strong> tech@7ix.asia
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <p style="margin: 0; color: #856404; font-size: 14px;">
+        <strong>重要提醒:</strong> 验证码 11798871 仅用于账户激活，请妥善保管。
+      </p>
+    </div>
+  </div>
+</div>', '
+
+  
+    
+      
+        ✓
+      
+      注册成功
+    
+    
+    
+      恭喜您成功注册！请使用以下信息完成最后的验证步骤：
+    
+    
+    
+      激活码
+      PT7RC1
+      请在30分钟内使用
+    
+    
+    
+      联系我们
+      
+        
+          
+            客服邮箱: support@7ix.asia
+          
+          
+            技术支持: tech@7ix.asia
+          
+        
+      
+    
+    
+    
+      
+        重要提醒: 验证码 11798871 仅用于账户激活，请妥善保管。
+      
+    
+  
+', '2025-09-14T01:40:42.924Z', 1, '[]', '<986494c9-8f1f-44d2-a14e-ccc1ad8ef9e4@test.local>', NULL, NULL),
+  ('d67c9a7a-8799-45c9-b8d3-9853c6d6d51f', 'admin@7ix.asia', 'visitor5784@qq.com', '京东云', '重置密码验证码', '
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <tr style="background: linear-gradient(90deg, #FF6B6B, #4ECDC4);">
+          <td style="padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 300;">支付验证</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 40px;">
+            <p style="font-size: 16px; color: #333; line-height: 1.6; margin: 0 0 20px 0;">
+              您好，您正在进行支付操作，请确认以下验证码：
+            </p>
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+              <tr>
+                <td style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px; padding: 25px; text-align: center;">
+                  <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 14px;">支付验证码</p>
+                  <div style="font-size: 36px; font-weight: bold; color: #FF6B6B; font-family: ''Courier New'', monospace; letter-spacing: 3px;">580687</div>
+                  <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 12px;">5分钟内有效</p>
+                </td>
+              </tr>
+            </table>
+            
+            <div style="background: #e8f4fd; border-left: 4px solid #2196F3; padding: 15px; margin: 25px 0;">
+              <h4 style="color: #1976D2; margin: 0 0 10px 0; font-size: 16px;">安全须知</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #555;">
+                <li style="margin-bottom: 8px;">请勿向他人透露验证码 341043</li>
+                <li style="margin-bottom: 8px;">如有疑问请联系: client4001@sina.com</li>
+                <li style="margin-bottom: 8px;">客服热线: guest4924@hotmail.com</li>
+              </ul>
+            </div>
+            
+            <p style="font-size: 14px; color: #888; text-align: center; margin: 30px 0 0 0; border-top: 1px solid #eee; padding-top: 20px;">
+              此邮件由支付系统自动发送 | 服务邮箱: contact@lx028l.xyz
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>', '
+
+  
+    
+      
+        
+          
+            支付验证
+          
+        
+        
+          
+            
+              您好，您正在进行支付操作，请确认以下验证码：
+            
+            
+            
+              
+                
+                  支付验证码
+                  580687
+                  5分钟内有效
+                
+              
+            
+            
+            
+              安全须知
+              
+                请勿向他人透露验证码 341043
+                如有疑问请联系: client4001@sina.com
+                客服热线: guest4924@hotmail.com
+              
+            
+            
+            
+              此邮件由支付系统自动发送 | 服务邮箱: contact@lx028l.xyz
+            
+          
+        
+      
+    
+  
+', '2025-08-28T10:56:53.206Z', 1, '[]', '<2bc19a5c-aad5-40de-af70-cec0ff716efa@test.local>', NULL, NULL),
+  ('6e8f76c9-63b4-482a-8ffb-909d7ff39eaf', 'admin@7ix.asia', 'noreply@augmentcode.site', 'Facebook', '安全登录提醒', '
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <tr style="background: linear-gradient(90deg, #FF6B6B, #4ECDC4);">
+          <td style="padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 300;">支付验证</h1>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 40px;">
+            <p style="font-size: 16px; color: #333; line-height: 1.6; margin: 0 0 20px 0;">
+              您好，您正在进行支付操作，请确认以下验证码：
+            </p>
+            
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+              <tr>
+                <td style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px; padding: 25px; text-align: center;">
+                  <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 14px;">支付验证码</p>
+                  <div style="font-size: 36px; font-weight: bold; color: #FF6B6B; font-family: ''Courier New'', monospace; letter-spacing: 3px;">ILDNTK6A</div>
+                  <p style="margin: 10px 0 0 0; color: #6c757d; font-size: 12px;">5分钟内有效</p>
+                </td>
+              </tr>
+            </table>
+            
+            <div style="background: #e8f4fd; border-left: 4px solid #2196F3; padding: 15px; margin: 25px 0;">
+              <h4 style="color: #1976D2; margin: 0 0 10px 0; font-size: 16px;">安全须知</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #555;">
+                <li style="margin-bottom: 8px;">请勿向他人透露验证码 399283</li>
+                <li style="margin-bottom: 8px;">如有疑问请联系: user6710@outlook.com</li>
+                <li style="margin-bottom: 8px;">客服热线: sales@lx028l.xyz</li>
+              </ul>
+            </div>
+            
+            <p style="font-size: 14px; color: #888; text-align: center; margin: 30px 0 0 0; border-top: 1px solid #eee; padding-top: 20px;">
+              此邮件由支付系统自动发送 | 服务邮箱: member3192@163.com
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>', '
+
+  
+    
+      
+        
+          
+            支付验证
+          
+        
+        
+          
+            
+              您好，您正在进行支付操作，请确认以下验证码：
+            
+            
+            
+              
+                
+                  支付验证码
+                  ILDNTK6A
+                  5分钟内有效
+                
+              
+            
+            
+            
+              安全须知
+              
+                请勿向他人透露验证码 399283
+                如有疑问请联系: user6710@outlook.com
+                客服热线: sales@lx028l.xyz
+              
+            
+            
+            
+              此邮件由支付系统自动发送 | 服务邮箱: member3192@163.com
+            
+          
+        
+      
+    
+  
+', '2025-09-05T10:26:18.138Z', 0, '[]', '<9444425f-a5e5-4312-9bc3-a97c46a40723@test.local>', NULL, NULL),
+  ('8eb88a93-15ae-4480-bb04-22457d875d5a', 'admin@7ix.asia', 'customer4935@qq.com', '腾讯云', '新设备登录验证', '
+<div style="font-family: -apple-system, BlinkMacSystemFont, ''Segoe UI'', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #f8f9fa; padding: 20px;">
+  <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+    <div style="text-align: center; margin-bottom: 32px;">
+      <div style="width: 64px; height: 64px; background: #4CAF50; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+        <span style="color: white; font-size: 24px;">✓</span>
+      </div>
+      <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 600;">注册成功</h1>
+    </div>
+    
+    <p style="color: #4a4a4a; font-size: 16px; line-height: 1.5; margin-bottom: 24px;">
+      恭喜您成功注册！请使用以下信息完成最后的验证步骤：
+    </p>
+    
+    <div style="background: #f1f8ff; border: 2px solid #e3f2fd; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+      <p style="color: #1976d2; font-size: 14px; margin: 0 0 8px 0; font-weight: 500;">激活码</p>
+      <div style="font-family: ''Courier New'', monospace; font-size: 28px; font-weight: bold; color: #1976d2; letter-spacing: 2px; margin: 8px 0;">H9CWQO</div>
+      <p style="color: #666; font-size: 12px; margin: 8px 0 0 0;">请在30分钟内使用</p>
+    </div>
+    
+    <div style="border-top: 1px solid #e0e0e0; padding-top: 24px; margin-top: 32px;">
+      <h3 style="color: #333; font-size: 16px; margin: 0 0 16px 0;">联系我们</h3>
+      <div style="display: flex; flex-wrap: wrap; gap: 16px;">
+        <div style="flex: 1; min-width: 200px;">
+          <p style="margin: 4px 0; color: #666; font-size: 14px;">
+            <strong>客服邮箱:</strong> admin@augmentcode.site
+          </p>
+          <p style="margin: 4px 0; color: #666; font-size: 14px;">
+            <strong>技术支持:</strong> sample3912@qq.com
+          </p>
+        </div>
+      </div>
+    </div>
+    
+    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <p style="margin: 0; color: #856404; font-size: 14px;">
+        <strong>重要提醒:</strong> 验证码 KZKCIH 仅用于账户激活，请妥善保管。
+      </p>
+    </div>
+  </div>
+</div>', '
+
+  
+    
+      
+        ✓
+      
+      注册成功
+    
+    
+    
+      恭喜您成功注册！请使用以下信息完成最后的验证步骤：
+    
+    
+    
+      激活码
+      H9CWQO
+      请在30分钟内使用
+    
+    
+    
+      联系我们
+      
+        
+          
+            客服邮箱: admin@augmentcode.site
+          
+          
+            技术支持: sample3912@qq.com
+          
+        
+      
+    
+    
+    
+      
+        重要提醒: 验证码 KZKCIH 仅用于账户激活，请妥善保管。
+      
+    
+  
+', '2025-08-22T18:45:46.287Z', 1, '[]', '<e17bfddb-ac1e-4c9c-9ff1-9c3d12913c01@test.local>', NULL, NULL),
+  ('c8458268-0772-45d8-9466-a98ed6e02725', 'admin@7ix.asia', 'tech@lx028l.xyz', 'Amazon', '重置密码验证码', '
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2>账户验证</h2>
+  <p>您好，</p>
+  <p>您正在进行账户验证，请使用以下验证码完成验证：</p>
+  <div style="background: #f5f5f5; padding: 20px; margin: 20px 0; text-align: center; border-radius: 8px;">
+    <h3 style="color: #333;">验证码: <strong style="color: #1890ff; font-size: 24px;">4S4MCRWB</strong></h3>
+    <p style="color: #666;">此验证码将在10分钟后过期</p>
+  </div>
+  <p>如有疑问，请联系客服: example9378@sohu.com</p>
+  <p>谢谢！</p>
+</div>', '
+
+  账户验证
+  您好，
+  您正在进行账户验证，请使用以下验证码完成验证：
+  
+    验证码: 4S4MCRWB
+    此验证码将在10分钟后过期
+  
+  如有疑问，请联系客服: example9378@sohu.com
+  谢谢！
+', '2025-08-26T08:31:18.554Z', 0, '[]', '<065a3958-652e-4c7e-ad8f-3db17d20e1e6@test.local>', NULL, NULL);
