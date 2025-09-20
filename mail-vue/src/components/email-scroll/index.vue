@@ -1089,43 +1089,51 @@ ul {
   margin: 0;
 }
 
-/* 邮箱地址高亮样式 - 简洁设计 */
+/* 邮箱地址高亮样式 - 简洁设计（无下划线） */
 :deep(.email-highlight) {
-  color: #409EFF;
-  text-decoration: underline;
-  text-decoration-style: dotted;
+  color: #1976d2;
+  background-color: rgba(25, 118, 210, 0.12);
+  text-decoration: none !important;
+  border: none !important;
+  border-bottom: none !important;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-weight: 500;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 3px;
 }
 
 :deep(.email-highlight:hover) {
-  color: #337ecc;
-  text-decoration-style: solid;
-  background-color: rgba(64, 158, 255, 0.1);
-  border-radius: 3px;
-  padding: 1px 2px;
+  color: #1565c0;
+  background-color: rgba(25, 118, 210, 0.2);
+  text-decoration: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  transform: translateY(-1px);
 }
 
-/* 验证码高亮样式 - 橙色浅色设计 */
+/* 验证码高亮样式 - 橙色浅色设计（无下划线） */
 :deep(.code-highlight) {
   color: #ff9800;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-decoration-color: #ffb74d;
+  background-color: rgba(255, 152, 0, 0.12);
+  text-decoration: none !important;
+  border: none !important;
+  border-bottom: none !important;
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 600;
   font-family: 'Courier New', monospace;
+  padding: 2px 4px;
+  border-radius: 3px;
 }
 
 :deep(.code-highlight:hover) {
   color: #f57c00;
-  text-decoration-style: solid;
-  text-decoration-color: #ff9800;
-  background-color: rgba(255, 152, 0, 0.1);
-  border-radius: 3px;
-  padding: 1px 2px;
+  background-color: rgba(255, 152, 0, 0.2);
+  text-decoration: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  transform: translateY(-1px);
 }
 
 /* 点击反馈动画 */
