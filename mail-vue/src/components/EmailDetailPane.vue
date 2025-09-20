@@ -54,10 +54,11 @@
       <!-- 邮件正文 -->
       <div class="email-body">
         <div class="content-wrapper">
-          <div 
-            v-if="selectedEmail.content" 
+          <div
+            v-if="selectedEmail.content"
             class="email-text"
             v-html="formatEmailContent(selectedEmail.content)"
+            @click="handleContentClick"
           />
           <div v-else class="no-content">
             <el-empty description="邮件内容为空" />
@@ -88,6 +89,8 @@
 import { computed, ref, watch } from 'vue'
 import { useEmailStore } from '@/store/email'
 import { Document } from '@element-plus/icons-vue'
+import { highlightEmailContent, extractHighlightValue, isHighlightElement } from '@/utils/email-highlight-utils.js'
+import { copyTextWithFeedback } from '@/utils/clipboard-utils.js'
 import dayjs from 'dayjs'
 
 const emailStore = useEmailStore()
@@ -121,11 +124,49 @@ const formatFileSize = (size) => {
 // 格式化邮件内容
 const formatEmailContent = (content) => {
   if (!content) return ''
-  
+
   // 简单的HTML清理和格式化
-  return content
+  const cleanedContent = content
     .replace(/\n/g, '<br>')
     .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+
+  // 应用高亮处理
+  return highlightEmailContent(cleanedContent, {
+    highlightEmails: true,
+    highlightCodes: true
+  });
+}
+
+// 处理内容点击事件
+const handleContentClick = (event) => {
+  const clickedElement = event.target;
+
+  // 检查是否点击了高亮元素
+  if (isHighlightElement(clickedElement)) {
+    event.stopPropagation();
+    const value = extractHighlightValue(clickedElement);
+    const type = clickedElement.getAttribute('data-type') ||
+                 clickedElement.closest('.email-highlight, .code-highlight')?.getAttribute('data-type');
+
+    if (value) {
+      // 根据类型显示不同的成功消息
+      let successMessage;
+      if (type === 'email') {
+        successMessage = `📧 已复制邮箱: ${value}`;
+      } else if (type === 'code') {
+        successMessage = `🔐 已复制验证码: ${value}`;
+      } else {
+        successMessage = `📋 已复制: ${value}`;
+      }
+
+      // 复制高亮内容到剪贴板
+      copyTextWithFeedback(value, {
+        successMessage,
+        errorMessage: '❌ 复制失败，请重试',
+        duration: 3000
+      });
+    }
+  }
 }
 
 // 监听选中邮件变化，模拟加载过程

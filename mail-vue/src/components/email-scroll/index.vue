@@ -1107,11 +1107,12 @@ ul {
   padding: 1px 2px;
 }
 
-/* 验证码高亮样式 - 简洁设计 */
+/* 验证码高亮样式 - 橙色浅色设计 */
 :deep(.code-highlight) {
-  color: #67C23A;
+  color: #ff9800;
   text-decoration: underline;
   text-decoration-style: dotted;
+  text-decoration-color: #ffb74d;
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 600;
@@ -1119,9 +1120,10 @@ ul {
 }
 
 :deep(.code-highlight:hover) {
-  color: #529b2e;
+  color: #f57c00;
   text-decoration-style: solid;
-  background-color: rgba(103, 194, 58, 0.1);
+  text-decoration-color: #ff9800;
+  background-color: rgba(255, 152, 0, 0.1);
   border-radius: 3px;
   padding: 1px 2px;
 }

@@ -49,9 +49,9 @@
       <div class="email-content-section">
         <el-scrollbar class="content-scrollbar" max-height="400px">
           <!-- HTML内容 -->
-          <div v-if="email.content" class="html-content" v-html="formatEmailContent(email.content)"></div>
+          <div v-if="email.content" class="html-content" v-html="formatEmailContent(email.content)" @click="handleContentClick"></div>
           <!-- 纯文本内容 -->
-          <pre v-else class="text-content">{{ email.text || '(无内容)' }}</pre>
+          <pre v-else class="text-content" v-html="formatEmailContent(email.text || '(无内容)')" @click="handleContentClick"></pre>
         </el-scrollbar>
       </div>
       
@@ -84,6 +84,8 @@
 import { ref, computed, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 import { formatDetailDate } from '@/utils/day.js';
+import { highlightEmailContent, extractHighlightValue, isHighlightElement } from '@/utils/email-highlight-utils.js';
+import { copyTextWithFeedback } from '@/utils/clipboard-utils.js';
 
 const props = defineProps({
   modelValue: {
@@ -135,13 +137,51 @@ function formatRecipient(recipient) {
 // 格式化邮件内容
 function formatEmailContent(content) {
   if (!content) return '';
-  
+
   // 简单的HTML清理，移除危险标签
-  return content
+  const cleanedContent = content
     .replace(/<script[^>]*>.*?<\/script>/gi, '')
     .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '')
     .replace(/<object[^>]*>.*?<\/object>/gi, '')
     .replace(/<embed[^>]*>/gi, '');
+
+  // 应用高亮处理
+  return highlightEmailContent(cleanedContent, {
+    highlightEmails: true,
+    highlightCodes: true
+  });
+}
+
+// 处理内容点击事件
+function handleContentClick(event) {
+  const clickedElement = event.target;
+
+  // 检查是否点击了高亮元素
+  if (isHighlightElement(clickedElement)) {
+    event.stopPropagation();
+    const value = extractHighlightValue(clickedElement);
+    const type = clickedElement.getAttribute('data-type') ||
+                 clickedElement.closest('.email-highlight, .code-highlight')?.getAttribute('data-type');
+
+    if (value) {
+      // 根据类型显示不同的成功消息
+      let successMessage;
+      if (type === 'email') {
+        successMessage = `📧 已复制邮箱: ${value}`;
+      } else if (type === 'code') {
+        successMessage = `🔐 已复制验证码: ${value}`;
+      } else {
+        successMessage = `📋 已复制: ${value}`;
+      }
+
+      // 复制高亮内容到剪贴板
+      copyTextWithFeedback(value, {
+        successMessage,
+        errorMessage: '❌ 复制失败，请重试',
+        duration: 3000
+      });
+    }
+  }
 }
 
 // 格式化文件大小

@@ -35,7 +35,7 @@
           </div>
           <el-scrollbar class="htm-scrollbar" :class="email.attList.length === 0 ? 'bottom-distance' : ''">
             <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content" />
-            <pre v-else class="email-text" >{{email.text}}</pre>
+            <div v-else class="email-text" v-html="formatTextContent(email.text)" @click="handleContentClick"></div>
           </el-scrollbar>
           <div class="att" v-if="email.attList.length > 0">
             <div class="att-title">
@@ -90,6 +90,8 @@ import {useSettingStore} from "@/store/setting.js";
 import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
+import { highlightEmailContent, extractHighlightValue, isHighlightElement } from '@/utils/email-highlight-utils.js';
+import { copyTextWithFeedback } from '@/utils/clipboard-utils.js';
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
@@ -196,6 +198,49 @@ const handleDelete = () => {
 
     router.back()
   })
+}
+
+// 格式化纯文本内容，应用高亮处理
+function formatTextContent(text) {
+  if (!text) return '';
+
+  // 应用高亮处理
+  return highlightEmailContent(text, {
+    highlightEmails: true,
+    highlightCodes: true
+  });
+}
+
+// 处理内容点击事件
+function handleContentClick(event) {
+  const clickedElement = event.target;
+
+  // 检查是否点击了高亮元素
+  if (isHighlightElement(clickedElement)) {
+    event.stopPropagation();
+    const value = extractHighlightValue(clickedElement);
+    const type = clickedElement.getAttribute('data-type') ||
+                 clickedElement.closest('.email-highlight, .code-highlight')?.getAttribute('data-type');
+
+    if (value) {
+      // 根据类型显示不同的成功消息
+      let successMessage;
+      if (type === 'email') {
+        successMessage = `📧 已复制邮箱: ${value}`;
+      } else if (type === 'code') {
+        successMessage = `🔐 已复制验证码: ${value}`;
+      } else {
+        successMessage = `📋 已复制: ${value}`;
+      }
+
+      // 复制高亮内容到剪贴板
+      copyTextWithFeedback(value, {
+        successMessage,
+        errorMessage: '❌ 复制失败，请重试',
+        duration: 3000
+      });
+    }
+  }
 }
 </script>
 <style scoped lang="scss">

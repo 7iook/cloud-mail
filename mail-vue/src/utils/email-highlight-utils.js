@@ -97,7 +97,7 @@ function isCommonWord(text) {
 }
 
 /**
- * 为文本添加高亮标记 - 简化版本修复HTML渲染问题
+ * 为文本添加高亮标记 - 完全重写修复HTML属性泄露问题
  * @param {string} text - 原始文本
  * @param {Object} options - 配置选项
  * @returns {string} 带高亮标记的HTML
@@ -106,31 +106,33 @@ export function highlightEmailContent(text, options = {}) {
   if (!text || typeof text !== 'string') return text;
 
   const { highlightEmails = true, highlightCodes = true } = options;
-  let highlightedText = text;
+
+  // 首先清理已存在的高亮标签，避免重复处理
+  let cleanText = text
+    .replace(/<span[^>]*class="[^"]*highlight[^"]*"[^>]*>/g, '')
+    .replace(/<\/span>/g, '')
+    .replace(/"\s*title="[^"]*">/g, ''); // 清理泄露的HTML属性
 
   // 高亮邮箱地址
   if (highlightEmails) {
-    highlightedText = highlightedText.replace(EMAIL_REGEX, (match) => {
-      // 确保HTML属性值被正确转义
+    cleanText = cleanText.replace(EMAIL_REGEX, (match) => {
       const escapedMatch = match.replace(/"/g, '&quot;');
       return `<span class="email-highlight" data-type="email" data-value="${escapedMatch}" title="点击复制邮箱地址">${match}</span>`;
     });
   }
 
-  // 高亮验证码 - 简化处理逻辑
+  // 高亮验证码
   if (highlightCodes) {
-    // 简单的验证码匹配模式
     const simpleCodePatterns = [
       /\b[A-Z0-9]{4,8}\b/g,                     // 4-8位大写字母数字组合
       /\b\d{4,8}\b/g,                           // 4-8位纯数字
     ];
 
     simpleCodePatterns.forEach(pattern => {
-      highlightedText = highlightedText.replace(pattern, (match) => {
-        // 过滤掉常见单词
+      cleanText = cleanText.replace(pattern, (match) => {
+        // 过滤掉常见单词，并确保不在已有的HTML标签内
         if (!isCommonWord(match) && match.length >= 4) {
-          // 确保HTML属性值被正确转义
-          const escapedMatch = match.replace(/"/g, '&quot;');
+          const escapedMatch = match.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
           return `<span class="code-highlight" data-type="code" data-value="${escapedMatch}" title="点击复制验证码">${match}</span>`;
         }
         return match;
@@ -138,7 +140,7 @@ export function highlightEmailContent(text, options = {}) {
     });
   }
 
-  return highlightedText;
+  return cleanText;
 }
 
 /**
@@ -167,17 +169,30 @@ export function hasHighlightableContent(text) {
  * @returns {string|null} 提取的值
  */
 export function extractHighlightValue(element) {
+  let targetElement = null;
+
   // 检查是否是高亮元素
   if (element.classList.contains('email-highlight') || element.classList.contains('code-highlight')) {
-    return element.getAttribute('data-value');
+    targetElement = element;
+  } else {
+    // 检查父元素
+    targetElement = element.closest('.email-highlight, .code-highlight');
   }
-  
-  // 检查父元素
-  const parent = element.closest('.email-highlight, .code-highlight');
-  if (parent) {
-    return parent.getAttribute('data-value');
+
+  if (targetElement) {
+    // 优先使用 data-value 属性
+    const dataValue = targetElement.getAttribute('data-value');
+    if (dataValue) {
+      return dataValue;
+    }
+
+    // 回退到使用元素的文本内容
+    const textContent = targetElement.textContent?.trim();
+    if (textContent) {
+      return textContent;
+    }
   }
-  
+
   return null;
 }
 
