@@ -50,6 +50,9 @@ importers:
       pinia-plugin-persistedstate:
         specifier: ^4.2.0
         version: 4.5.0(pinia@3.0.3(vue@3.5.20))
+      splitpanes:
+        specifier: ^4.0.4
+        version: 4.0.4(vue@3.5.20)
       vue:
         specifier: ^3.5.13
         version: 3.5.20
@@ -2160,6 +2163,11 @@ packages:
   speakingurl@14.0.1:
     resolution: {integrity: sha512-1POYv7uv2gXoyGFpBCmpDVSNV74IfsWlDW216UPjbWufNf+bSU6GdbDsxdcxtfwb4xlI3yxzOTKClUosxARYrQ==}
     engines: {node: '>=0.10.0'}
+
+  splitpanes@4.0.4:
+    resolution: {integrity: sha512-RbysugZhjbCw5fgplvk3hOXr41stahQDtZhHVkhnnJI6H4wlGDhM2kIpbehy7v92duy9GnMa8zIhHigIV1TWtg==}
+    peerDependencies:
+      vue: ^3.2.0
 
   stop-iteration-iterator@1.1.0:
     resolution: {integrity: sha512-eLoXW/DHyl62zxY4SCaIgnRhuMr6ri4juEYARS8E6sCEqzKpOiE521Ucofdx+KnDZl5xmvGYaaKCk5FEOxJCoQ==}
@@ -4737,6 +4745,10 @@ snapshots:
   sourcemap-codec@1.4.8: {}
 
   speakingurl@14.0.1: {}
+
+  splitpanes@4.0.4(vue@3.5.20):
+    dependencies:
+      vue: 3.5.20
 
   stop-iteration-iterator@1.1.0:
     dependencies:
