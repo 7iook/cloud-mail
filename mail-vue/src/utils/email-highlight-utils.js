@@ -107,21 +107,46 @@ export function highlightEmailContent(text, options = {}) {
 
   const { highlightEmails = true, highlightCodes = true } = options;
 
-  // 首先清理已存在的高亮标签，避免重复处理
+  // 第一步：彻底清理所有可能的HTML标签和属性泄露
   let cleanText = text
-    .replace(/<span[^>]*class="[^"]*highlight[^"]*"[^>]*>/g, '')
-    .replace(/<\/span>/g, '')
-    .replace(/"\s*title="[^"]*">/g, ''); // 清理泄露的HTML属性
+    // 移除所有高亮相关的span标签
+    .replace(/<span[^>]*class="[^"]*highlight[^"]*"[^>]*>([^<]*)<\/span>/g, '$1')
+    // 移除孤立的span标签
+    .replace(/<\/?span[^>]*>/g, '')
+    // 清理各种可能的HTML属性泄露模式
+    .replace(/[^>]*"\s*title="[^"]*">/g, '') // 清理 title 属性泄露
+    .replace(/[^>]*"\s*data-[^=]*="[^"]*">/g, '') // 清理 data 属性泄露
+    .replace(/[^>]*"\s*class="[^"]*">/g, '') // 清理 class 属性泄露
+    // 清理更复杂的HTML属性泄露模式
+    .replace(/\d+"\s*title="[^"]*">\d+/g, (match) => {
+      // 提取数字部分，去掉HTML属性
+      const numbers = match.match(/\d+/g);
+      return numbers ? numbers[0] : match;
+    })
+    // 清理任何残留的HTML标签片段
+    .replace(/<[^>]*>/g, '')
+    // 清理HTML实体
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
 
-  // 高亮邮箱地址
+  // 第二步：检查是否已经被处理过，避免重复处理
+  if (cleanText.includes('class="email-highlight"') || cleanText.includes('class="code-highlight"')) {
+    return cleanText;
+  }
+
+  // 第三步：高亮邮箱地址
   if (highlightEmails) {
     cleanText = cleanText.replace(EMAIL_REGEX, (match) => {
-      const escapedMatch = match.replace(/"/g, '&quot;');
+      // 确保匹配的内容不在HTML标签内
+      const escapedMatch = match.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       return `<span class="email-highlight" data-type="email" data-value="${escapedMatch}" title="点击复制邮箱地址">${match}</span>`;
     });
   }
 
-  // 高亮验证码
+  // 第四步：高亮验证码
   if (highlightCodes) {
     const simpleCodePatterns = [
       /\b[A-Z0-9]{4,8}\b/g,                     // 4-8位大写字母数字组合
@@ -131,7 +156,7 @@ export function highlightEmailContent(text, options = {}) {
     simpleCodePatterns.forEach(pattern => {
       cleanText = cleanText.replace(pattern, (match) => {
         // 过滤掉常见单词，并确保不在已有的HTML标签内
-        if (!isCommonWord(match) && match.length >= 4) {
+        if (!isCommonWord(match) && match.length >= 4 && !cleanText.includes(`>${match}</span>`)) {
           const escapedMatch = match.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
           return `<span class="code-highlight" data-type="code" data-value="${escapedMatch}" title="点击复制验证码">${match}</span>`;
         }
