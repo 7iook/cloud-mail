@@ -124,6 +124,11 @@ const emailService = {
 	},
 
 	receive(c, params, cidAttList, r2domain) {
+		// 添加HTML清理逻辑，移除样式标签和属性
+		if (params.content) {
+			params.content = this.cleanHtmlContent(params.content);
+		}
+
 		params.content = this.imgReplace(params.content, cidAttList, r2domain)
 		return orm(c).insert(email).values({ ...params }).returning().get();
 	},
@@ -702,6 +707,44 @@ const emailService = {
 		await attService.removeByEmailIds(c, emailIds);
 
 		await orm(c).delete(email).where(conditions.length > 1 ? and(...conditions) : conditions[0]).run();
+	},
+
+	/**
+	 * 清理HTML内容，移除样式标签和属性，防止CSS样式泄露
+	 * @param {string} content - 原始HTML内容
+	 * @returns {string} - 清理后的HTML内容
+	 */
+	cleanHtmlContent(content) {
+		if (!content || typeof content !== 'string') {
+			return content;
+		}
+
+		try {
+			const { document } = parseHTML(content);
+
+			// 移除所有style、script、title标签及其内容
+			document.querySelectorAll('style, script, title').forEach(el => el.remove());
+
+			// 移除所有元素的style属性，防止内联样式泄露
+			document.querySelectorAll('*[style]').forEach(el => {
+				el.removeAttribute('style');
+			});
+
+			// 移除其他可能导致样式泄露的属性
+			document.querySelectorAll('*[class]').forEach(el => {
+				// 保留一些安全的class，移除可能有问题的class
+				const className = el.getAttribute('class');
+				if (className && className.includes('External')) {
+					el.removeAttribute('class');
+				}
+			});
+
+			return document.toString();
+		} catch (error) {
+			console.error('HTML清理失败:', error);
+			// 如果解析失败，返回原内容，避免邮件丢失
+			return content;
+		}
 	}
 };
 
