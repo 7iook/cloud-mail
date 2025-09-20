@@ -156,9 +156,15 @@ export function highlightEmailContent(text, options = {}) {
     simpleCodePatterns.forEach(pattern => {
       cleanText = cleanText.replace(pattern, (match) => {
         // 过滤掉常见单词，并确保不在已有的HTML标签内
-        if (!isCommonWord(match) && match.length >= 4 && !cleanText.includes(`>${match}</span>`)) {
-          const escapedMatch = match.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-          return `<span class="code-highlight" data-type="code" data-value="${escapedMatch}" title="点击复制验证码">${match}</span>`;
+        if (!isCommonWord(match) && match.length >= 4) {
+          // 检查是否已经被高亮处理过
+          const alreadyHighlighted = cleanText.includes(`<span class="code-highlight"`) &&
+                                   cleanText.includes(`>${match}</span>`);
+
+          if (!alreadyHighlighted) {
+            const escapedMatch = match.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            return `<span class="code-highlight" data-type="code" data-value="${escapedMatch}" title="点击复制验证码">${match}</span>`;
+          }
         }
         return match;
       });
