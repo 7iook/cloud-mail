@@ -14,6 +14,7 @@ import { isDel, roleConst } from '../const/entity-const';
 import email from '../entity/email';
 import userService from './user-service';
 import KvConst from '../const/kv-const';
+import jwtUtils from '../utils/jwt-utils';
 
 const publicService = {
 
@@ -164,11 +165,56 @@ const publicService = {
 
 		await this.verifyUser(c, params)
 
-		const uuid = uuidv4();
+		// Check if JWT optimization is enabled
+		const useJwtOptimization = c.env.ENABLE_JWT_OPTIMIZATION !== 'false';
+		
+		if (useJwtOptimization) {
+			return await this.genTokenJWT(c, params);
+		} else {
+			// Legacy token generation (fallback)
+			const uuid = uuidv4();
+			await c.env.kv.put(KvConst.PUBLIC_KEY, uuid);
+			return {token: uuid}
+		}
+	},
 
-		await c.env.kv.put(KvConst.PUBLIC_KEY, uuid);
-
-		return {token: uuid}
+	async genTokenJWT(c, params) {
+		// Check if we have a cached valid JWT token
+		const cachedToken = await c.env.kv.get(KvConst.PUBLIC_JWT_TOKEN);
+		
+		if (cachedToken) {
+			try {
+				const decoded = await jwtUtils.verifyToken(c, cachedToken);
+				const now = Math.floor(Date.now() / 1000);
+				const timeUntilExpiry = decoded.exp - now;
+				
+				// If token has more than 7 days (604800 seconds) remaining, return it
+				if (timeUntilExpiry > 604800) {
+					return {token: cachedToken};
+				}
+				
+				// If token has less than 7 days but is still valid, generate new one
+				// This implements auto-renewal mechanism
+			} catch (error) {
+				// Token is invalid, generate new one
+			}
+		}
+		
+		// Generate new JWT token with 30-day expiration
+		const payload = {
+			type: 'public_api',
+			iat: Math.floor(Date.now() / 1000),
+			exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60) // 30 days
+		};
+		
+		const jwtToken = await jwtUtils.generateToken(c, payload);
+		
+		// Cache the token in KV with 30-day TTL
+		await c.env.kv.put(KvConst.PUBLIC_JWT_TOKEN, jwtToken, {
+			expirationTtl: 30 * 24 * 60 * 60 // 30 days in seconds
+		});
+		
+		return {token: jwtToken};
 	},
 
 	async verifyUser(c, params) {

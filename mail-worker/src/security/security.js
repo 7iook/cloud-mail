@@ -95,9 +95,25 @@ app.use('*', async (c, next) => {
 	}
 
 	if (path.startsWith('/public')) {
-
-		const userPublicToken = await c.env.kv.get(KvConst.PUBLIC_KEY);
 		const publicToken = c.req.header(constant.TOKEN_HEADER);
+		
+		// Check if JWT optimization is enabled
+		const useJwtOptimization = c.env.ENABLE_JWT_OPTIMIZATION !== 'false';
+		
+		if (useJwtOptimization) {
+			// Try JWT verification first
+			try {
+				const decoded = await jwtUtils.verifyToken(c, publicToken);
+				if (decoded && decoded.type === 'public_api') {
+					return await next();
+				}
+			} catch (error) {
+				// JWT verification failed, try legacy verification as fallback
+			}
+		}
+		
+		// Legacy token verification (fallback)
+		const userPublicToken = await c.env.kv.get(KvConst.PUBLIC_KEY);
 		if (publicToken !== userPublicToken) {
 			throw new BizError(t('publicTokenFail'), 401);
 		}

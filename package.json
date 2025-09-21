@@ -1,0 +1,52 @@
+{
+  "name": "email-monitoring-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive end-to-end testing suite for email monitoring functionality",
+  "main": "run-monitoring-tests.js",
+  "scripts": {
+    "test": "node run-monitoring-tests.js",
+    "test:e2e": "node email-monitoring-e2e-test.js",
+    "test:frontend": "node frontend-monitoring-test.js",
+    "test:verbose": "node run-monitoring-tests.js --verbose",
+    "test:no-frontend": "node run-monitoring-tests.js --skip-frontend",
+    "test:dev": "TEST_BASE_URL=http://localhost:8787 npm run test",
+    "test:staging": "TEST_BASE_URL=https://staging.example.com npm run test",
+    "test:production": "TEST_BASE_URL=https://production.example.com npm run test",
+    "cleanup": "node -e \"require('./email-monitoring-e2e-test.js').cleanup()\"",
+    "help": "node run-monitoring-tests.js --help"
+  },
+  "keywords": [
+    "email",
+    "monitoring",
+    "testing",
+    "e2e",
+    "automation",
+    "cloudflare",
+    "d1",
+    "workers"
+  ],
+  "author": "Email Monitoring Team",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/email-monitoring.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/email-monitoring/issues"
+  },
+  "homepage": "https://github.com/your-org/email-monitoring#readme",
+  "config": {
+    "test_timeout": 30000,
+    "default_base_url": "http://localhost:8787"
+  }
+}
