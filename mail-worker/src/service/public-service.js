@@ -166,10 +166,18 @@ const publicService = {
 		await this.verifyUser(c, params)
 
 		// Check if JWT optimization is enabled
-		const useJwtOptimization = c.env.ENABLE_JWT_OPTIMIZATION !== 'false';
+		const useJwtOptimization = c.env.ENABLE_JWT_OPTIMIZATION === 'true';
 		
 		if (useJwtOptimization) {
-			return await this.genTokenJWT(c, params);
+			try {
+				return await this.genTokenJWT(c, params);
+			} catch (error) {
+				console.error('JWT token generation failed, falling back to legacy:', error);
+				// Fallback to legacy token generation if JWT fails
+				const uuid = uuidv4();
+				await c.env.kv.put(KvConst.PUBLIC_KEY, uuid);
+				return {token: uuid}
+			}
 		} else {
 			// Legacy token generation (fallback)
 			const uuid = uuidv4();

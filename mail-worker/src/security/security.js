@@ -98,7 +98,7 @@ app.use('*', async (c, next) => {
 		const publicToken = c.req.header(constant.TOKEN_HEADER);
 		
 		// Check if JWT optimization is enabled
-		const useJwtOptimization = c.env.ENABLE_JWT_OPTIMIZATION !== 'false';
+		const useJwtOptimization = c.env.ENABLE_JWT_OPTIMIZATION === 'true';
 		
 		if (useJwtOptimization) {
 			// Try JWT verification first
@@ -108,6 +108,7 @@ app.use('*', async (c, next) => {
 					return await next();
 				}
 			} catch (error) {
+				console.error('JWT verification failed, trying legacy:', error);
 				// JWT verification failed, try legacy verification as fallback
 			}
 		}

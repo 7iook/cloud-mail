@@ -1,0 +1,309 @@
+# Agents 目录索引文档
+
+## 高优先级文件（建议保留）
+
+### 前端开发核心
+- **frontend-developer.md**：React/Next.js前端开发专家
+  - 开发价值：前端开发核心工具，掌握React 19+、Next.js 15+等现代前端技术
+
+- **javascript-pro.md**：现代JavaScript专家
+  - 开发价值：JavaScript核心技能，ES6+、异步编程、Node.js API等
+
+- **typescript-pro.md**：TypeScript高级开发专家
+  - 开发价值：类型安全开发，高级类型系统、泛型、企业级模式
+
+- **ui-ux-designer.md**：UI/UX设计专家
+  - 开发价值：设计系统、用户体验、可访问性设计，前端开发必备
+
+### 开发工具与架构
+- **code-reviewer.md**：代码审查专家
+  - 开发价值：代码质量保证，最佳实践检查
+
+- **debugger.md**：调试专家
+  - 开发价值：问题诊断和解决，开发效率提升
+
+- **error-detective.md**：错误检测专家
+  - 开发价值：错误分析和修复，提高代码稳定性
+
+- **performance-engineer.md**：性能优化工程师
+  - 开发价值：应用性能优化，用户体验提升
+
+- **test-automator.md**：测试自动化专家
+  - 开发价值：自动化测试，质量保证
+
+- **tdd-orchestrator.md**：测试驱动开发专家
+  - 开发价值：TDD方法论，提高代码质量
+
+### 文档与API
+- **api-documenter.md**：API文档专家
+  - 开发价值：API文档编写，接口规范化
+
+- **docs-architect.md**：文档架构师
+  - 开发价值：技术文档体系建设
+
+- **tutorial-engineer.md**：教程工程师
+  - 开发价值：技术教程和学习资料创建
+
+## 中优先级文件（可选保留）
+
+### 后端与全栈
+- **backend-architect.md**：后端架构师
+  - 开发价值：后端系统设计，可能用于全栈开发
+
+- **python-pro.md**：Python专家
+  - 开发价值：后端开发、数据处理、自动化脚本
+
+- **nodejs-pro.md**：Node.js专家（如果存在）
+  - 开发价值：服务端JavaScript开发
+
+### 数据库与数据
+- **database-admin.md**：数据库管理员
+  - 开发价值：数据库设计和优化
+
+- **sql-pro.md**：SQL专家
+  - 开发价值：数据库查询优化
+
+### 安全与质量
+- **security-auditor.md**：安全审计专家
+  - 开发价值：应用安全检查
+
+- **frontend-security-coder.md**：前端安全专家
+  - 开发价值：前端安全最佳实践
+
+### 移动开发
+- **mobile-developer.md**：移动开发专家
+  - 开发价值：跨平台移动应用开发
+
+- **flutter-expert.md**：Flutter专家
+  - 开发价值：跨平台移动应用开发
+
+- **ios-developer.md**：iOS开发专家
+  - 开发价值：iOS原生应用开发
+
+### 云服务与部署
+- **cloud-architect.md**：云架构师
+  - 开发价值：云服务部署和架构
+
+- **deployment-engineer.md**：部署工程师
+  - 开发价值：应用部署和CI/CD
+
+- **devops-troubleshooter.md**：DevOps故障排除专家
+  - 开发价值：运维问题解决
+
+### 特定框架
+- **django-pro.md**：Django专家
+  - 开发价值：Python Web框架开发
+
+- **fastapi-pro.md**：FastAPI专家
+  - 开发价值：现代Python API开发
+
+- **graphql-architect.md**：GraphQL架构师
+  - 开发价值：API查询语言实现
+
+### 工具与可视化
+- **mermaid-expert.md**：Mermaid图表专家
+  - 开发价值：技术文档图表制作
+
+- **search-specialist.md**：搜索专家
+  - 开发价值：搜索功能实现
+
+## 低优先级文件（建议移除）
+
+### 金融与量化分析
+- **quant-analyst.md**：量化分析师
+  - 移除理由：专门用于金融量化分析，与前端开发无关
+
+- **risk-manager.md**：风险管理专家
+  - 移除理由：金融风险管理，非技术开发相关
+
+### 游戏开发
+- **minecraft-bukkit-pro.md**：Minecraft插件开发专家
+  - 移除理由：特定游戏开发，与前端开发无关
+
+- **unity-developer.md**：Unity游戏开发专家
+  - 移除理由：游戏引擎开发，与Web前端开发无关
+
+### SEO与营销
+- **seo-content-writer.md**：SEO内容写手
+  - 移除理由：内容营销，非技术开发工具
+
+- **seo-authority-builder.md**：SEO权威建设专家
+  - 移除理由：SEO营销策略，与开发无关
+
+- **seo-cannibalization-detector.md**：SEO内容冲突检测器
+  - 移除理由：SEO分析工具，非开发相关
+
+- **seo-content-auditor.md**：SEO内容审计专家
+  - 移除理由：内容审计，非技术开发
+
+- **seo-content-planner.md**：SEO内容规划师
+  - 移除理由：内容策划，与开发无关
+
+- **seo-content-refresher.md**：SEO内容更新专家
+  - 移除理由：内容维护，非开发工具
+
+- **seo-keyword-strategist.md**：SEO关键词策略师
+  - 移除理由：关键词研究，与开发无关
+
+- **seo-meta-optimizer.md**：SEO元数据优化器
+  - 移除理由：虽然涉及技术，但过于专门化
+
+- **seo-snippet-hunter.md**：SEO片段猎手
+  - 移除理由：SEO优化工具，非核心开发需求
+
+- **seo-structure-architect.md**：SEO结构架构师
+  - 移除理由：SEO结构优化，边缘开发需求
+
+### 商业与管理
+- **business-analyst.md**：业务分析师
+  - 移除理由：业务分析，非技术开发
+
+- **sales-automator.md**：销售自动化专家
+  - 移除理由：销售工具，与开发无关
+
+- **content-marketer.md**：内容营销专家
+  - 移除理由：市场营销，非技术开发
+
+- **customer-support.md**：客户支持专家
+  - 移除理由：客服支持，与开发无关
+
+- **hr-pro.md**：人力资源专家
+  - 移除理由：人事管理，与开发无关
+
+- **legal-advisor.md**：法律顾问
+  - 移除理由：法律咨询，与开发无关
+
+### 特定语言（非前端相关）
+- **c-pro.md**：C语言专家
+  - 移除理由：系统编程语言，与前端开发无关
+
+- **cpp-pro.md**：C++专家
+  - 移除理由：系统编程，与Web前端无关
+
+- **csharp-pro.md**：C#专家
+  - 移除理由：.NET开发，与前端JavaScript生态无关
+
+- **java-pro.md**：Java专家
+  - 移除理由：企业级后端开发，与前端无关
+
+- **golang-pro.md**：Go语言专家
+  - 移除理由：后端服务开发，与前端无关
+
+- **rust-pro.md**：Rust专家
+  - 移除理由：系统编程，与前端开发无关
+
+- **scala-pro.md**：Scala专家
+  - 移除理由：函数式编程，与前端无关
+
+- **elixir-pro.md**：Elixir专家
+  - 移除理由：并发编程语言，与前端无关
+
+- **ruby-pro.md**：Ruby专家
+  - 移除理由：后端Web开发，与前端无关
+
+- **php-pro.md**：PHP专家
+  - 移除理由：服务端脚本，与现代前端开发无关
+
+### 基础设施与运维
+- **kubernetes-architect.md**：Kubernetes架构师
+  - 移除理由：容器编排，运维相关，非前端开发
+
+- **terraform-specialist.md**：Terraform专家
+  - 移除理由：基础设施即代码，运维工具
+
+- **network-engineer.md**：网络工程师
+  - 移除理由：网络基础设施，与应用开发无关
+
+- **hybrid-cloud-architect.md**：混合云架构师
+  - 移除理由：云基础设施，运维相关
+
+- **incident-responder.md**：事件响应专家
+  - 移除理由：运维故障处理，非开发工具
+
+### 数据科学与AI
+- **data-scientist.md**：数据科学家
+  - 移除理由：数据分析和机器学习，与前端开发无关
+
+- **data-engineer.md**：数据工程师
+  - 移除理由：数据管道建设，后端数据处理
+
+- **ml-engineer.md**：机器学习工程师
+  - 移除理由：AI模型开发，与前端开发无关
+
+- **mlops-engineer.md**：MLOps工程师
+  - 移除理由：机器学习运维，与前端无关
+
+- **ai-engineer.md**：AI工程师
+  - 移除理由：人工智能开发，与前端开发无关
+
+- **prompt-engineer.md**：提示工程师
+  - 移除理由：AI提示优化，与前端开发无关
+
+### 特定领域
+- **blockchain-developer.md**：区块链开发者
+  - 移除理由：区块链技术，特定领域应用
+
+- **payment-integration.md**：支付集成专家
+  - 移除理由：支付系统集成，特定业务需求
+
+- **legacy-modernizer.md**：遗留系统现代化专家
+  - 移除理由：系统迁移，特定项目需求
+
+### 其他工具
+- **agent-organizer.md**：代理组织器
+  - 移除理由：元工具，管理其他代理，非直接开发工具
+
+- **context-manager.md**：上下文管理器
+  - 移除理由：工具管理，非直接开发功能
+
+- **reference-builder.md**：参考构建器
+  - 移除理由：文档引用工具，边缘需求
+
+- **architect-review.md**：架构审查专家
+  - 移除理由：架构评审，可能与code-reviewer重复
+
+- **dx-optimizer.md**：开发者体验优化器
+  - 移除理由：开发体验优化，可能与其他工具重复
+
+- **database-optimizer.md**：数据库优化器
+  - 移除理由：数据库性能优化，后端相关
+
+- **mobile-security-coder.md**：移动安全编码专家
+  - 移除理由：移动安全，特定领域
+
+- **backend-security-coder.md**：后端安全编码专家
+  - 移除理由：后端安全，与前端开发无关
+
+- **ui-visual-validator.md**：UI视觉验证器
+  - 移除理由：可能与ui-ux-designer功能重复
+
+## 总结建议
+
+- **保留文件数量**：25个（高优先级15个 + 中优先级10个）
+- **移除文件数量**：58个
+- **整体评估**：
+  1. 目录中包含大量与前端开发无关的专业工具
+  2. 建议保留核心前端开发工具和相关支持工具
+  3. 移除所有SEO营销、金融分析、游戏开发等非相关领域工具
+  4. 保留部分后端和全栈工具以支持完整的Web开发流程
+  5. 重点关注JavaScript/TypeScript生态系统相关工具
+  6. 建议定期审查和更新，确保工具集与项目需求匹配
+
+### 推荐的最小核心集合（15个文件）：
+1. frontend-developer.md
+2. javascript-pro.md  
+3. typescript-pro.md
+4. ui-ux-designer.md
+5. code-reviewer.md
+6. debugger.md
+7. error-detective.md
+8. performance-engineer.md
+9. test-automator.md
+10. api-documenter.md
+11. docs-architect.md
+12. security-auditor.md
+13. mobile-developer.md
+14. deployment-engineer.md
+15. mermaid-expert.md
+
+这个核心集合涵盖了前端开发的所有关键环节：开发、测试、调试、优化、文档、安全和部署。
