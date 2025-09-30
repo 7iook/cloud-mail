@@ -15,6 +15,23 @@ enabled = true
 #binding = "kv"			#kv绑定名默认不可修改
 #id = ""					#kv数据库id
 
+# Rate Limiting 配置（仅限制恶意用户）
+# 取消注释以下配置以启用频率限制
+#[[ratelimits]]
+#name = "STRICT_RATE_LIMITER"
+#namespace_id = "1001"
+#simple = { limit = 5, period = 1 }  # 1秒内最多5次
+
+#[[ratelimits]]
+#name = "MODERATE_RATE_LIMITER"
+#namespace_id = "1002"
+#simple = { limit = 20, period = 10 }  # 10秒内最多20次
+
+#[[ratelimits]]
+#name = "LOOSE_RATE_LIMITER"
+#namespace_id = "1003"
+#simple = { limit = 60, period = 60 }  # 60秒内最多60次
+
 #[[r2_buckets]]
 #binding = "r2"			#r2对象存储绑定名默认不可修改
 #bucket_name = ""		#r2对象存储桶的名字

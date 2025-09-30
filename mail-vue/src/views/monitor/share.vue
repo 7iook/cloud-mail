@@ -268,12 +268,13 @@ import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Warning, Refresh, Message, Loading, Check } from '@element-plus/icons-vue';
 import { useEmailStore } from '@/store/email.js';
-import { monitorGetByShareToken, monitorGetEmailsByShareToken } from '@/request/monitor.js';
+import { getShareInfo, getShareEmails } from '@/request/share.js';
 import { highlightEmailContent, extractHighlightValue, isHighlightElement, extractVerificationCodes } from '@/utils/email-highlight-utils.js';
 import { copyTextWithFeedback } from '@/utils/clipboard-utils.js';
 import SplitPaneLayout from '@/components/SplitPaneLayout.vue';
 import LayoutModeSelector from '@/components/LayoutModeSelector.vue';
 import EmailDetailPane from '@/components/EmailDetailPane.vue';
+import DOMPurify from 'dompurify';
 
 // 路由参数
 const route = useRoute();
@@ -299,8 +300,13 @@ const currentEmail = ref(null);
 
 // 自动刷新相关
 const autoRefreshTimer = ref(null);
-const autoRefreshInterval = ref(30); // 30秒自动刷新
+const autoRefreshInterval = ref(30); // 30秒自动刷新（将从后端配置读取）
 const existIds = new Set();
+
+// SSE 实时推送相关
+const eventSource = ref(null);
+const useSSE = ref(true); // 是否使用 SSE 实时推送
+const sseConnected = ref(false);
 
 // 测试功能相关
 const simulating = ref(false);
@@ -395,6 +401,94 @@ const initScrollFix = () => {
   });
 };
 
+// SSE 连接函数
+const connectSSE = () => {
+  if (!useSSE.value || !shareToken) return;
+
+  try {
+    // 关闭现有连接
+    if (eventSource.value) {
+      eventSource.value.close();
+    }
+
+    // 创建新的 SSE 连接
+    const url = `/api/share/stream/${shareToken}`;
+    eventSource.value = new EventSource(url);
+
+    eventSource.value.onopen = () => {
+      sseConnected.value = true;
+      console.log('SSE 连接已建立');
+    };
+
+    eventSource.value.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'connected') {
+          // 连接成功，更新刷新间隔
+          if (data.refreshInterval) {
+            autoRefreshInterval.value = data.refreshInterval;
+          }
+        } else if (data.type === 'new_emails') {
+          // 收到新邮件，更新列表
+          if (data.emails && data.emails.length > 0) {
+            // 合并新邮件到列表
+            const newEmails = data.emails.filter(email => !existIds.has(email.emailId));
+            if (newEmails.length > 0) {
+              emailsList.value = [...newEmails, ...emailsList.value];
+              newEmails.forEach(email => existIds.add(email.emailId));
+              ElMessage.success(`收到 ${newEmails.length} 封新邮件`);
+            }
+          }
+        } else if (data.type === 'error') {
+          console.error('SSE 错误:', data.message);
+        }
+      } catch (err) {
+        console.error('解析 SSE 消息失败:', err);
+      }
+    };
+
+    eventSource.value.onerror = (error) => {
+      console.error('SSE 连接错误:', error);
+      sseConnected.value = false;
+
+      // 连接失败，降级到轮询模式
+      if (eventSource.value) {
+        eventSource.value.close();
+        eventSource.value = null;
+      }
+
+      // 启动轮询作为备用方案
+      if (!autoRefreshTimer.value) {
+        startAutoRefresh();
+      }
+    };
+
+  } catch (error) {
+    console.error('创建 SSE 连接失败:', error);
+    useSSE.value = false;
+    startAutoRefresh(); // 降级到轮询
+  }
+};
+
+// 断开 SSE 连接
+const disconnectSSE = () => {
+  if (eventSource.value) {
+    eventSource.value.close();
+    eventSource.value = null;
+    sseConnected.value = false;
+  }
+};
+
+// XSS 防护：清理 HTML 内容
+const sanitizeHTML = (html) => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['span', 'div', 'p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li'],
+    ALLOWED_ATTR: ['class', 'style', 'href', 'target'],
+    ALLOW_DATA_ATTR: false
+  });
+};
+
 // 初始化
 onMounted(async () => {
   // 加载分屏布局设置
@@ -403,7 +497,13 @@ onMounted(async () => {
   await loadMonitorConfig();
   if (monitorConfig.value) {
     await loadMonitorEmails();
-    startAutoRefresh();
+
+    // 优先使用 SSE，失败则降级到轮询
+    if (useSSE.value) {
+      connectSSE();
+    } else {
+      startAutoRefresh();
+    }
 
     // 初始化滚动优化
     initScrollOptimization();
@@ -413,9 +513,10 @@ onMounted(async () => {
   }
 });
 
-// 清理定时器
+// 清理定时器和连接
 onUnmounted(() => {
   stopAutoRefresh();
+  disconnectSSE();
 
   // 清理滚动监听器
   if (scrollObserver) {
@@ -469,7 +570,7 @@ const loadMonitorConfig = async () => {
     loading.value = true;
     error.value = '';
     
-    const response = await monitorGetByShareToken(shareToken);
+    const response = await getShareInfo(shareToken);
     monitorConfig.value = response;
     
   } catch (err) {
@@ -493,7 +594,7 @@ const loadMonitorEmails = async (reset = true) => {
       params.emailId = lastEmailId.value;
     }
     
-    const response = await monitorGetEmailsByShareToken(shareToken, params);
+    const response = await getShareEmails(shareToken, params);
     const newEmails = response || [];
     
     if (reset) {
@@ -635,18 +736,21 @@ const getContentPreview = (email) => {
   });
 };
 
-// 获取完整的高亮内容
+// 获取完整的高亮内容（添加 XSS 防护）
 const getHighlightedContent = (email) => {
   if (!email) return '(无内容)';
-  
+
   const content = email.content || email.text || '';
   if (!content) return '(无内容)';
-  
+
   // 应用验证码和邮箱高亮
-  return highlightEmailContent(content, {
+  const highlighted = highlightEmailContent(content, {
     highlightEmails: true,
     highlightCodes: true
   });
+
+  // 使用 DOMPurify 清理 HTML，防止 XSS 攻击
+  return sanitizeHTML(highlighted);
 };
 
 // 邮件模板系统 - Augment Code 专用模板
@@ -1030,7 +1134,7 @@ const checkForNewEmails = async () => {
       emailId: latestEmailId
     };
     
-    const response = await monitorGetEmailsByShareToken(shareToken, params);
+    const response = await getShareEmails(shareToken, params);
     const newEmails = response || [];
     
     if (newEmails.length > 0) {
