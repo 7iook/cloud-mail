@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "exportedAt": "2025-09-26T08:02:29.242Z",
+  "conversation": {
+    "id": "5f73c9f7-034a-42d3-a3a2-4807bae64bc2",
+    "name": "Cloud Mail Technical Analysis Report\n",
+    "createdAtIso": "2025-09-21T14:47:59.846Z",
+    "lastInteractedAtIso": "2025-09-26T08:02:20.954Z",
+    "chatHistory": [
+      {
+        "request_id": "35862334-e76e-4822-896d-e7b0f5c88bf5",
+        "uuid": "bad703f1-3d1d-4fb4-9335-844274926f10",
+        "chatItemType": "agentic-checkpoint-delimiter",
+        "status": "success",
+        "fromTimestamp": 0,
+        "toTimestamp": 1758873740954,
+        "seen_state": "unseen"
+      }
+    ],
+    "feedbackStates": {
+      "temp-fe-37eb34f2-f56e-4d99-824d-fb53eb53367d": {
+        "selectedRating": 0,
+        "feedbackNote": ""
+      },
+      "temp-fe-3157c4df-733c-4625-aaa6-edc387b981d8": {
+        "selectedRating": 0,
+        "feedbackNote": ""
+      },
+      "temp-fe-1a7c1aba-14d5-4bd5-aa53-019098bc96a5": {
+        "selectedRating": 0,
+        "feedbackNote": ""
+      },
+      "temp-fe-7f247263-2929-43f3-9def-ab1b86e2b9f0": {
+        "selectedRating": 0,
+        "feedbackNote": ""
+      },
+      "temp-fe-7788a67c-0dc8-426f-9415-124df369e9c2": {
+        "selectedRating": 0,
+        "feedbackNote": ""
+      },
+      "temp-fe-9c2f746c-75ab-4f61-ab64-be2f70811d99": {
+        "selectedRating": 0,
+        "feedbackNote": ""
+      },
+      "temp-fe-479e8d1c-40d3-4a5d-802a-95beaa2ae482": {
+        "selectedRating": 0,
+        "feedbackNote": ""
+      },
+      "temp-fe-9c3833c1-48a6-49b2-8801-3574de84df8e": {
+        "selectedRating": 0,
+        "feedbackNote": ""
+      }
+    },
+    "toolUseStates": {},
+    "draftExchange": {
+      "request_message": "",
+      "rich_text_json_repr": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ]
+      },
+      "mentioned_items": [],
+      "status": "draft"
+    },
+    "draftActiveContextIds": [
+      "agentMemories"
+    ],
+    "requestIds": [],
+    "isPinned": false,
+    "isShareable": true,
+    "extraData": {
+      "isAgentConversation": true,
+      "hasDirtyEdits": false,
+      "hasTitleGenerated": true
+    },
+    "personaType": 0,
+    "rootTaskUuid": "18856809-8313-4d34-b292-0819c109b67a"
+  },
+  "metadata": {
+    "exportedBy": "Augment Debug Utils",
+    "notes": "Exported from thread menu on 2025-09-26T08:02:29.241Z"
+  }
+}
