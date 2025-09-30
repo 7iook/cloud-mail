@@ -570,7 +570,9 @@ const init = {
 				expire_time TEXT NOT NULL,
 				create_time TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
 				user_id INTEGER NOT NULL,
-				is_active INTEGER DEFAULT 1 NOT NULL
+				is_active INTEGER DEFAULT 1 NOT NULL,
+				rate_limit_per_second INTEGER DEFAULT 5 NOT NULL,
+				rate_limit_per_minute INTEGER DEFAULT 60 NOT NULL
 			)
 		`).run();
 
