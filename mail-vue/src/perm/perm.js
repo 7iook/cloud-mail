@@ -118,5 +118,25 @@ const routers = {
             name: 'analysis',
             menu: true
         }
+    }],
+    'share:create': [{
+        path: '/share-management',
+        name: 'share-management',
+        component: () => import('@/views/share/index.vue'),
+        meta: {
+            title: 'shareManagement',
+            name: 'share-management',
+            menu: true
+        }
+    }],
+    'share:create': [{
+        path: '/email-share',
+        name: 'share',
+        component: () => import('@/views/share/index.vue'),
+        meta: {
+            title: 'emailShare',
+            name: 'share',
+            menu: true
+        }
     }]
 }

@@ -13,8 +13,13 @@ export default {
 			return app.fetch(req, env, ctx);
 		}
 
+		// 处理分享链接
+		if (url.pathname.startsWith('/share/')) {
+			return app.fetch(req, env, ctx);
+		}
 
-		return env.assets.fetch(req);
+
+		return env.assets ? env.assets.fetch(req) : new Response('Not Found', { status: 404 });
 	},
 	email: email,
 	async scheduled(c, env, ctx) {

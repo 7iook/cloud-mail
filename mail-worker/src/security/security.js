@@ -15,7 +15,10 @@ const exclude = [
 	'/setting/websiteConfig',
 	'/webhooks',
 	'/init',
-	'/public/genToken'
+	'/public/genToken',
+	'/public/emailList',
+	'/share/access',
+	'/share/emails'
 ];
 
 const requirePerms = [
@@ -47,6 +50,7 @@ const requirePerms = [
 	'/regKey/list',
 	'/regKey/delete',
 	'/regKey/clearNotUse',
+	'/share/create',
 	'/regKey/history'
 ];
 
@@ -91,6 +95,11 @@ app.use('*', async (c, next) => {
 	});
 
 	if (index > -1) {
+		return await next();
+	}
+
+	// 处理分享token直接访问（如 /share/wp4Qug766zM2gRBaNu6vg25w7ZwZx8hk）
+	if (path.startsWith('/share/') && path.length > 7 && !path.includes('/list') && !path.includes('/create') && !path.includes('/logs') && !path.includes('/stats')) {
 		return await next();
 	}
 

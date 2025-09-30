@@ -238,6 +238,9 @@ const init = {
 
 		await this.receiveEmailToRecipient(c);
 		await this.initAccountName(c);
+		await this.addShareWhitelistColumn(c);
+		await this.createShareTable(c);
+		await this.createShareAccessLogTable(c);
 
 		try {
 			await c.env.db.prepare(`
@@ -246,6 +249,16 @@ const init = {
         (32,'数据查看', 'analysis:query', 31, 2, 1)`).run();
 		} catch (e) {
 			console.warn(`跳过数据，原因：${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`
+        INSERT INTO perm (perm_id, name, perm_key, pid, type, sort) VALUES
+        (33,'邮件分享', NULL, 0, 1, 2.2),
+        (34,'分享创建', 'share:create', 33, 2, 1),
+        (35,'分享删除', 'share:delete', 33, 2, 2)`).run();
+		} catch (e) {
+			console.warn(`跳过分享权限数据，原因：${e.message}`);
 		}
 
 	},
@@ -531,6 +544,57 @@ const init = {
 		})
 
 		await c.env.db.batch(queryList);
+	},
+
+	async addShareWhitelistColumn(c) {
+
+		const shareWhitelistColumn = await c.env.db.prepare(`SELECT * FROM pragma_table_info('setting') WHERE name = 'share_whitelist' limit 1`).first();
+
+		if (shareWhitelistColumn) {
+			return
+		}
+
+		await c.env.db.prepare("ALTER TABLE setting ADD COLUMN share_whitelist TEXT NOT NULL DEFAULT ''").run();
+
+	},
+
+	async createShareTable(c) {
+
+		await c.env.db.prepare(`
+			CREATE TABLE IF NOT EXISTS share (
+				share_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				share_token TEXT NOT NULL UNIQUE,
+				target_email TEXT NOT NULL,
+				share_name TEXT NOT NULL,
+				keyword_filter TEXT DEFAULT '',
+				expire_time TEXT NOT NULL,
+				create_time TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+				user_id INTEGER NOT NULL,
+				is_active INTEGER DEFAULT 1 NOT NULL
+			)
+		`).run();
+
+	},
+
+	async createShareAccessLogTable(c) {
+
+		await c.env.db.prepare(`
+			CREATE TABLE IF NOT EXISTS share_access_log (
+				log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+				share_id INTEGER,
+				share_token TEXT NOT NULL,
+				access_ip TEXT NOT NULL,
+				user_agent TEXT DEFAULT '',
+				access_email TEXT NOT NULL,
+				extracted_codes TEXT DEFAULT '[]',
+				access_result TEXT NOT NULL,
+				error_message TEXT DEFAULT '',
+				access_time TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+				response_time INTEGER DEFAULT 0,
+				email_count INTEGER DEFAULT 0
+			)
+		`).run();
+
 	}
 };
 export default init;

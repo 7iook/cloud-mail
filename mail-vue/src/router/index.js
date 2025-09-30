@@ -64,6 +64,17 @@ const routes = [
         name: 'test',
         component: () => import('@/views/test/index.vue')
     },
+
+    {
+        path: '/share/:token',
+        name: 'share-access',
+        component: () => import('@/views/monitor/share.vue'),
+        meta: {
+            title: 'shareAccess',
+            name: 'share-access',
+            menu: false
+        }
+    },
     {
         path: '/:pathMatch(.*)*',
         name: '404',
