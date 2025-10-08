@@ -22,18 +22,27 @@ const shareService = {
 
 	// 创建分享
 	async create(c, params, userId) {
-		const { targetEmail, shareName, keywordFilter, expireTime } = params;
-		
+		const {
+			targetEmail,
+			shareName,
+			keywordFilter,
+			expireTime,
+			rateLimitPerSecond,
+			rateLimitPerMinute
+		} = params;
+
 		// 生成分享token
 		const shareToken = cryptoUtils.genRandomStr(32);
-		
+
 		const shareData = {
 			shareToken,
 			targetEmail,
 			shareName,
 			keywordFilter: keywordFilter || '验证码|verification|code|otp',
 			expireTime,
-			userId
+			userId,
+			rateLimitPerSecond: rateLimitPerSecond || 5,
+			rateLimitPerMinute: rateLimitPerMinute || 60
 		};
 		
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();
