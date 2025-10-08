@@ -104,11 +104,17 @@ app.use('*', async (c, next) => {
 	}
 
 	if (path.startsWith('/public')) {
-		const publicToken = c.req.header(constant.TOKEN_HEADER);
-		
+		const authHeader = c.req.header(constant.TOKEN_HEADER);
+
+		// Extract token from Bearer format
+		let publicToken = authHeader;
+		if (authHeader && authHeader.startsWith('Bearer ')) {
+			publicToken = authHeader.substring(7);
+		}
+
 		// Check if JWT optimization is enabled
 		const useJwtOptimization = c.env.ENABLE_JWT_OPTIMIZATION === 'true';
-		
+
 		if (useJwtOptimization) {
 			// Try JWT verification first
 			try {
@@ -121,7 +127,7 @@ app.use('*', async (c, next) => {
 				// JWT verification failed, try legacy verification as fallback
 			}
 		}
-		
+
 		// Legacy token verification (fallback)
 		const userPublicToken = await c.env.kv.get(KvConst.PUBLIC_KEY);
 		if (publicToken !== userPublicToken) {
@@ -131,7 +137,13 @@ app.use('*', async (c, next) => {
 	}
 
 
-	const jwt = c.req.header(constant.TOKEN_HEADER);
+	const authHeader = c.req.header(constant.TOKEN_HEADER);
+
+	// Extract JWT token from Bearer format
+	let jwt = authHeader;
+	if (authHeader && authHeader.startsWith('Bearer ')) {
+		jwt = authHeader.substring(7);
+	}
 
 	const result = await jwtUtils.verifyToken(c, jwt);
 
