@@ -193,25 +193,25 @@ const loginService = {
 		const { email, password } = params;
 
 		if (!email || !password) {
-			throw new BizError(t('emailAndPwdEmpty'));
+			throw new BizError(t('emailAndPwdEmpty'), 401);
 		}
 
 		const userRow = await userService.selectByEmailIncludeDel(c, email);
 
 		if (!userRow) {
-			throw new BizError(t('notExistUser'));
+			throw new BizError(t('notExistUser'), 401);
 		}
 
 		if(userRow.isDel === isDel.DELETE) {
-			throw new BizError(t('isDelUser'));
+			throw new BizError(t('isDelUser'), 401);
 		}
 
 		if(userRow.status === userConst.status.BAN) {
-			throw new BizError(t('isBanUser'));
+			throw new BizError(t('isBanUser'), 401);
 		}
 
 		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
-			throw new BizError(t('IncorrectPwd'));
+			throw new BizError(t('IncorrectPwd'), 401);
 		}
 
 		const uuid = uuidv4();
