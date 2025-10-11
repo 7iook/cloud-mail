@@ -13,12 +13,7 @@ export default {
 			return app.fetch(req, env, ctx);
 		}
 
-		// 处理分享链接
-		if (url.pathname.startsWith('/share/')) {
-			return app.fetch(req, env, ctx);
-		}
-
-
+		// 所有其他路径（包括 /share/:token）都路由到前端 SPA
 		return env.assets ? env.assets.fetch(req) : new Response('Not Found', { status: 404 });
 	},
 	email: email,
