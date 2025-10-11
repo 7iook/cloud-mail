@@ -1,20 +1,34 @@
 <template>
   <div class="monitor-share-page">
-    <!-- 页面头部 -->
+    <!-- 现代化页面头部 -->
     <div class="share-header">
       <div class="header-content">
         <div class="logo-section">
-          <img src="/mail.png" alt="Cloud Mail" class="logo" />
-          <h1 class="title">邮箱监控分享</h1>
+          <div class="logo-container">
+            <img src="/mail.png" alt="Cloud Mail" class="logo" />
+            <div class="logo-glow"></div>
+          </div>
+          <div class="title-section">
+            <h1 class="title">验证码邮件分享</h1>
+            <p class="subtitle">实时接收验证码邮件</p>
+          </div>
         </div>
         <div class="config-info" v-if="monitorConfig">
-          <div class="config-item">
-            <span class="label">监控邮箱：</span>
-            <span class="value">{{ monitorConfig.emailAddress }}</span>
-          </div>
-          <div class="config-item">
-            <span class="label">别名类型：</span>
-            <span class="value">{{ getAliasTypeText(monitorConfig.aliasType) }}</span>
+          <div class="config-card">
+            <div class="config-item">
+              <div class="config-icon">📧</div>
+              <div class="config-details">
+                <span class="label">监控邮箱</span>
+                <span class="value">{{ monitorConfig.emailAddress }}</span>
+              </div>
+            </div>
+            <div class="config-item">
+              <div class="config-icon">🔗</div>
+              <div class="config-details">
+                <span class="label">匹配类型</span>
+                <span class="value">{{ getAliasTypeText(monitorConfig.aliasType) }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -46,157 +60,123 @@
         <!-- 邮件列表 -->
         <template #list>
           <div class="emails-header">
-            <h2>监控邮件列表</h2>
+            <div class="header-left">
+              <h2>📨 验证码邮件</h2>
+              <div class="email-count" v-if="emailsList.length > 0">
+                共 {{ emailsList.length }} 封邮件
+              </div>
+            </div>
             <div class="header-actions">
               <LayoutModeSelector />
-              <el-button @click="refreshEmails" :loading="refreshing">
-                <el-icon><Refresh /></el-icon>
+              <el-button
+                @click="refreshEmails"
+                :loading="refreshing"
+                class="refresh-btn"
+                type="primary"
+                :icon="Refresh"
+              >
                 刷新
               </el-button>
               <el-button
-                type="primary"
+                type="success"
                 @click="simulateNewEmail"
                 :loading="simulating"
                 v-if="isDevelopment"
+                :icon="Message"
               >
-                <el-icon><Message /></el-icon>
-                测试新邮件
-              </el-button>
-              <el-button
-                type="success"
-                @click="testAugmentCodeTemplate"
-                :loading="testingTemplate"
-                v-if="isDevelopment"
-              >
-                <el-icon><Check /></el-icon>
-                测试 Augment Code 模板
+                测试邮件
               </el-button>
             </div>
           </div>
 
-          <!-- 邮件列表表格 -->
-          <div class="emails-table" @scroll="handleTableScroll">
-            <el-table
-              :data="emailsList"
-              v-loading="emailsLoading"
-              empty-text="暂无监控邮件"
-              @row-click="viewEmailDetail"
-              :highlight-current-row="splitMode !== 'none'"
-              :current-row-key="selectedEmail?.emailId"
-              row-key="emailId"
-            >
-          <el-table-column prop="subject" label="主题" width="200">
-            <template #default="{ row }">
-              <div class="subject-cell">
-                <span class="subject-text">{{ row.subject || '(无主题)' }}</span>
-                <div class="content-preview"
-                     v-if="getContentPreview(row)"
-                     v-html="getContentPreview(row)"
-                     @click="handleEmailContentClick">
-                </div>
-              </div>
-            </template>
-          </el-table-column>
+          <!-- 现代化邮件卡片列表 -->
+          <div class="emails-container" @scroll="handleTableScroll">
+            <div v-if="emailsLoading && emailsList.length === 0" class="loading-state">
+              <div class="loading-spinner"></div>
+              <p>正在加载验证码邮件...</p>
+            </div>
 
-          <el-table-column label="邮件内容" min-width="400">
-            <template #default="{ row }">
-              <div class="email-content-cell">
-                <div 
-                  class="full-email-content"
-                  v-html="getFullEmailContent(row)"
-                  @click="handleEmailContentClick"
-                  :title="getPlainTextContent(row)"
-                >
+            <div v-else-if="emailsList.length === 0" class="empty-state">
+              <div class="empty-icon">📭</div>
+              <h3>暂无验证码邮件</h3>
+              <p>等待接收新的验证码邮件</p>
+            </div>
+
+            <div v-else class="emails-grid">
+              <div
+                v-for="email in emailsList"
+                :key="email.emailId"
+                class="email-card"
+                @click="viewEmailDetail(email)"
+                :class="{ 'selected': selectedEmail?.emailId === email.emailId }"
+              >
+                <div class="email-card-header">
+                  <div class="sender-info">
+                    <div class="sender-avatar">
+                      {{ (email.name || email.sendEmail || 'U').charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="sender-details">
+                      <div class="sender-name">{{ email.name || email.sendEmail || '未知发件人' }}</div>
+                      <div class="sender-email">{{ email.sendEmail }}</div>
+                    </div>
+                  </div>
+                  <div class="email-time">
+                    {{ formatDateTime(email.createTime) }}
+                  </div>
                 </div>
-              </div>
-            </template>
-          </el-table-column>
-          
-          <el-table-column prop="sendEmail" label="发件人" width="220">
-            <template #default="{ row }">
-              <div class="sender-cell">
-                <div class="sender-info">
-                  <div class="sender-name">
-                    <span
-                      :title="row.sendEmail || row.name || '(未知发件人)'"
-                      :class="{ 'long-email': (row.sendEmail || row.name || '(未知发件人)').length > 20 }"
-                    >
-                      {{ row.name || row.sendEmail || '(未知发件人)' }}
-                    </span>
-                    <!-- 测试邮件标识 -->
-                    <el-tag
-                      v-if="row.isTestEmail"
-                      type="info"
-                      size="small"
-                      style="margin-left: 8px;"
-                    >
+
+                <div class="email-card-body">
+                  <div class="email-subject">
+                    {{ email.subject || '(无主题)' }}
+                  </div>
+
+                  <!-- 验证码高亮显示 -->
+                  <div class="verification-codes" v-if="getVerificationCodes(email).length > 0">
+                    <div class="codes-label">🔐 验证码</div>
+                    <div class="codes-list">
+                      <div
+                        v-for="code in getVerificationCodes(email)"
+                        :key="code"
+                        class="verification-code"
+                        @click.stop="handleCodeClick(code)"
+                      >
+                        {{ code }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 邮件内容预览 -->
+                  <div class="email-preview" v-html="getContentPreview(email)"></div>
+                </div>
+
+                <div class="email-card-footer">
+                  <div class="email-tags">
+                    <el-tag size="small" :type="getMatchTypeColor(email.matchType)">
+                      {{ getMatchTypeText(email.matchType) }}
+                    </el-tag>
+                    <el-tag v-if="email.isTestEmail" type="info" size="small">
                       🧪 测试
                     </el-tag>
-                    <!-- Augment Code 模板标识 -->
-                    <el-tag
-                      v-if="row.templateType === 'augment-code'"
-                      type="success"
-                      size="small"
-                      style="margin-left: 8px;"
-                    >
-                      Augment Code
-                    </el-tag>
                   </div>
-                  <div class="sender-email" style="font-size: 12px; color: #909399;">{{ row.sendEmail }}</div>
-                  <!-- 测试场景描述 -->
-                  <div v-if="row.testScenario" class="test-scenario" style="font-size: 11px; color: #909399; margin-top: 2px;">
-                    {{ row.testScenario }}
+                  <div class="email-actions">
+                    <el-button size="small" type="primary" @click.stop="viewEmailDetail(email)">
+                      查看详情
+                    </el-button>
                   </div>
                 </div>
-
               </div>
-            </template>
-          </el-table-column>
+            </div>
 
-          <el-table-column prop="matchedAddress" label="匹配地址" width="180">
-            <template #default="{ row }">
-              <el-tag size="small" :type="getMatchTypeColor(row.matchType)">
-                {{ row.matchedAddress }}
-              </el-tag>
-            </template>
-          </el-table-column>
+            <!-- 加载更多指示器 -->
+            <div class="load-more-indicator" v-if="hasMore && loadingMore">
+              <div class="loading-spinner"></div>
+              <span>正在加载更多邮件...</span>
+            </div>
 
-          <el-table-column prop="matchType" label="匹配类型" width="120">
-            <template #default="{ row }">
-              <el-tag size="small" :type="getMatchTypeColor(row.matchType)">
-                {{ getMatchTypeText(row.matchType) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-
-          <el-table-column prop="createTime" label="邮件时间" width="160">
-            <template #default="{ row }">
-              <span>{{ formatDateTime(row.createTime) }}</span>
-            </template>
-          </el-table-column>
-          
-            <el-table-column label="操作" width="80" fixed="right" v-if="splitMode === 'none'">
-              <template #default="{ row }">
-                <el-button 
-                  type="primary" 
-                  size="small" 
-                  @click.stop="viewEmailDetail(row)"
-                >
-                  查看
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          </div>
-
-          <!-- 自动加载指示器 -->
-          <div class="auto-load-indicator" v-if="hasMore && loadingMore">
-            <el-icon class="is-loading"><Loading /></el-icon>
-            <span>正在加载更多邮件...</span>
-          </div>
-
-          <div class="no-more" v-else-if="emailsList.length > 0 && !hasMore">
-            <span>已显示全部邮件</span>
+            <div class="no-more-indicator" v-else-if="emailsList.length > 0 && !hasMore">
+              <div class="no-more-icon">✅</div>
+              <span>已显示全部邮件</span>
+            </div>
           </div>
         </template>
 
@@ -1600,18 +1580,134 @@ const handleEmailContentClick = (event) => {
     }
   }
 };
+
+// 新增方法：获取验证码
+const getVerificationCodes = (email) => {
+  if (!email) return [];
+
+  const content = (email.subject + ' ' + email.text + ' ' + email.content).toUpperCase();
+  const codes = [];
+
+  // 增强的验证码检测正则表达式（支持字母数字混合）
+  const patterns = [
+    /\b[A-Z0-9]{6}\b/g,    // 6位字母数字混合
+    /\b[A-Z0-9]{5}\b/g,    // 5位字母数字混合
+    /\b[A-Z0-9]{4}\b/g,    // 4位字母数字混合
+    /\b\d{6}\b/g,          // 6位纯数字
+    /\b\d{5}\b/g,          // 5位纯数字
+    /\b\d{4}\b/g,          // 4位纯数字
+  ];
+
+  // 优先从HTML内容中查找验证码
+  if (email.content) {
+    const htmlCodeMatch = email.content.match(/<td[^>]*>([A-Z0-9]{4,6})<\/td>/gi) ||
+                          email.content.match(/>([A-Z0-9]{4,6})</gi);
+
+    if (htmlCodeMatch && htmlCodeMatch.length > 0) {
+      htmlCodeMatch.forEach(match => {
+        const codeMatch = match.match(/([A-Z0-9]{4,6})/);
+        if (codeMatch && !codes.includes(codeMatch[1])) {
+          codes.push(codeMatch[1]);
+        }
+      });
+    }
+  }
+
+  // 如果HTML中没找到，使用正则表达式
+  if (codes.length === 0) {
+    patterns.forEach(pattern => {
+      const matches = content.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          if (!codes.includes(match) && codes.length < 3) {
+            codes.push(match);
+          }
+        });
+      }
+    });
+  }
+
+  return codes.slice(0, 3); // 最多返回3个验证码
+};
+
+// 新增方法：处理验证码点击
+const handleCodeClick = (code) => {
+  navigator.clipboard.writeText(code).then(() => {
+    ElMessage.success(`验证码 ${code} 已复制到剪贴板`);
+  }).catch(() => {
+    ElMessage.error('复制失败，请手动复制');
+  });
+};
+
+// 新增方法：获取内容预览
+const getContentPreview = (email) => {
+  if (!email) return '';
+
+  let preview = '';
+
+  // 优先使用纯文本内容
+  if (email.text) {
+    preview = email.text;
+  } else if (email.content) {
+    // 清理HTML标签
+    preview = email.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  }
+
+  // 截取前150个字符
+  if (preview.length > 150) {
+    preview = preview.substring(0, 150) + '...';
+  }
+
+  return preview.trim();
+};
+
+// 新增方法：获取匹配类型颜色
+const getMatchTypeColor = (matchType) => {
+  switch (matchType) {
+    case '精确': return 'success';
+    case '前缀': return 'primary';
+    case '后缀': return 'warning';
+    case '通配符': return 'info';
+    default: return 'default';
+  }
+};
+
+// 新增方法：获取匹配类型文本
+const getMatchTypeText = (matchType) => {
+  return matchType || '未知';
+};
+};
 </script>
 
 <style scoped>
 .monitor-share-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+}
+
+.monitor-share-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 .share-header {
-  background: white;
-  border-bottom: 1px solid #e4e7ed;
-  padding: 20px 0;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 24px 0;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
@@ -1649,39 +1745,113 @@ const handleEmailContentClick = (event) => {
 .logo-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+}
+
+.logo-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .logo {
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 2;
+}
+
+.logo-glow {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  border-radius: 16px;
+  opacity: 0.3;
+  filter: blur(8px);
+  z-index: 1;
+}
+
+.title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .title {
   margin: 0;
-  font-size: 24px;
-  color: #303133;
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #666;
+  font-weight: 400;
 }
 
 .config-info {
   display: flex;
-  gap: 24px;
+  gap: 16px;
+}
+
+.config-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  display: flex;
+  gap: 16px;
 }
 
 .config-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
-.config-item .label {
-  color: #909399;
-  font-size: 14px;
+.config-icon {
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
 }
 
-.config-item .value {
-  color: #303133;
+.config-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.config-details .label {
+  color: #666;
+  font-size: 12px;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.config-details .value {
+  color: #333;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .loading-container,
@@ -1882,15 +2052,56 @@ const handleEmailContentClick = (event) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #fafafa;
-  border-bottom: 1px solid #e4e7ed;
+  margin-bottom: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 5;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .emails-header h2 {
   margin: 0;
-  color: #303133;
+  color: white;
+  font-size: 24px;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.email-count {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
 }
 
 .emails-table {
@@ -2796,6 +3007,284 @@ const handleEmailContentClick = (event) => {
   
   :deep(.layout-mode-selector .el-button:active::after) {
     transform: translateX(100%);
+  }
+}
+
+/* 现代化邮件卡片样式 */
+.emails-container {
+  max-width: 95vw;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+  position: relative;
+  z-index: 5;
+}
+
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: white;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.empty-state p {
+  margin: 0;
+  opacity: 0.8;
+  font-size: 14px;
+}
+
+.emails-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.email-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.email-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.email-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.email-card.selected {
+  border-color: #667eea;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+}
+
+.email-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.sender-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.sender-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.sender-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.sender-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sender-email {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.email-time {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.email-card-body {
+  margin-bottom: 16px;
+}
+
+.email-subject {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.verification-codes {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.codes-label {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.codes-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.verification-code {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.verification-code:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.email-preview {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.email-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.email-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.email-actions {
+  flex-shrink: 0;
+}
+
+.load-more-indicator, .no-more-indicator {
+  text-align: center;
+  padding: 20px;
+  color: white;
+  margin-top: 20px;
+}
+
+.no-more-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .emails-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .email-card {
+    padding: 16px;
+  }
+
+  .email-card-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .sender-info {
+    width: 100%;
+  }
+
+  .email-time {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .emails-container {
+    padding: 0 16px 40px;
+  }
+
+  .verification-code {
+    font-size: 14px;
+    padding: 4px 8px;
   }
 }
 </style>
