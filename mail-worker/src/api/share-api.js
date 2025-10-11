@@ -176,32 +176,55 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 			accountId: targetAccount.accountId
 		}, shareRecord.userId);
 
-		// 验证码识别和过滤
+		// 使用用户配置的关键词过滤器
+		const userKeywords = shareRecord.keywordFilter || '验证码|verification|code|otp';
+		const keywords = userKeywords.split('|').map(k => k.trim().toLowerCase()).filter(k => k);
+
+		// 增强的验证码检测正则表达式（支持字母数字混合）
 		const verificationCodePatterns = [
-			/\b\d{6}\b/g,  // 6位数字验证码
-			/\b\d{4}\b/g,  // 4位数字验证码
-			/\b\d{5}\b/g,  // 5位数字验证码
-			/verification.*?code.*?(\d{4,6})/gi,  // 包含verification code的
-			/验证码.*?(\d{4,6})/gi,  // 中文验证码
-			/code.*?(\d{4,6})/gi   // 包含code的
+			/\b[A-Z0-9]{6}\b/g,    // 6位字母数字混合（如 5PCPCC）
+			/\b[A-Z0-9]{5}\b/g,    // 5位字母数字混合
+			/\b[A-Z0-9]{4}\b/g,    // 4位字母数字混合
+			/\b\d{6}\b/g,          // 6位纯数字
+			/\b\d{5}\b/g,          // 5位纯数字
+			/\b\d{4}\b/g,          // 4位纯数字
+			/verification.*?code.*?([A-Z0-9]{4,6})/gi,  // 包含verification code的
+			/验证码.*?([A-Z0-9]{4,6})/gi,              // 中文验证码
+			/code.*?([A-Z0-9]{4,6})/gi                 // 包含code的
 		];
 
-		// 过滤包含验证码的邮件并提取验证码
-		const verificationEmails = emails.filter(email => {
+		// 使用用户配置的关键词过滤邮件
+		const filteredEmails = emails.filter(email => {
 			const content = (email.subject + ' ' + email.text + ' ' + email.content).toLowerCase();
-			return verificationCodePatterns.some(pattern => pattern.test(content)) ||
-				   content.includes('验证码') || content.includes('verification') ||
-				   content.includes('code') || content.includes('otp');
+
+			// 检查是否匹配用户配置的任何关键词
+			return keywords.some(keyword => content.includes(keyword));
 		}).map(email => {
-			// 提取验证码
+			// 智能提取验证码（支持字母数字混合）
 			const fullContent = email.subject + ' ' + email.text + ' ' + email.content;
 			let extractedCode = '';
 
-			for (const pattern of verificationCodePatterns) {
-				const matches = fullContent.match(pattern);
-				if (matches && matches.length > 0) {
-					extractedCode = matches[0];
-					break;
+			// 优先从HTML内容中查找验证码（更准确）
+			const htmlContent = email.content || '';
+
+			// 查找HTML中的验证码（通常在特定的标签或样式中）
+			const htmlCodeMatch = htmlContent.match(/<td[^>]*>([A-Z0-9]{4,6})<\/td>/gi) ||
+								  htmlContent.match(/>([A-Z0-9]{4,6})</gi);
+
+			if (htmlCodeMatch && htmlCodeMatch.length > 0) {
+				// 提取HTML标签中的验证码
+				const codeMatch = htmlCodeMatch[0].match(/([A-Z0-9]{4,6})/);
+				if (codeMatch) {
+					extractedCode = codeMatch[1];
+				}
+			} else {
+				// 回退到正则表达式匹配
+				for (const pattern of verificationCodePatterns) {
+					const matches = fullContent.match(pattern);
+					if (matches && matches.length > 0) {
+						extractedCode = matches[0];
+						break;
+					}
 				}
 			}
 
@@ -222,9 +245,9 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 			};
 		});
 
-		// 限制最新3封验证码邮件
-		const latestVerificationEmails = verificationEmails.slice(0, 3);
-		emailCount = latestVerificationEmails.length;
+		// 限制最新3封过滤后的邮件
+		const latestFilteredEmails = filteredEmails.slice(0, 3);
+		emailCount = latestFilteredEmails.length;
 		accessResult = 'success';
 
 		// 记录访问日志
@@ -243,10 +266,12 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 		});
 
 		return c.json(result.ok({
-			emails: latestVerificationEmails,
-			total: latestVerificationEmails.length,
+			emails: latestFilteredEmails,
+			total: latestFilteredEmails.length,
 			targetEmail: shareRecord.targetEmail,
-			message: latestVerificationEmails.length > 0 ? '找到验证码邮件' : '暂无验证码邮件'
+			message: latestFilteredEmails.length > 0 ? '找到匹配邮件' : '暂无匹配邮件',
+			filterKeywords: keywords,  // 返回实际使用的过滤关键词
+			filterInfo: `使用关键词: ${keywords.join(', ')}`  // 过滤信息说明
 		}));
 
 	} catch (error) {
