@@ -369,9 +369,9 @@ const initScrollFix = () => {
     // 确保表格可以获得焦点
     emailsTable.tabIndex = 0;
 
-    // 添加事件监听器
+    // 添加事件监听器 - 2025年最佳实践：使用被动监听器优化性能
     emailsTable.addEventListener('wheel', handleWheel, { passive: false });
-    emailsTable.addEventListener('keydown', handleKeydown);
+    emailsTable.addEventListener('keydown', handleKeydown, { passive: true });
 
     // 存储清理函数
     emailsTable._scrollCleanup = () => {
@@ -515,10 +515,10 @@ let scrollObserver = null;
 
 
 
-// 初始化滚动优化
+// 2025年滚动性能优化 - 使用被动监听器和现代API
 const initScrollOptimization = () => {
   if (typeof window === 'undefined') return;
-  
+
   // 使用Intersection Observer优化滚动性能
   scrollObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
@@ -534,12 +534,27 @@ const initScrollOptimization = () => {
     rootMargin: '50px 0px',
     threshold: 0.1
   });
-  
-  // 监听邮件行
+
+  // 为所有滚动容器添加被动监听器
   nextTick(() => {
+    // 监听邮件行
     const emailRows = document.querySelectorAll('.el-table__row');
     emailRows.forEach(row => {
       scrollObserver?.observe(row);
+    });
+
+    // 为三个窗格添加被动滚动监听器
+    const scrollContainers = document.querySelectorAll('.splitpanes__pane, .emails-container, .emails-table');
+    scrollContainers.forEach(container => {
+      if (container) {
+        // 添加被动触摸事件监听器
+        container.addEventListener('touchstart', () => {}, { passive: true });
+        container.addEventListener('touchmove', () => {}, { passive: true });
+        container.addEventListener('touchend', () => {}, { passive: true });
+
+        // 添加被动滚动监听器
+        container.addEventListener('scroll', () => {}, { passive: true });
+      }
     });
   });
 };
@@ -1149,410 +1164,22 @@ const checkForNewEmails = async () => {
   }
 };
 
-// Augment Code 邮件测试数据生成器
-const augmentCodeTestDataGenerator = {
-  // 生成随机6位数字验证码
-  generateVerificationCode: () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  },
+// 测试数据生成器已移除 - 确保只显示真实API数据
 
-  // 生成标准 Augment Code 邮件内容
-  generateEmailContent: (verificationCode) => {
-    return `Your verification code is: ${verificationCode}
 
-If you are having any issues with your account, please don't hesitate to contact us by replying to this mail.
 
-Thanks!
-Augment Code
-
-If you did not make this request, you can safely ignore this email. Never share this one-time code with anyone - Augment support will never ask for your verification code. Your account remains secure and no action is needed.`;
-  },
-
-  // 生成 HTML 格式的邮件内容
-  generateHtmlContent: (verificationCode) => {
-    return `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #333333; font-size: 24px; margin: 0;">Augment Code</h1>
-      </div>
-
-      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <p style="font-size: 16px; color: #333333; margin: 0 0 15px 0;">Your verification code is:</p>
-        <div style="text-align: center; margin: 20px 0;">
-          <span style="font-size: 32px; font-weight: bold; color: #007AFF; background-color: #ffffff; padding: 15px 25px; border-radius: 8px; border: 2px solid #e9ecef; letter-spacing: 3px; font-family: monospace;">${verificationCode}</span>
-        </div>
-      </div>
-
-      <p style="font-size: 14px; color: #666666; line-height: 1.5; margin-bottom: 15px;">
-        If you are having any issues with your account, please don't hesitate to contact us by replying to this mail.
-      </p>
-
-      <p style="font-size: 14px; color: #333333; margin-bottom: 20px;">
-        Thanks!<br>
-        <strong>Augment Code</strong>
-      </p>
-
-      <div style="border-top: 1px solid #e9ecef; padding-top: 20px; margin-top: 30px;">
-        <p style="font-size: 12px; color: #999999; line-height: 1.4; margin: 0;">
-          If you did not make this request, you can safely ignore this email. Never share this one-time code with anyone - Augment support will never ask for your verification code. Your account remains secure and no action is needed.
-        </p>
-      </div>
-    </div>`;
-  },
-
-  // 生成完整的 Augment Code 测试邮件数据
-  generateTestEmail: (targetEmail, recipientName = 'User') => {
-    const verificationCode = augmentCodeTestDataGenerator.generateVerificationCode();
-    const textContent = augmentCodeTestDataGenerator.generateEmailContent(verificationCode);
-    const htmlContent = augmentCodeTestDataGenerator.generateHtmlContent(verificationCode);
-
-    return {
-      fromEmail: 'noreply@augmentcode.com',
-      fromName: 'Augment Code',
-      subject: 'Welcome to Augment Code',
-      content: htmlContent,
-      text: textContent,
-      toEmail: targetEmail,
-      toName: recipientName,
-      cc: [],
-      bcc: [],
-      verificationCode: verificationCode, // 用于测试验证
-      templateType: 'augment-code' // 标识邮件类型
-    };
-  },
-
-  // 生成多个测试场景
-  generateTestScenarios: (targetEmail) => {
-    return [
-      // 场景1：标准 Augment Code 验证码邮件
-      {
-        name: 'Augment Code 标准验证码邮件',
-        data: augmentCodeTestDataGenerator.generateTestEmail(targetEmail, 'Test User'),
-        description: '标准的 Augment Code 验证码邮件，应该被模板系统正确识别'
-      },
-
-      // 场景2：不同验证码的 Augment Code 邮件
-      {
-        name: 'Augment Code 验证码邮件 (不同验证码)',
-        data: augmentCodeTestDataGenerator.generateTestEmail(targetEmail, 'Developer'),
-        description: '使用不同验证码的 Augment Code 邮件，测试验证码提取功能'
-      },
-
-      // 场景3：模拟真实用户场景
-      {
-        name: 'Augment Code 真实用户场景',
-        data: (() => {
-          const email = augmentCodeTestDataGenerator.generateTestEmail(targetEmail, 'John Doe');
-          // 添加一些真实场景的变化
-          email.fromEmail = 'support@augmentcode.com';
-          return email;
-        })(),
-        description: '模拟真实用户注册场景的 Augment Code 验证码邮件'
-      }
-    ];
-  }
-};
-
-// 模拟新邮件接收（测试功能）
+// 模拟邮件功能已禁用 - 确保只显示真实API数据
 const simulateNewEmail = async () => {
-  if (simulating.value || !monitorConfig.value) return;
+  ElMessage.info('模拟邮件功能已禁用，只显示真实邮件数据');
+  return;
 
-  try {
-    simulating.value = true;
-
-    // 随机选择测试场景
-    const testScenarios = [
-      // 原有的测试邮件
-      {
-        name: '通用测试邮件',
-        data: {
-          fromEmail: 'test-sender@example.com',
-          fromName: 'Test Sender',
-          subject: `测试邮件 - 实时更新验证 ${new Date().toLocaleString()}`,
-          content: `<div style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2 style="color: #007AFF;">🧪 测试邮件 - 实时更新验证</h2>
-            <p>这是一封用于验证分享页面实时更新功能的测试邮件。</p>
-            <div style="background: #f5f7fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-              <p><strong>📧 收件人：</strong> ${monitorConfig.value.emailAddress}</p>
-              <p><strong>🏷️ 匹配类型：</strong> ${getAliasTypeText(monitorConfig.value.aliasType)}</p>
-              <p><strong>⏰ 发送时间：</strong> ${new Date().toLocaleString()}</p>
-            </div>
-            <p>如果您在分享页面看到这封邮件，说明实时更新功能正常工作！</p>
-            <div style="margin-top: 20px; padding: 10px; background: #e8f5e8; border-left: 4px solid #4CAF50;">
-              <p style="margin: 0;"><strong>✅ 测试验证码：</strong> <span style="background: #fff; padding: 2px 6px; border-radius: 4px; font-family: monospace;">123456</span></p>
-            </div>
-          </div>`,
-          text: `测试邮件 - 实时更新验证\n\n这是一封用于验证分享页面实时更新功能的测试邮件。\n\n收件人：${monitorConfig.value.emailAddress}\n匹配类型：${getAliasTypeText(monitorConfig.value.aliasType)}\n发送时间：${new Date().toLocaleString()}\n\n如果您在分享页面看到这封邮件，说明实时更新功能正常工作！\n\n测试验证码：123456`,
-          toEmail: monitorConfig.value.emailAddress,
-          toName: 'Test Recipient',
-          cc: [],
-          bcc: []
-        },
-        description: '通用测试邮件，用于验证基本功能'
-      },
-
-      // Augment Code 测试场景
-      ...augmentCodeTestDataGenerator.generateTestScenarios(monitorConfig.value.emailAddress)
-    ];
-
-    // 随机选择一个测试场景
-    const randomScenario = testScenarios[Math.floor(Math.random() * testScenarios.length)];
-    const testEmailData = randomScenario.data;
-
-    // 在本地测试环境中，直接模拟邮件数据而不调用API
-    if (isDevelopment.value) {
-      // 本地测试：直接添加到邮件列表
-      const simulatedEmail = {
-        emailId: Date.now(), // 使用时间戳作为唯一ID
-        sendEmail: testEmailData.fromEmail,
-        name: testEmailData.fromName,
-        subject: testEmailData.subject,
-        content: testEmailData.content,
-        text: testEmailData.text,
-        toEmail: testEmailData.toEmail,
-        toName: testEmailData.toName,
-        matchedAddress: testEmailData.toEmail,
-        matchType: '精确',
-        emailTime: new Date().toISOString(),
-        createTime: new Date().toISOString(),
-        // 添加测试相关信息
-        isTestEmail: true,
-        testScenario: randomScenario.name,
-        testDescription: randomScenario.description
-      };
-
-      // 如果是 Augment Code 测试邮件，添加验证码信息用于验证
-      if (testEmailData.templateType === 'augment-code') {
-        simulatedEmail.expectedVerificationCode = testEmailData.verificationCode;
-        simulatedEmail.templateType = 'augment-code';
-      }
-
-      // 添加到邮件列表顶部
-      emailsList.value.unshift(simulatedEmail);
-
-      // 测试邮件模板系统
-      if (typeof emailTemplateManager !== 'undefined') {
-        const analysis = emailTemplateManager.analyzeEmail(simulatedEmail);
-        console.log('📧 邮件模板分析结果:', {
-          email: randomScenario.name,
-          hasTemplate: analysis.hasTemplate,
-          templateName: analysis.templateName,
-          verificationCode: analysis.verificationCode,
-          expectedCode: simulatedEmail.expectedVerificationCode,
-          isCorrect: analysis.verificationCode === simulatedEmail.expectedVerificationCode,
-          confidence: analysis.confidence
-        });
-
-        // 显示测试结果
-        if (testEmailData.templateType === 'augment-code') {
-          const isCorrect = analysis.verificationCode === simulatedEmail.expectedVerificationCode;
-          const message = isCorrect
-            ? `✅ ${randomScenario.name} - 模板识别成功！验证码: ${analysis.verificationCode}`
-            : `⚠️ ${randomScenario.name} - 验证码提取${analysis.verificationCode ? '不准确' : '失败'}`;
-
-          if (isCorrect) {
-            ElMessage.success(message);
-          } else {
-            ElMessage.warning(message);
-          }
-        } else {
-          ElMessage.success(`✅ ${randomScenario.name} - 测试邮件已添加`);
-        }
-      } else {
-        ElMessage.success(`✅ ${randomScenario.name} - 测试邮件已添加`);
-      }
-
-      return;
-    }
-
-    // 生产环境：调用测试API
-    const response = await fetch('/test/monitoring/simulate-new-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        shareToken: shareToken,
-        emailData: testEmailData,
-        testScenario: randomScenario.name
-      })
-    });
-
-    const result = await response.json();
-
-    if (result.success && result.data) {
-      ElMessage.success(`✅ ${randomScenario.name} - ${result.data.message}`);
-
-      // 等待一下然后检查新邮件
-      setTimeout(async () => {
-        await checkForNewEmails();
-      }, 1000);
-    } else {
-      throw new Error(result.message || '模拟邮件发送失败');
-    }
-
-  } catch (error) {
-    console.error('模拟新邮件失败:', error);
-    ElMessage.error(`❌ 模拟新邮件失败: ${error.message}`);
-  } finally {
-    simulating.value = false;
-  }
 };
 
-// 专门测试 Augment Code 邮件模板的功能
+// 模板测试功能已禁用 - 确保只显示真实API数据
 const testAugmentCodeTemplate = async () => {
-  if (testingTemplate.value || !monitorConfig.value) return;
+  ElMessage.info('模板测试功能已禁用，只显示真实邮件数据');
+  return;
 
-  try {
-    testingTemplate.value = true;
-
-    // 生成多个 Augment Code 测试场景
-    const testScenarios = augmentCodeTestDataGenerator.generateTestScenarios(monitorConfig.value.emailAddress);
-
-    // 添加额外的边界测试场景
-    const edgeTestScenarios = [
-      // 测试场景：验证码在不同位置
-      {
-        name: 'Augment Code 验证码位置变化测试',
-        data: (() => {
-          const code = augmentCodeTestDataGenerator.generateVerificationCode();
-          return {
-            fromEmail: 'noreply@augmentcode.com',
-            fromName: 'Augment Code',
-            subject: 'Welcome to Augment Code',
-            content: `<p>Welcome to Augment Code!</p><p>Your verification code is: ${code}</p><p>Please use this code to complete your registration.</p>`,
-            text: `Welcome to Augment Code!\n\nYour verification code is: ${code}\n\nPlease use this code to complete your registration.`,
-            toEmail: monitorConfig.value.emailAddress,
-            toName: 'Edge Test User',
-            cc: [],
-            bcc: [],
-            verificationCode: code,
-            templateType: 'augment-code'
-          };
-        })(),
-        description: '测试验证码在不同位置时的提取能力'
-      },
-
-      // 测试场景：主题变化
-      {
-        name: 'Augment Code 主题变化测试',
-        data: (() => {
-          const code = augmentCodeTestDataGenerator.generateVerificationCode();
-          return {
-            fromEmail: 'support@augmentcode.com',
-            fromName: 'Augment Code',
-            subject: 'Welcome to Augment Code - Verification Required',
-            content: augmentCodeTestDataGenerator.generateHtmlContent(code),
-            text: augmentCodeTestDataGenerator.generateEmailContent(code),
-            toEmail: monitorConfig.value.emailAddress,
-            toName: 'Subject Test User',
-            cc: [],
-            bcc: [],
-            verificationCode: code,
-            templateType: 'augment-code'
-          };
-        })(),
-        description: '测试主题轻微变化时的模板匹配能力'
-      }
-    ];
-
-    // 合并所有测试场景
-    const allTestScenarios = [...testScenarios, ...edgeTestScenarios];
-
-    // 测试结果统计
-    const testResults = [];
-
-    // 逐个测试每个场景
-    for (let i = 0; i < allTestScenarios.length; i++) {
-      const scenario = allTestScenarios[i];
-      const testEmailData = scenario.data;
-
-      // 创建模拟邮件对象
-      const simulatedEmail = {
-        emailId: Date.now() + i, // 确保唯一ID
-        sendEmail: testEmailData.fromEmail,
-        name: testEmailData.fromName,
-        subject: testEmailData.subject,
-        content: testEmailData.content,
-        text: testEmailData.text,
-        toEmail: testEmailData.toEmail,
-        toName: testEmailData.toName,
-        matchedAddress: testEmailData.toEmail,
-        matchType: '精确',
-        emailTime: new Date().toISOString(),
-        createTime: new Date().toISOString(),
-        isTestEmail: true,
-        testScenario: scenario.name,
-        testDescription: scenario.description,
-        expectedVerificationCode: testEmailData.verificationCode,
-        templateType: 'augment-code'
-      };
-
-      // 添加到邮件列表
-      emailsList.value.unshift(simulatedEmail);
-
-      // 测试邮件模板系统
-      let testResult = {
-        scenario: scenario.name,
-        description: scenario.description,
-        expectedCode: testEmailData.verificationCode,
-        success: false,
-        hasTemplate: false,
-        templateName: null,
-        extractedCode: null,
-        confidence: 0
-      };
-
-      if (typeof emailTemplateManager !== 'undefined') {
-        const analysis = emailTemplateManager.analyzeEmail(simulatedEmail);
-        testResult = {
-          ...testResult,
-          hasTemplate: analysis.hasTemplate,
-          templateName: analysis.templateName,
-          extractedCode: analysis.verificationCode,
-          confidence: analysis.confidence,
-          success: analysis.verificationCode === testEmailData.verificationCode && analysis.hasTemplate
-        };
-      }
-
-      testResults.push(testResult);
-
-      // 短暂延迟，避免界面卡顿
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    // 显示测试结果摘要
-    const successCount = testResults.filter(r => r.success).length;
-    const totalCount = testResults.length;
-    const successRate = ((successCount / totalCount) * 100).toFixed(1);
-
-    console.log('🧪 Augment Code 邮件模板测试结果:', {
-      总测试数: totalCount,
-      成功数: successCount,
-      成功率: `${successRate}%`,
-      详细结果: testResults
-    });
-
-    // 显示用户友好的测试结果
-    if (successCount === totalCount) {
-      ElMessage.success(`🎉 Augment Code 模板测试完美通过！(${successCount}/${totalCount}) - 成功率: ${successRate}%`);
-    } else if (successCount > totalCount * 0.8) {
-      ElMessage.warning(`⚠️ Augment Code 模板测试大部分通过 (${successCount}/${totalCount}) - 成功率: ${successRate}%`);
-    } else {
-      ElMessage.error(`❌ Augment Code 模板测试需要改进 (${successCount}/${totalCount}) - 成功率: ${successRate}%`);
-    }
-
-    // 显示详细的失败案例
-    const failedTests = testResults.filter(r => !r.success);
-    if (failedTests.length > 0) {
-      console.warn('❌ 失败的测试案例:', failedTests);
-    }
-
-  } catch (error) {
-    console.error('Augment Code 模板测试失败:', error);
-    ElMessage.error(`❌ 模板测试失败: ${error.message}`);
-  } finally {
-    testingTemplate.value = false;
-  }
 };
 
 // 处理邮件内容点击事件（验证码高亮和复制）
