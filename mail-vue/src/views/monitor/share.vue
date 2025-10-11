@@ -575,7 +575,7 @@ const loadMonitorEmails = async (reset = true) => {
     }
     
     const response = await getShareEmails(shareToken, params);
-    const newEmails = response || [];
+    const newEmails = response.emails || [];
     
     if (reset) {
       emailsList.value = newEmails;
@@ -1115,7 +1115,7 @@ const checkForNewEmails = async () => {
     };
     
     const response = await getShareEmails(shareToken, params);
-    const newEmails = response || [];
+    const newEmails = response.emails || [];
     
     if (newEmails.length > 0) {
       // 过滤掉已存在的邮件
