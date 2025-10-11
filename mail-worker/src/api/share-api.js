@@ -395,3 +395,93 @@ app.get('/share/stats/:shareId', async (c) => {
 // 注意：根据业务逻辑，用户不需要输入验证码进行验证
 // 用户只需要通过分享链接直接查看邮箱收到的验证码邮件
 // 因此移除了验证码生成和验证接口，简化为直接访问模式
+
+// 刷新分享Token
+app.post('/share/:shareId/refresh-token', async (c) => {
+	try {
+		const userId = userContext.getUserId(c);
+		const shareId = parseInt(c.req.param('shareId'));
+
+		const refreshResult = await shareService.refreshToken(c, shareId, userId);
+
+		return c.json(result.ok(refreshResult));
+
+	} catch (error) {
+		console.error('Refresh share token error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('刷新Token失败'), 500);
+	}
+});
+
+// 批量操作分享
+app.post('/share/batch', async (c) => {
+	try {
+		const userId = userContext.getUserId(c);
+		const { action, shareIds, ...options } = await c.req.json();
+
+		if (!action || !shareIds || !Array.isArray(shareIds) || shareIds.length === 0) {
+			throw new BizError('参数错误：需要提供action和shareIds', 400);
+		}
+
+		const operationResult = await shareService.batchOperate(c, action, shareIds, userId, options);
+
+		return c.json(result.ok(operationResult));
+
+	} catch (error) {
+		console.error('Batch operate shares error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('批量操作失败'), 500);
+	}
+});
+
+// 更新分享状态
+app.patch('/share/:shareId/status', async (c) => {
+	try {
+		const userId = userContext.getUserId(c);
+		const shareId = parseInt(c.req.param('shareId'));
+		const { status } = await c.req.json();
+
+		if (typeof status !== 'boolean' && typeof status !== 'number') {
+			throw new BizError('参数错误：status必须是布尔值或数字', 400);
+		}
+
+		const updateResult = await shareService.updateStatus(c, shareId, userId, status);
+
+		return c.json(result.ok(updateResult));
+
+	} catch (error) {
+		console.error('Update share status error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('更新状态失败'), 500);
+	}
+});
+
+// 更新分享每日限额
+app.patch('/share/:shareId/limit', async (c) => {
+	try {
+		const userId = userContext.getUserId(c);
+		const shareId = parseInt(c.req.param('shareId'));
+		const { otpLimitDaily } = await c.req.json();
+
+		if (typeof otpLimitDaily !== 'number' || otpLimitDaily < 0) {
+			throw new BizError('参数错误：otpLimitDaily必须是非负整数', 400);
+		}
+
+		const updateResult = await shareService.updateLimit(c, shareId, userId, otpLimitDaily);
+
+		return c.json(result.ok(updateResult));
+
+	} catch (error) {
+		console.error('Update share limit error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('更新限额失败'), 500);
+	}
+});

@@ -55,3 +55,27 @@ export function getShareLogs(params) {
 export function getShareStats(shareId, params = {}) {
     return http.get(`/share/stats/${shareId}`, { params });
 }
+
+// 刷新分享Token
+export function refreshShareToken(shareId) {
+    return http.post(`/share/${shareId}/refresh-token`);
+}
+
+// 批量操作分享（延长有效期、禁用、启用）
+export function batchOperateShares(action, shareIds, options = {}) {
+    return http.post('/share/batch', {
+        action,
+        shareIds,
+        ...options
+    });
+}
+
+// 更新分享状态
+export function updateShareStatus(shareId, status) {
+    return http.patch(`/share/${shareId}/status`, { status });
+}
+
+// 更新分享每日限额
+export function updateShareLimit(shareId, otpLimitDaily) {
+    return http.patch(`/share/${shareId}/limit`, { otpLimitDaily });
+}

@@ -22,8 +22,57 @@ const init = {
 		await this.v1_6DB(c);
 		await this.v1_7DB(c);
 		await this.v2DB(c);
+		await this.v2_1DB(c); // MVP: 分享管理功能增强
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
+	},
+
+	async v2_1DB(c) {
+		// MVP: 分享管理功能增强 - 添加状态管理、每日统计等字段
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE share ADD COLUMN status TEXT DEFAULT 'active' CHECK(status IN ('active', 'expired', 'disabled'));`,
+			`ALTER TABLE share ADD COLUMN otp_count_daily INTEGER DEFAULT 0;`,
+			`ALTER TABLE share ADD COLUMN otp_limit_daily INTEGER DEFAULT 100;`,
+			`ALTER TABLE share ADD COLUMN last_reset_date TEXT;`,
+			`ALTER TABLE share ADD COLUMN remark TEXT DEFAULT '';`,
+			`ALTER TABLE share ADD COLUMN updated_at TEXT DEFAULT CURRENT_TIMESTAMP;`,
+			`CREATE INDEX IF NOT EXISTS idx_share_status ON share(status);`,
+			`CREATE INDEX IF NOT EXISTS idx_share_expire_time ON share(expire_time);`,
+			`CREATE INDEX IF NOT EXISTS idx_share_user_status ON share(user_id, status);`,
+			`CREATE INDEX IF NOT EXISTS idx_share_user_expire ON share(user_id, expire_time);`
+		];
+
+		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (e) {
+				console.warn(`跳过字段添加或索引创建，原因：${e.message}`);
+			}
+		});
+
+		await Promise.all(promises);
+
+		// 初始化现有数据的状态
+		try {
+			await c.env.db.prepare(`
+				UPDATE share
+				SET status = CASE
+					WHEN is_active = 0 THEN 'disabled'
+					WHEN datetime(expire_time) < datetime('now') THEN 'expired'
+					ELSE 'active'
+				END
+				WHERE status IS NULL OR status = 'active'
+			`).run();
+
+			// 初始化 last_reset_date 为今天
+			await c.env.db.prepare(`
+				UPDATE share
+				SET last_reset_date = date('now')
+				WHERE last_reset_date IS NULL
+			`).run();
+		} catch (e) {
+			console.warn(`跳过数据初始化，原因：${e.message}`);
+		}
 	},
 
 	async v2DB(c) {

@@ -122,17 +122,17 @@ const routers = {
     'share:create': [{
         path: '/share-management',
         name: 'share-management',
-        component: () => import('@/views/share/index.vue'),
+        component: () => import('@/views/share/index-mvp.vue'),
         meta: {
             title: 'shareManagement',
             name: 'share-management',
             menu: true
         }
     }],
-    'share:create': [{
+    'email-share': [{
         path: '/email-share',
         name: 'share',
-        component: () => import('@/views/share/index.vue'),
+        component: () => import('@/views/share/index-mvp.vue'),
         meta: {
             title: 'emailShare',
             name: 'share',

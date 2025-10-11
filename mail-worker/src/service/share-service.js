@@ -159,6 +159,138 @@ const shareService = {
 				eq(share.isActive, 1)
 			))
 			.get();
+	},
+
+	// 刷新分享Token
+	async refreshToken(c, shareId, userId) {
+		// 验证分享是否存在且属于当前用户
+		const shareRow = await this.getById(c, shareId);
+		if (!shareRow) {
+			throw new BizError('分享不存在', 404);
+		}
+		if (shareRow.userId !== userId) {
+			throw new BizError('无权限操作此分享', 403);
+		}
+
+		// 生成新的token
+		const newToken = cryptoUtils.genRandomStr(32);
+
+		// 更新数据库
+		await orm(c).update(share)
+			.set({ shareToken: newToken })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+
+		// 返回新的分享信息
+		const baseUrl = getBaseUrl(c);
+		return {
+			...shareRow,
+			shareToken: newToken,
+			shareUrl: `${baseUrl}/share/${newToken}`
+		};
+	},
+
+	// 批量操作分享
+	async batchOperate(c, action, shareIds, userId, options = {}) {
+		// 验证所有分享都属于当前用户
+		const shares = await orm(c).select().from(share)
+			.where(and(
+				sql`${share.shareId} IN (${sql.join(shareIds.map(id => sql`${id}`), sql`, `)})`,
+				eq(share.userId, userId),
+				eq(share.isActive, 1)
+			))
+			.all();
+
+		if (shares.length !== shareIds.length) {
+			throw new BizError('部分分享不存在或无权限操作', 403);
+		}
+
+		let updateData = {};
+		switch (action) {
+			case 'extend':
+				// 延长有效期 - 兼容 days 和 extendDays 两种参数名
+				const days = options.days || options.extendDays || 7;
+				updateData = {
+					expireTime: sql`datetime(expireTime, '+${days} days')`
+				};
+				break;
+			case 'disable':
+				// 禁用
+				updateData = { isActive: 0 };
+				break;
+			case 'enable':
+				// 启用
+				updateData = { isActive: 1 };
+				break;
+			default:
+				throw new BizError('不支持的操作类型', 400);
+		}
+
+		// 执行批量更新
+		await orm(c).update(share)
+			.set(updateData)
+			.where(sql`${share.shareId} IN (${sql.join(shareIds.map(id => sql`${id}`), sql`, `)})`)
+			.run();
+
+		// 清除相关缓存
+		const cacheManager = new CacheManager(c);
+		for (const shareRow of shares) {
+			await cacheManager.delete(`share:${shareRow.shareToken}`);
+		}
+
+		return { success: true, affected: shares.length };
+	},
+
+	// 更新分享状态
+	async updateStatus(c, shareId, userId, status) {
+		// 验证分享是否存在且属于当前用户
+		const shareRow = await this.getById(c, shareId);
+		if (!shareRow) {
+			throw new BizError('分享不存在', 404);
+		}
+		if (shareRow.userId !== userId) {
+			throw new BizError('无权限操作此分享', 403);
+		}
+
+		// 更新状态
+		await orm(c).update(share)
+			.set({ isActive: status ? 1 : 0 })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+
+		return { success: true };
+	},
+
+	// 更新分享每日限额
+	async updateLimit(c, shareId, userId, otpLimitDaily) {
+		// 验证分享是否存在且属于当前用户
+		const shareRow = await this.getById(c, shareId);
+		if (!shareRow) {
+			throw new BizError('分享不存在', 404);
+		}
+		if (shareRow.userId !== userId) {
+			throw new BizError('无权限操作此分享', 403);
+		}
+
+		// 更新每日限额
+		await orm(c).update(share)
+			.set({ otpLimitDaily })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+
+		return { success: true };
 	}
 };
 
