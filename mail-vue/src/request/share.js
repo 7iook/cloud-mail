@@ -7,7 +7,7 @@ export function createShare(data) {
 
 // 获取分享信息
 export function getShareInfo(shareToken) {
-    return http.get(`/share/${shareToken}`);
+    return http.get(`/api/share/info/${shareToken}`);
 }
 
 // 获取分享邮件列表

@@ -1581,102 +1581,11 @@ const handleEmailContentClick = (event) => {
   }
 };
 
-// 新增方法：获取验证码
-const getVerificationCodes = (email) => {
-  if (!email) return [];
 
-  const content = (email.subject + ' ' + email.text + ' ' + email.content).toUpperCase();
-  const codes = [];
 
-  // 增强的验证码检测正则表达式（支持字母数字混合）
-  const patterns = [
-    /\b[A-Z0-9]{6}\b/g,    // 6位字母数字混合
-    /\b[A-Z0-9]{5}\b/g,    // 5位字母数字混合
-    /\b[A-Z0-9]{4}\b/g,    // 4位字母数字混合
-    /\b\d{6}\b/g,          // 6位纯数字
-    /\b\d{5}\b/g,          // 5位纯数字
-    /\b\d{4}\b/g,          // 4位纯数字
-  ];
 
-  // 优先从HTML内容中查找验证码
-  if (email.content) {
-    const htmlCodeMatch = email.content.match(/<td[^>]*>([A-Z0-9]{4,6})<\/td>/gi) ||
-                          email.content.match(/>([A-Z0-9]{4,6})</gi);
 
-    if (htmlCodeMatch && htmlCodeMatch.length > 0) {
-      htmlCodeMatch.forEach(match => {
-        const codeMatch = match.match(/([A-Z0-9]{4,6})/);
-        if (codeMatch && !codes.includes(codeMatch[1])) {
-          codes.push(codeMatch[1]);
-        }
-      });
-    }
-  }
 
-  // 如果HTML中没找到，使用正则表达式
-  if (codes.length === 0) {
-    patterns.forEach(pattern => {
-      const matches = content.match(pattern);
-      if (matches) {
-        matches.forEach(match => {
-          if (!codes.includes(match) && codes.length < 3) {
-            codes.push(match);
-          }
-        });
-      }
-    });
-  }
-
-  return codes.slice(0, 3); // 最多返回3个验证码
-};
-
-// 新增方法：处理验证码点击
-const handleCodeClick = (code) => {
-  navigator.clipboard.writeText(code).then(() => {
-    ElMessage.success(`验证码 ${code} 已复制到剪贴板`);
-  }).catch(() => {
-    ElMessage.error('复制失败，请手动复制');
-  });
-};
-
-// 新增方法：获取内容预览
-const getContentPreview = (email) => {
-  if (!email) return '';
-
-  let preview = '';
-
-  // 优先使用纯文本内容
-  if (email.text) {
-    preview = email.text;
-  } else if (email.content) {
-    // 清理HTML标签
-    preview = email.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-  }
-
-  // 截取前150个字符
-  if (preview.length > 150) {
-    preview = preview.substring(0, 150) + '...';
-  }
-
-  return preview.trim();
-};
-
-// 新增方法：获取匹配类型颜色
-const getMatchTypeColor = (matchType) => {
-  switch (matchType) {
-    case '精确': return 'success';
-    case '前缀': return 'primary';
-    case '后缀': return 'warning';
-    case '通配符': return 'info';
-    default: return 'default';
-  }
-};
-
-// 新增方法：获取匹配类型文本
-const getMatchTypeText = (matchType) => {
-  return matchType || '未知';
-};
-};
 </script>
 
 <style scoped>
