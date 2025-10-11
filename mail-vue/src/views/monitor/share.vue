@@ -121,7 +121,12 @@ const getEmailList = (emailId, size) => {
     emailId: emailId || 0,
     size: size || 20
   }).then(response => {
-    return response.emails || []
+    // 修复：返回emailScroll组件期望的数据格式
+    return {
+      list: response.emails || [],
+      total: response.total || 0,
+      latestEmail: response.emails && response.emails.length > 0 ? response.emails[0] : null
+    }
   })
 }
 
