@@ -101,7 +101,7 @@ app.get('/share/list', async (c) => {
 });
 
 // 分享访问验证（添加频率限制 - 仅限制恶意用户）
-app.get('/api/share/info/:shareToken', shareRateLimitMiddleware, async (c) => {
+app.get('/share/info/:shareToken', shareRateLimitMiddleware, async (c) => {
 	try {
 		const shareToken = c.req.param('shareToken');
 
