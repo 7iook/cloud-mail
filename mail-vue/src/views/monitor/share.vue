@@ -994,8 +994,14 @@ const emailTemplateManager = {
   }
 };
 
-// 获取邮件中的验证码（保留用于其他地方使用）
+// 获取邮件中的验证码（优先使用API返回的extractedCode）
 const getVerificationCodes = (email) => {
+  // 优先使用API返回的验证码
+  if (email.extractedCode) {
+    return [email.extractedCode];
+  }
+
+  // 如果API没有返回验证码，使用前端提取逻辑作为备用
   const content = email.content || email.text || '';
   const sender = email.sendEmail || email.name || '';
 
