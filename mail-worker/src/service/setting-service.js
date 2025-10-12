@@ -18,7 +18,14 @@ const settingService = {
 		const settingRow = await orm(c).select().from(setting).get();
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
 		c.set('setting', settingRow);
-		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
+		// 优雅处理 KV 不可用的情况
+		if (c.env.kv) {
+			try {
+				await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
+			} catch (error) {
+				console.warn('KV 写入失败:', error.message);
+			}
+		}
 	},
 
 	async query(c) {
@@ -27,7 +34,24 @@ const settingService = {
 			return c.get('setting')
 		}
 
-		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
+		// 优雅处理 KV 不可用的情况 - 先尝试从 KV 读取，失败则从数据库读取
+		let settingData = null;
+		if (c.env.kv) {
+			try {
+				settingData = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
+			} catch (error) {
+				console.warn('KV 读取失败，将从数据库读取:', error.message);
+			}
+		}
+
+		// 如果 KV 不可用或读取失败，从数据库读取
+		if (!settingData) {
+			const settingRow = await orm(c).select().from(setting).get();
+			if (settingRow && settingRow.resendTokens) {
+				settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
+			}
+			settingData = settingRow;
+		}
 
 		let domainList = c.env.domain;
 
@@ -44,9 +68,9 @@ const settingService = {
 		}
 
 		domainList = domainList.map(item => '@' + item);
-		setting.domainList = domainList;
-		c.set?.('setting', setting);
-		return setting;
+		settingData.domainList = domainList;
+		c.set?.('setting', settingData);
+		return settingData;
 	},
 
 	async get(c, showSiteKey = false) {
