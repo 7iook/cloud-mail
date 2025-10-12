@@ -855,24 +855,56 @@ const startEditLimit = (row) => {
 
 // 保存每日限制
 const saveOtpLimit = async (row) => {
+  console.log('🎯 saveOtpLimit函数被调用:', {
+    shareId: row.shareId,
+    currentValue: row.otpLimitDaily,
+    tempValue: row.tempOtpLimit,
+    editingState: row.editingLimit,
+    timestamp: new Date().toISOString()
+  });
+
   if (!row.tempOtpLimit || row.tempOtpLimit < 1) {
+    console.log('⚠️ 验证失败: 数值无效', row.tempOtpLimit);
     ElMessage.warning('每日限制必须大于0');
     return;
   }
 
   if (row.tempOtpLimit === row.otpLimitDaily) {
+    console.log('ℹ️ 数值未变化，取消编辑');
     cancelEditLimit(row);
     return;
   }
 
   try {
-    await updateShareLimit(row.shareId, row.tempOtpLimit);
+    console.log('🔄 开始保存每日限制:', {
+      shareId: row.shareId,
+      oldValue: row.otpLimitDaily,
+      newValue: row.tempOtpLimit,
+      timestamp: new Date().toISOString()
+    });
+    
+    const response = await updateShareLimit(row.shareId, row.tempOtpLimit);
+    
+    console.log('✅ API调用成功:', response);
+    
     row.otpLimitDaily = row.tempOtpLimit;
     row.editingLimit = false;
     ElMessage.success('每日限制更新成功');
+    
+    console.log('✅ 界面更新完成:', {
+      shareId: row.shareId,
+      finalValue: row.otpLimitDaily,
+      editingState: row.editingLimit
+    });
   } catch (error) {
-    console.error('Update share limit error:', error);
-    ElMessage.error('更新每日限制失败');
+    console.error('❌ 更新每日限制失败:', {
+      shareId: row.shareId,
+      attemptedValue: row.tempOtpLimit,
+      error: error,
+      errorMessage: error.message,
+      errorStack: error.stack
+    });
+    ElMessage.error('更新每日限制失败: ' + (error.message || '未知错误'));
   }
 };
 
