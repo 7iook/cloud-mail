@@ -214,8 +214,9 @@ const shareService = {
 			case 'extend':
 				// 延长有效期 - 兼容 days 和 extendDays 两种参数名
 				const days = options.days || options.extendDays || 7;
+				// 使用 sql.raw 避免参数绑定问题
 				updateData = {
-					expireTime: sql`datetime(expireTime, '+${days} days')`
+					expireTime: sql.raw(`datetime(expireTime, '+${days} days')`)
 				};
 				break;
 			case 'disable':
