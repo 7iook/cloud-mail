@@ -2,6 +2,7 @@ import app from '../hono/hono';
 import result from '../model/result';
 import userContext from '../security/user-context';
 import accountService from '../service/account-service';
+import userService from '../service/user-service';
 import emailService from '../service/email-service';
 import settingService from '../service/setting-service';
 import shareService from '../service/share-service';
@@ -44,7 +45,7 @@ app.post('/share/create', async (c) => {
 		// 验证用户是否有权限分享此邮箱
 		// 对于邮箱验证码接码服务，管理员可以分享系统中的任何邮箱
 		// 检查当前用户是否为管理员或邮箱所有者
-		const currentUser = await accountService.selectById(c, userId);
+		const currentUser = await userService.selectById(c, userId);
 		const isAdmin = currentUser && (currentUser.email === c.env.admin || currentUser.role === 'admin');
 
 		// 对于邮件分享系统，管理员应该能够为任何邮箱创建分享
@@ -569,7 +570,7 @@ app.patch('/share/:shareId/advanced-settings', async (c) => {
 		}
 
 		// 检查权限（只有创建者或管理员可以修改）
-		const currentUser = await accountService.selectById(c, userId);
+		const currentUser = await userService.selectById(c, userId);
 		const isAdmin = currentUser && (currentUser.email === c.env.admin || currentUser.role === 'admin');
 		const isOwner = share.userId === userId;
 
