@@ -51,6 +51,16 @@ const routes = [
                     menu: true
                 }
             },
+            {
+                path: '/share-management',
+                name: 'share',
+                component: () => import('@/views/share/index-mvp.vue'),
+                meta: {
+                    title: 'shareManagement',
+                    name: 'share',
+                    menu: true
+                }
+            },
         ]
 
     },

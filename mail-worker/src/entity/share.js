@@ -19,7 +19,9 @@ export const share = sqliteTable('share', {
 	lastResetDate: text('last_reset_date'),
 	remark: text('remark').default(''),
 	// 新增字段：分享类型支持
-	shareType: integer('share_type').default(1).notNull() // 1=单邮箱分享, 2=白名单验证分享
+	shareType: integer('share_type').default(1).notNull(), // 1=单邮箱分享, 2=白名单验证分享
+	// 授权邮箱列表（JSON数组格式，用于Type 2分享）
+	authorizedEmails: text('authorized_emails').default('[]').notNull()
 });
 
 export default share;

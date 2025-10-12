@@ -33,20 +33,25 @@
 
       <el-form-item v-if="form.shareType === 1" label="目标邮箱" prop="targetEmails">
         <div class="email-select-container">
-          <div class="select-actions">
-            <el-button size="small" @click="selectAll" :disabled="loadingWhitelist">
+          <!-- 邮箱选择方式 -->
+          <div class="email-selection-mode">
+            <el-radio-group v-model="emailSelectionMode" @change="handleSelectionModeChange">
+              <el-radio value="fromAllEmails">从全部邮件选择</el-radio>
+              <el-radio value="batchInput">批量输入</el-radio>
+              <el-radio value="singleInput">单个输入</el-radio>
+            </el-radio-group>
+          </div>
+
+          <div class="select-actions" v-if="emailSelectionMode === 'fromAllEmails'">
+            <el-button size="small" @click="selectAll" :disabled="loadingAllEmails">
               <Icon icon="material-symbols:select-all" />
               全选
             </el-button>
-            <el-button size="small" @click="clearAll" :disabled="loadingWhitelist">
+            <el-button size="small" @click="clearAll" :disabled="loadingAllEmails">
               <Icon icon="material-symbols:clear-all" />
               清空
             </el-button>
             <span class="selected-count">已选择 {{ form.targetEmails.length }} 个邮箱</span>
-            <el-button size="small" type="primary" @click="openWhitelistManager" style="margin-left: auto;">
-              <Icon icon="material-symbols:settings" />
-              管理邮箱白名单
-            </el-button>
           </div>
 
           <!-- 已选择的邮箱展示区域 -->
@@ -70,35 +75,100 @@
             </div>
           </div>
 
-          <!-- 邮箱选择下拉框 -->
-          <div class="email-selector">
-            <el-select
-              v-model="tempSelectedEmails"
-              multiple
-              placeholder="从白名单中选择邮箱添加到分享列表"
-              filterable
-              clearable
-              style="width: 100%;"
-              :loading="loadingWhitelist"
-              @change="addSelectedEmails"
-            >
-              <el-option
-                v-for="email in availableEmails"
-                :key="email"
-                :label="email"
-                :value="email"
+          <!-- 从全部邮件选择 -->
+          <div v-if="emailSelectionMode === 'fromAllEmails'" class="email-selector">
+            <div class="search-bar">
+              <el-input
+                v-model="searchKeyword"
+                placeholder="搜索邮箱地址..."
+                clearable
+                @input="handleSearch"
+                class="search-input"
               >
-                <div class="email-option">
-                  <Icon icon="material-symbols:email" class="option-icon" />
-                  <span>{{ email }}</span>
+                <template #prefix>
+                  <Icon icon="material-symbols:search" />
+                </template>
+              </el-input>
+              <el-select v-model="sortBy" @change="loadAllEmails" class="sort-select">
+                <el-option label="按邮箱排序" value="email" />
+                <el-option label="按邮件数量排序" value="count" />
+              </el-select>
+            </div>
+
+            <div v-loading="loadingAllEmails" class="email-list">
+              <el-checkbox-group v-model="selectedEmailsFromAll" @change="handleEmailSelectionChange">
+                <div
+                  v-for="item in displayEmails"
+                  :key="item.email"
+                  class="email-item"
+                  :class="{ 'selected': selectedEmailsFromAll.includes(item.email) }"
+                >
+                  <el-checkbox :label="item.email">
+                    <div class="email-item-content">
+                      <div class="email-address">
+                        <Icon icon="material-symbols:email" class="email-icon" />
+                        <span class="email-text">{{ item.email }}</span>
+                      </div>
+                      <div class="email-stats">
+                        <span class="stat-item">
+                          <Icon icon="material-symbols:mail" />
+                          {{ item.emailCount }} 封邮件
+                        </span>
+                        <span class="stat-item">
+                          <Icon icon="material-symbols:schedule" />
+                          {{ formatTime(item.latestReceiveTime) }}
+                        </span>
+                      </div>
+                    </div>
+                  </el-checkbox>
                 </div>
-              </el-option>
-            </el-select>
+              </el-checkbox-group>
+            </div>
+
+            <el-pagination
+              v-if="totalEmails > pageSize"
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :total="totalEmails"
+              :page-sizes="[20, 50, 100]"
+              layout="total, sizes, prev, pager, next"
+              @current-change="handlePageChange"
+              @size-change="handleSizeChange"
+              class="pagination"
+            />
           </div>
 
-          <div v-if="whitelistEmails.length === 0" class="empty-tip">
-            <Icon icon="material-symbols:warning" />
-            暂无可分享的邮箱，请先<el-button type="text" @click="openWhitelistManager">管理邮箱白名单</el-button>
+          <!-- 批量输入 -->
+          <div v-if="emailSelectionMode === 'batchInput'" class="batch-input-container">
+            <el-input
+              v-model="batchEmailInput"
+              type="textarea"
+              :rows="8"
+              placeholder="请输入邮箱地址，一行一个：&#10;user1@example.com&#10;user2@example.com&#10;user3@example.com"
+              @blur="processBatchEmails"
+            />
+            <div class="batch-input-tip">
+              <Icon icon="material-symbols:info" />
+              支持粘贴多个邮箱地址，一行一个，系统会自动去重和格式验证
+            </div>
+          </div>
+
+          <!-- 单个输入 -->
+          <div v-if="emailSelectionMode === 'singleInput'" class="single-input-container">
+            <el-input
+              v-model="singleEmailInput"
+              placeholder="请输入邮箱地址，如：user@example.com"
+              @blur="processSingleEmail"
+            >
+              <template #prefix>
+                <Icon icon="material-symbols:email" />
+              </template>
+              <template #append>
+                <el-button @click="addSingleEmail" :disabled="!isValidEmail(singleEmailInput)">
+                  添加
+                </el-button>
+              </template>
+            </el-input>
           </div>
         </div>
         <div class="form-tip">
@@ -186,7 +256,8 @@
 <script setup>
 import { ref, reactive, watch, nextTick, computed } from 'vue';
 import { ElMessage } from 'element-plus';
-import { createShare, getShareWhitelist, updateShareWhitelist } from '@/request/share.js';
+import { createShare } from '@/request/share.js';
+import { getUniqueRecipients } from '@/request/all-email.js';
 import dayjs from 'dayjs';
 import { Icon } from '@iconify/vue';
 import ShareWhitelistDialog from './ShareWhitelistDialog.vue';
@@ -204,10 +275,24 @@ const emit = defineEmits(['update:modelValue', 'created']);
 const visible = ref(false);
 const formRef = ref();
 const submitting = ref(false);
-const loadingWhitelist = ref(false);
-const whitelistEmails = ref([]);
-const tempSelectedEmails = ref([]);
 const showWhitelistDialog = ref(false);
+
+// 邮箱选择相关
+const emailSelectionMode = ref('fromAllEmails'); // 'fromAllEmails', 'batchInput', 'singleInput'
+const loadingAllEmails = ref(false);
+const displayEmails = ref([]);
+const selectedEmailsFromAll = ref([]);
+const totalEmails = ref(0);
+const currentPage = ref(1);
+const pageSize = ref(20);
+const searchKeyword = ref('');
+const sortBy = ref('email');
+
+// 批量输入相关
+const batchEmailInput = ref('');
+
+// 单个输入相关
+const singleEmailInput = ref('');
 
 // 表单数据
 const form = reactive({
@@ -237,15 +322,17 @@ const rules = computed(() => ({
 
 // 计算属性
 const availableEmails = computed(() => {
-  return whitelistEmails.value.filter(email => !form.targetEmails.includes(email));
+  return displayEmails.value.filter(item => !form.targetEmails.includes(item.email));
 });
 
 // 监听显示状态
 watch(() => props.modelValue, (val) => {
   visible.value = val;
   if (val) {
-    loadWhitelistEmails();
     resetForm();
+    if (emailSelectionMode.value === 'fromAllEmails') {
+      loadAllEmails();
+    }
   }
 });
 
@@ -253,41 +340,113 @@ watch(visible, (val) => {
   emit('update:modelValue', val);
 });
 
-// 加载邮箱白名单
-const loadWhitelistEmails = async () => {
-  loadingWhitelist.value = true;
+// 加载全部邮件中的邮箱
+const loadAllEmails = async () => {
+  loadingAllEmails.value = true;
   try {
-    whitelistEmails.value = await getShareWhitelist();
+    const response = await getUniqueRecipients({
+      search: searchKeyword.value,
+      page: currentPage.value,
+      pageSize: pageSize.value,
+      orderBy: sortBy.value
+    });
+    const data = response.data || response;
+    displayEmails.value = data.list || [];
+    totalEmails.value = data.total || 0;
   } catch (error) {
-    ElMessage.error('加载邮箱白名单失败');
+    console.error('Load emails error:', error);
+    ElMessage.error('加载邮箱列表失败');
   } finally {
-    loadingWhitelist.value = false;
+    loadingAllEmails.value = false;
   }
 };
 
-// 全选邮箱
-const selectAll = () => {
-  form.targetEmails = [...whitelistEmails.value];
+// 邮箱选择方式变更处理
+const handleSelectionModeChange = (mode) => {
+  // 清空当前选择
+  form.targetEmails = [];
+  selectedEmailsFromAll.value = [];
+  batchEmailInput.value = '';
+  singleEmailInput.value = '';
+
+  // 根据模式加载数据
+  if (mode === 'fromAllEmails') {
+    loadAllEmails();
+  }
 };
 
-// 清空选择
+// 处理从全部邮件中的选择变更
+const handleEmailSelectionChange = (selectedEmails) => {
+  form.targetEmails = [...selectedEmails];
+};
+
+// 选择所有邮箱（从全部邮件）
+const selectAll = () => {
+  if (emailSelectionMode.value === 'fromAllEmails') {
+    selectedEmailsFromAll.value = displayEmails.value.map(item => item.email);
+    form.targetEmails = [...selectedEmailsFromAll.value];
+  }
+};
+
+// 清空所有选择
 const clearAll = () => {
   form.targetEmails = [];
-  tempSelectedEmails.value = [];
+  selectedEmailsFromAll.value = [];
+  batchEmailInput.value = '';
+  singleEmailInput.value = '';
 };
 
-// 添加选中的邮箱（多选）
-const addSelectedEmails = (emails) => {
-  if (emails && emails.length > 0) {
-    // 添加新选中的邮箱，避免重复
-    emails.forEach(email => {
-      if (!form.targetEmails.includes(email)) {
-        form.targetEmails.push(email);
-      }
-    });
+// 邮箱格式验证
+const isValidEmail = (email) => {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return emailRegex.test(email);
+};
+
+// 处理批量输入
+const processBatchEmails = () => {
+  if (!batchEmailInput.value.trim()) return;
+
+  const emails = batchEmailInput.value
+    .split('\n')
+    .map(email => email.trim())
+    .filter(email => email)
+    .filter(email => isValidEmail(email));
+
+  if (emails.length === 0) {
+    ElMessage.warning('请输入有效的邮箱地址');
+    return;
   }
-  // 清空临时选择
-  tempSelectedEmails.value = [];
+
+  // 去重并添加
+  const newEmails = emails.filter(email => !form.targetEmails.includes(email));
+  form.targetEmails.push(...newEmails);
+
+  ElMessage.success(`成功添加 ${newEmails.length} 个邮箱`);
+};
+
+// 处理单个输入
+const processSingleEmail = () => {
+  if (singleEmailInput.value.trim() && isValidEmail(singleEmailInput.value.trim())) {
+    addSingleEmail();
+  }
+};
+
+// 添加单个邮箱
+const addSingleEmail = () => {
+  const email = singleEmailInput.value.trim();
+  if (!email || !isValidEmail(email)) {
+    ElMessage.warning('请输入有效的邮箱地址');
+    return;
+  }
+
+  if (form.targetEmails.includes(email)) {
+    ElMessage.warning('该邮箱已存在');
+    return;
+  }
+
+  form.targetEmails.push(email);
+  singleEmailInput.value = '';
+  ElMessage.success('邮箱添加成功');
 };
 
 // 移除选中的邮箱
@@ -296,16 +455,43 @@ const removeSelectedEmail = (email) => {
   if (index > -1) {
     form.targetEmails.splice(index, 1);
   }
+  // 同时从选择列表中移除
+  const selectedIndex = selectedEmailsFromAll.value.indexOf(email);
+  if (selectedIndex > -1) {
+    selectedEmailsFromAll.value.splice(selectedIndex, 1);
+  }
 };
 
-// 打开邮箱白名单管理器
-const openWhitelistManager = () => {
-  showWhitelistDialog.value = true;
+// 搜索处理
+const handleSearch = () => {
+  currentPage.value = 1;
+  loadAllEmails();
 };
 
-// 处理白名单更新
+// 分页处理
+const handlePageChange = (page) => {
+  currentPage.value = page;
+  loadAllEmails();
+};
+
+// 页面大小变更处理
+const handleSizeChange = (size) => {
+  pageSize.value = size;
+  currentPage.value = 1;
+  loadAllEmails();
+};
+
+// 时间格式化
+const formatTime = (timeStr) => {
+  if (!timeStr) return '未知';
+  return dayjs(timeStr).format('MM-DD HH:mm');
+};
+
+// 处理白名单更新（保留兼容性）
 const handleWhitelistUpdated = () => {
-  loadWhitelistEmails(); // 重新加载白名单
+  if (emailSelectionMode.value === 'fromAllEmails') {
+    loadAllEmails();
+  }
   ElMessage.success('邮箱白名单更新成功');
 };
 
@@ -314,7 +500,7 @@ const handleShareTypeChange = (type) => {
   if (type === 2) {
     // 切换到白名单验证分享时，清空目标邮箱选择
     form.targetEmails = [];
-    tempSelectedEmails.value = [];
+    selectedEmailsFromAll.value = [];
   }
   nextTick(() => {
     formRef.value?.clearValidate();
@@ -328,7 +514,9 @@ const resetForm = () => {
   form.shareName = '';
   form.keywordFilter = '验证码|verification|code|otp';
   form.expireTime = '';
-  tempSelectedEmails.value = [];
+  selectedEmailsFromAll.value = [];
+  batchEmailInput.value = '';
+  singleEmailInput.value = '';
 
   nextTick(() => {
     formRef.value?.clearValidate();
@@ -346,20 +534,28 @@ const handleSubmit = async () => {
     const results = [];
 
     if (form.shareType === 2) {
-      // 类型2：白名单验证分享，只创建一个分享
+      // 类型2：多邮箱验证分享，创建一个包含授权邮箱列表的分享
+      if (form.targetEmails.length === 0) {
+        ElMessage.warning('请至少选择一个邮箱');
+        return;
+      }
+
       const shareData = {
-        targetEmail: 'whitelist@placeholder.com', // 占位邮箱，实际验证时会被替换
-        shareName: form.shareName || '白名单验证分享',
+        targetEmail: form.targetEmails[0], // 使用第一个邮箱作为主邮箱（向后兼容）
+        authorizedEmails: form.targetEmails, // 授权邮箱列表
+        shareName: form.shareName || `多邮箱验证分享 (${form.targetEmails.length}个邮箱)`,
         keywordFilter: form.keywordFilter,
         expireTime: expireTime,
-        shareType: 2
+        shareType: 2,
+        rateLimitPerSecond: form.rateLimitPerSecond,
+        rateLimitPerMinute: form.rateLimitPerMinute
       };
 
       try {
         const result = await createShare(shareData);
-        results.push({ email: '白名单验证分享', success: true, result });
+        results.push({ email: `多邮箱分享 (${form.targetEmails.length}个)`, success: true, result });
       } catch (error) {
-        results.push({ email: '白名单验证分享', success: false, error: error.message });
+        results.push({ email: '多邮箱分享', success: false, error: error.message });
       }
     } else {
       // 类型1：为每个选中的邮箱创建分享

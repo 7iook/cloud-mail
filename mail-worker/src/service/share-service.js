@@ -29,11 +29,24 @@ const shareService = {
 			expireTime,
 			rateLimitPerSecond,
 			rateLimitPerMinute,
-			shareType
+			shareType,
+			authorizedEmails
 		} = params;
 
 		// 生成分享token
 		const shareToken = cryptoUtils.genRandomStr(32);
+
+		// 处理 authorizedEmails：确保存储为 JSON 字符串
+		let authorizedEmailsJson = '[]';
+		if (authorizedEmails) {
+			if (typeof authorizedEmails === 'string') {
+				// 如果已经是字符串，直接使用
+				authorizedEmailsJson = authorizedEmails;
+			} else if (Array.isArray(authorizedEmails)) {
+				// 如果是数组，转换为 JSON 字符串
+				authorizedEmailsJson = JSON.stringify(authorizedEmails);
+			}
+		}
 
 		const shareData = {
 			shareToken,
@@ -44,11 +57,12 @@ const shareService = {
 			userId,
 			rateLimitPerSecond: rateLimitPerSecond || 5,
 			rateLimitPerMinute: rateLimitPerMinute || 60,
-			shareType: shareType || 1
+			shareType: shareType || 1,
+			authorizedEmails: authorizedEmailsJson
 		};
-		
+
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();
-		
+
 		// 生成分享URL，优先使用环境变量中的域名
 		const baseUrl = getBaseUrl(c);
 

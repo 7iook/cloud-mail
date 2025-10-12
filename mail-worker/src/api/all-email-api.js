@@ -25,7 +25,9 @@ app.delete('/allEmail/batchDelete',async (c) => {
 
 // 获取所有唯一收件邮箱地址(用于白名单导入)
 app.get('/allEmail/uniqueRecipients', async (c) => {
+	console.log('[DEBUG API] uniqueRecipients endpoint called');
 	try {
+		console.log('[DEBUG API] Getting user context...');
 		const userId = userContext.getUserId(c);
 		console.log('[DEBUG API] userId from context:', userId);
 		const params = {
@@ -34,7 +36,9 @@ app.get('/allEmail/uniqueRecipients', async (c) => {
 		};
 		console.log('[DEBUG API] params:', JSON.stringify(params));
 		
+		console.log('[DEBUG API] Calling emailService.getUniqueRecipients...');
 		const data = await emailService.getUniqueRecipients(c, params);
+		console.log('[DEBUG API] Service returned data:', JSON.stringify(data));
 		return c.json(result.ok(data));
 	} catch (error) {
 		console.error('Get unique recipients API error:', error);

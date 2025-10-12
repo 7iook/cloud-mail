@@ -15,7 +15,7 @@ import { shareRateLimitMiddleware } from '../middleware/rate-limiter';
 // 创建邮箱验证码分享
 app.post('/share/create', async (c) => {
 	try {
-		const { targetEmail, shareName, keywordFilter, expireTime, rateLimitPerSecond, rateLimitPerMinute, shareType } = await c.req.json();
+		const { targetEmail, authorizedEmails, shareName, keywordFilter, expireTime, rateLimitPerSecond, rateLimitPerMinute, shareType } = await c.req.json();
 		const userId = userContext.getUserId(c);
 
 		// 验证目标邮箱格式
@@ -23,17 +23,16 @@ app.post('/share/create', async (c) => {
 			throw new BizError('请输入有效的邮箱地址', 400);
 		}
 
-		// 获取邮箱白名单配置
-		const { shareWhitelist } = await settingService.query(c);
-		const whitelistEmails = shareWhitelist ? shareWhitelist.split(',').filter(email => email.trim()) : [];
-
-		// 验证邮箱是否在白名单中
-		if (whitelistEmails.length > 0) {
-			const isInWhitelist = whitelistEmails.some(whiteEmail =>
-				whiteEmail.trim().toLowerCase() === targetEmail.toLowerCase()
-			);
-			if (!isInWhitelist) {
-				throw new BizError('该邮箱不在可分享的邮箱白名单中', 403);
+		// 对于 Type 2 分享，验证 authorizedEmails
+		if (shareType === 2 && authorizedEmails) {
+			if (!Array.isArray(authorizedEmails) || authorizedEmails.length === 0) {
+				throw new BizError('Type 2 分享需要提供授权邮箱列表', 400);
+			}
+			// 验证每个邮箱格式
+			for (const email of authorizedEmails) {
+				if (!email || !email.includes('@')) {
+					throw new BizError(`无效的邮箱地址: ${email}`, 400);
+				}
 			}
 		}
 
@@ -80,7 +79,8 @@ app.post('/share/create', async (c) => {
 			expireTime: expireTime || dayjs().add(7, 'day').toISOString(),
 			rateLimitPerSecond: rateLimitPerSecond || 5,
 			rateLimitPerMinute: rateLimitPerMinute || 60,
-			shareType: shareType || 1 // 默认为类型1（单邮箱分享）
+			shareType: shareType || 1, // 默认为类型1（单邮箱分享）
+			authorizedEmails: authorizedEmails // 直接传递数组，由 service 层处理 JSON 转换
 		};
 
 		const shareRecord = await shareService.create(c, shareData, userId);
@@ -164,29 +164,34 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 
 		// 根据分享类型进行不同的验证
 		if (shareRecord.shareType === 2) {
-			// 类型2：白名单验证分享
+			// 类型2：多邮箱验证分享
 			if (!userEmail) {
 				errorMessage = '请输入邮箱地址进行验证';
 				accessResult = 'rejected';
 				throw new BizError(errorMessage, 400);
 			}
 
-			// 获取邮箱白名单配置
-			const { shareWhitelist } = await settingService.query(c);
-			const whitelistEmails = shareWhitelist ? shareWhitelist.split(',').filter(email => email.trim()) : [];
+			// 获取该分享的授权邮箱列表
+			let authorizedEmails = [];
+			try {
+				authorizedEmails = shareRecord.authorizedEmails ? JSON.parse(shareRecord.authorizedEmails) : [];
+			} catch (error) {
+				console.error('解析授权邮箱列表失败:', error);
+				authorizedEmails = [];
+			}
 
-			// 验证邮箱是否在白名单中
-			const isInWhitelist = whitelistEmails.some(whiteEmail =>
-				whiteEmail.trim().toLowerCase() === userEmail.toLowerCase()
+			// 验证邮箱是否在该分享的授权列表中
+			const isAuthorized = authorizedEmails.some(authorizedEmail =>
+				authorizedEmail.trim().toLowerCase() === userEmail.toLowerCase()
 			);
 
-			if (!isInWhitelist) {
-				errorMessage = '该邮箱不在访问白名单中';
+			if (!isAuthorized) {
+				errorMessage = '该邮箱不在此分享的授权列表中';
 				accessResult = 'rejected';
 				throw new BizError(errorMessage, 403);
 			}
 
-			// 白名单验证通过，使用输入的邮箱作为目标邮箱
+			// 验证通过，使用输入的邮箱作为目标邮箱
 			shareRecord.targetEmail = userEmail;
 		} else {
 			// 类型1：单邮箱分享（原有逻辑）
@@ -197,19 +202,11 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 			}
 		}
 
-		// 再次验证邮箱白名单（防止绕过）
-		const { shareWhitelist } = await settingService.query(c);
-		const whitelistEmails = shareWhitelist ? shareWhitelist.split(',').filter(email => email.trim()) : [];
-
-		if (whitelistEmails.length > 0) {
-			const isInWhitelist = whitelistEmails.some(whiteEmail =>
-				whiteEmail.trim().toLowerCase() === shareRecord.targetEmail.toLowerCase()
-			);
-			if (!isInWhitelist) {
-				errorMessage = '该邮箱不在可分享的邮箱白名单中';
-				accessResult = 'rejected';
-				throw new BizError(errorMessage, 403);
-			}
+		// 验证邮箱域名是否在系统支持的域名列表中
+		if (!c.env.domain.includes(emailUtils.getDomain(shareRecord.targetEmail))) {
+			errorMessage = '该邮箱域名不在系统支持的域名列表中';
+			accessResult = 'rejected';
+			throw new BizError(errorMessage, 403);
 		}
 
 		// 获取该邮箱的账户信息，如果不存在则按需创建

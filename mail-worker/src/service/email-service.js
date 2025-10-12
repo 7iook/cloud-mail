@@ -816,6 +816,8 @@ const emailService = {
 
 			console.log('[DEBUG] results:', JSON.stringify(results));
 			console.log('[DEBUG] countResult:', JSON.stringify(countResult));
+			console.log('[DEBUG] results.results length:', results.results ? results.results.length : 'undefined');
+			console.log('[DEBUG] countResult.total:', countResult?.total);
 
 			return {
 				list: results.results || [],
