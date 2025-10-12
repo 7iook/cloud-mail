@@ -87,3 +87,8 @@ export function updateShareName(shareId, shareName) {
 export function updateShareExpireTime(shareId, expireTime) {
     return http.patch(`/share/${shareId}/expire`, { expireTime });
 }
+
+// 更新分享高级设置（频率限制和关键词过滤）
+export function updateShareAdvancedSettings(shareId, settings) {
+    return http.patch(`/share/${shareId}/advanced-settings`, settings);
+}

@@ -1,5 +1,5 @@
 <template>
-  <div class="share-container">
+  <div class="share-container" @click="handlePageClick">
     <!-- 选项卡布局 -->
     <el-tabs v-model="activeTab" class="share-tabs">
       <!-- 分享管理选项卡 -->
@@ -176,7 +176,12 @@
                     :title="'双击编辑每日限制'"
                   >
                     {{ scope.row.otpLimitDaily || 100 }}
-                    <Icon icon="material-symbols:edit" class="edit-icon-small" />
+                    <Icon 
+                      icon="material-symbols:edit" 
+                      class="edit-icon-small" 
+                      @click.stop="startEditLimit(scope.row)"
+                      :title="'单击编辑每日限制'"
+                    />
                   </span>
                   <el-input-number
                     v-else
@@ -274,6 +279,17 @@
                   刷新Token
                 </el-button>
 
+                <!-- 编辑高级参数 -->
+                <el-button
+                  size="small"
+                  type="warning"
+                  @click="editAdvancedSettings(scope.row)"
+                  v-perm="'share:create'"
+                  :icon="Setting"
+                >
+                  高级设置
+                </el-button>
+
                 <!-- 访问日志 -->
                 <el-button
                   size="small"
@@ -317,6 +333,13 @@
       @updated="handleWhitelistUpdated"
     />
 
+    <!-- 高级设置编辑对话框 -->
+    <ShareAdvancedEditDialog
+      v-model="showAdvancedEditDialog"
+      :share-data="currentEditShare"
+      @updated="handleAdvancedSettingsUpdated"
+    />
+
     <!-- 自定义延长天数对话框 -->
     <el-dialog
       v-model="showCustomDaysDialog"
@@ -347,7 +370,7 @@
 import { ref, reactive, onMounted, computed, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Icon } from '@iconify/vue';
-import { Refresh, Delete } from '@element-plus/icons-vue';
+import { Refresh, Delete, Setting } from '@element-plus/icons-vue';
 import { tzDayjs } from '@/utils/day.js';
 import { copyTextWithFeedback } from '@/utils/clipboard-utils.js';
 import {
@@ -360,6 +383,7 @@ import {
   updateShareExpireTime
 } from '@/request/share.js';
 import ShareCreateDialog from '@/components/share/ShareCreateDialog.vue';
+import ShareAdvancedEditDialog from '@/components/share/ShareAdvancedEditDialog.vue';
 import ShareWhitelistDialog from '@/components/share/ShareWhitelistDialog.vue';
 import ShareAccessLogs from '@/components/share/ShareAccessLogs.vue';
 
@@ -376,6 +400,8 @@ const showWhitelistDialog = ref(false);
 const showCustomDaysDialog = ref(false);
 const customDays = ref(7);
 const activeTab = ref('management');
+const showAdvancedEditDialog = ref(false);
+const currentEditShare = ref(null);
 
 // Table ref for Element Plus API access
 const tableRef = ref();
@@ -855,55 +881,23 @@ const startEditLimit = (row) => {
 
 // 保存每日限制
 const saveOtpLimit = async (row) => {
-  console.log('🎯 saveOtpLimit函数被调用:', {
-    shareId: row.shareId,
-    currentValue: row.otpLimitDaily,
-    tempValue: row.tempOtpLimit,
-    editingState: row.editingLimit,
-    timestamp: new Date().toISOString()
-  });
-
   if (!row.tempOtpLimit || row.tempOtpLimit < 1) {
-    console.log('⚠️ 验证失败: 数值无效', row.tempOtpLimit);
     ElMessage.warning('每日限制必须大于0');
     return;
   }
 
   if (row.tempOtpLimit === row.otpLimitDaily) {
-    console.log('ℹ️ 数值未变化，取消编辑');
     cancelEditLimit(row);
     return;
   }
 
   try {
-    console.log('🔄 开始保存每日限制:', {
-      shareId: row.shareId,
-      oldValue: row.otpLimitDaily,
-      newValue: row.tempOtpLimit,
-      timestamp: new Date().toISOString()
-    });
-    
     const response = await updateShareLimit(row.shareId, row.tempOtpLimit);
-    
-    console.log('✅ API调用成功:', response);
-    
+
     row.otpLimitDaily = row.tempOtpLimit;
     row.editingLimit = false;
     ElMessage.success('每日限制更新成功');
-    
-    console.log('✅ 界面更新完成:', {
-      shareId: row.shareId,
-      finalValue: row.otpLimitDaily,
-      editingState: row.editingLimit
-    });
   } catch (error) {
-    console.error('❌ 更新每日限制失败:', {
-      shareId: row.shareId,
-      attemptedValue: row.tempOtpLimit,
-      error: error,
-      errorMessage: error.message,
-      errorStack: error.stack
-    });
     ElMessage.error('更新每日限制失败: ' + (error.message || '未知错误'));
   }
 };
@@ -912,6 +906,37 @@ const saveOtpLimit = async (row) => {
 const cancelEditLimit = (row) => {
   row.editingLimit = false;
   row.tempOtpLimit = row.otpLimitDaily || 100;
+};
+
+// 处理页面点击事件，触发自动保存
+const handlePageClick = (event) => {
+  // 检查是否点击在空白区域（不是输入框或按钮）
+  const target = event.target;
+  const isInputArea = target.closest('.el-input-number') || 
+                     target.closest('.el-button') || 
+                     target.closest('.el-dialog') ||
+                     target.closest('.el-select') ||
+                     target.closest('.el-date-picker');
+  
+  if (!isInputArea) {
+    // 查找当前正在编辑的行并保存
+    const editingRow = shareList.value.find(row => row.editingLimit);
+    if (editingRow) {
+      saveOtpLimit(editingRow);
+    }
+  }
+};
+
+// 编辑高级设置
+const editAdvancedSettings = (row) => {
+  currentEditShare.value = { ...row };
+  showAdvancedEditDialog.value = true;
+};
+
+// 处理高级设置更新
+const handleAdvancedSettingsUpdated = () => {
+  loadShareList();
+  ElMessage.success('高级设置更新成功');
 };
 
 // 开始编辑过期时间

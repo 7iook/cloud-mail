@@ -56,13 +56,14 @@
           <!-- 邮箱选择下拉框 -->
           <div class="email-selector">
             <el-select
-              v-model="tempSelectedEmail"
+              v-model="tempSelectedEmails"
+              multiple
               placeholder="从白名单中选择邮箱添加到分享列表"
               filterable
               clearable
               style="width: 100%;"
               :loading="loadingWhitelist"
-              @change="addSelectedEmail"
+              @change="addSelectedEmails"
             >
               <el-option
                 v-for="email in availableEmails"
@@ -188,7 +189,7 @@ const formRef = ref();
 const submitting = ref(false);
 const loadingWhitelist = ref(false);
 const whitelistEmails = ref([]);
-const tempSelectedEmail = ref('');
+const tempSelectedEmails = ref([]);
 const showWhitelistDialog = ref(false);
 
 // 表单数据
@@ -251,15 +252,21 @@ const selectAll = () => {
 // 清空选择
 const clearAll = () => {
   form.targetEmails = [];
-  tempSelectedEmail.value = '';
+  tempSelectedEmails.value = [];
 };
 
-// 添加选中的邮箱
-const addSelectedEmail = (email) => {
-  if (email && !form.targetEmails.includes(email)) {
-    form.targetEmails.push(email);
+// 添加选中的邮箱（多选）
+const addSelectedEmails = (emails) => {
+  if (emails && emails.length > 0) {
+    // 添加新选中的邮箱，避免重复
+    emails.forEach(email => {
+      if (!form.targetEmails.includes(email)) {
+        form.targetEmails.push(email);
+      }
+    });
   }
-  tempSelectedEmail.value = '';
+  // 清空临时选择
+  tempSelectedEmails.value = [];
 };
 
 // 移除选中的邮箱
@@ -287,6 +294,7 @@ const resetForm = () => {
   form.shareName = '';
   form.keywordFilter = '验证码|verification|code|otp';
   form.expireTime = '';
+  tempSelectedEmails.value = [];
 
   nextTick(() => {
     formRef.value?.clearValidate();

@@ -343,6 +343,53 @@ const shareService = {
 		await cacheManager.delete(`share:${shareRow.shareToken}`);
 
 		return { success: true };
+	},
+
+	// 更新分享高级设置
+	async updateAdvancedSettings(c, shareId, settings) {
+		const { rateLimitPerSecond, rateLimitPerMinute, keywordFilter } = settings;
+
+		// 验证参数
+		if (rateLimitPerSecond !== undefined && (rateLimitPerSecond < 1 || rateLimitPerSecond > 100)) {
+			throw new BizError('每秒限制必须在1-100之间', 400);
+		}
+		if (rateLimitPerMinute !== undefined && (rateLimitPerMinute < 1 || rateLimitPerMinute > 1000)) {
+			throw new BizError('每分钟限制必须在1-1000之间', 400);
+		}
+
+		// 获取分享信息
+		const shareRow = await this.getById(c, shareId);
+		if (!shareRow) {
+			throw new BizError('分享不存在', 404);
+		}
+
+		// 构建更新数据
+		const updateData = {};
+		if (rateLimitPerSecond !== undefined) {
+			updateData.rateLimitPerSecond = rateLimitPerSecond;
+		}
+		if (rateLimitPerMinute !== undefined) {
+			updateData.rateLimitPerMinute = rateLimitPerMinute;
+		}
+		if (keywordFilter !== undefined) {
+			updateData.keywordFilter = keywordFilter;
+		}
+
+		// 如果没有要更新的数据，直接返回
+		if (Object.keys(updateData).length === 0) {
+			return { success: true };
+		}
+
+		// 更新数据库
+		await orm(c).update(share)
+			.set(updateData)
+			.where(eq(share.shareId, shareId));
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+
+		return { success: true };
 	}
 };
 

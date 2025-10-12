@@ -28,8 +28,21 @@
           <Warning />
         </el-icon>
         <h2>访问失败</h2>
-        <p>{{ error }}</p>
-        <el-button type="primary" @click="retry">重试</el-button>
+        <p class="error-message">{{ error }}</p>
+        <div class="error-actions">
+          <el-button type="primary" @click="retry">
+            <Icon icon="material-symbols:refresh" />
+            重试
+          </el-button>
+          <el-button @click="goHome">
+            <Icon icon="material-symbols:home" />
+            返回首页
+          </el-button>
+          <el-button @click="copyCurrentUrl" v-if="shareToken">
+            <Icon icon="material-symbols:content-copy" />
+            复制链接
+          </el-button>
+        </div>
       </div>
     </div>
 
@@ -130,11 +143,29 @@ const getEmailList = (emailId, size) => {
   })
 }
 
-// 重试加载
-const retry = async () => {
-  error.value = ''
-  loading.value = true
-  await loadShareInfo()
+
+
+// 获取友好的错误提示信息
+const getFriendlyErrorMessage = (err) => {
+  const status = err.status || err.code
+  const message = err.message || ''
+  
+  // 根据不同错误类型提供友好提示
+  if (status === 404 || message.includes('不存在')) {
+    return '分享链接无效，请检查链接是否正确或联系分享者获取新链接'
+  } else if (status === 410 || message.includes('过期')) {
+    return '此分享链接已过期，请联系分享者获取新链接'
+  } else if (status === 429 || message.includes('频繁') || message.includes('超限')) {
+    return '访问过于频繁，请稍后再试'
+  } else if (status === 403 || message.includes('权限') || message.includes('白名单')) {
+    return '访问被拒绝，该邮箱可能不在分享白名单中'
+  } else if (!navigator.onLine) {
+    return '网络连接失败，请检查网络后重试'
+  } else if (status >= 500) {
+    return '服务器暂时不可用，请稍后重试'
+  } else {
+    return message || '加载失败，请检查分享链接是否有效'
+  }
 }
 
 // 加载分享信息
@@ -145,8 +176,31 @@ const loadShareInfo = async () => {
     loading.value = false
   } catch (err) {
     console.error('加载分享信息失败:', err)
-    error.value = err.message || '加载失败，请检查分享链接是否有效'
+    error.value = getFriendlyErrorMessage(err)
     loading.value = false
+  }
+}
+
+// 重试加载
+const retry = () => {
+  error.value = ''
+  loading.value = true
+  loadShareInfo()
+}
+
+// 返回首页
+const goHome = () => {
+  router.push('/')
+}
+
+// 复制当前链接
+const copyCurrentUrl = async () => {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    ElMessage.success('链接已复制到剪贴板')
+  } catch (err) {
+    console.error('复制失败:', err)
+    ElMessage.error('复制失败，请手动复制链接')
   }
 }
 
@@ -307,5 +361,49 @@ onUnmounted(() => {
     max-width: 99vw;
     padding: 0 0.5vw;
   }
+}
+
+/* 错误页面样式 */
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+}
+
+.error-content {
+  text-align: center;
+  max-width: 500px;
+}
+
+.error-icon {
+  color: #f56c6c;
+  margin-bottom: 20px;
+}
+
+.error-content h2 {
+  color: #303133;
+  margin-bottom: 16px;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.error-message {
+  color: #606266;
+  margin-bottom: 24px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.error-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.error-actions .el-button {
+  min-width: 100px;
 }
 </style>

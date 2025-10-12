@@ -45,11 +45,15 @@ app.post('/share/create', async (c) => {
 		// 对于邮箱验证码接码服务，管理员可以分享系统中的任何邮箱
 		// 检查当前用户是否为管理员或邮箱所有者
 		const currentUser = await accountService.selectById(c, userId);
-		const isAdmin = currentUser && (currentUser.email === 'admin@example.com' || currentUser.role === 'admin');
-		const isOwner = existingAccount.userId === userId;
+		const isAdmin = currentUser && (currentUser.email === c.env.admin || currentUser.role === 'admin');
 
-		if (!isAdmin && !isOwner) {
-			throw new BizError('您没有权限分享此邮箱', 403);
+		// 对于邮件分享系统，管理员应该能够为任何邮箱创建分享
+		// 普通用户只能为自己的邮箱创建分享
+		if (!isAdmin) {
+			const isOwner = existingAccount.userId === userId;
+			if (!isOwner) {
+				throw new BizError('您没有权限分享此邮箱', 403);
+			}
 		}
 
 		// 创建分享记录到数据库
@@ -539,6 +543,50 @@ app.patch('/share/:shareId/expire', async (c) => {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
 		return c.json(result.fail('更新过期时间失败'), 500);
+	}
+});
+
+// 更新分享高级设置
+app.patch('/share/:shareId/advanced-settings', async (c) => {
+	try {
+		const user = c.get('user');
+		if (!user) {
+			return c.json(result.fail('用户未认证'), 401);
+		}
+		
+		const userId = user.userId;
+		const shareId = parseInt(c.req.param('shareId'));
+		const settings = await c.req.json();
+
+		if (!shareId || isNaN(shareId)) {
+			throw new BizError('参数错误：shareId不能为空', 400);
+		}
+
+		// 验证权限
+		const share = await shareService.selectById(c, shareId);
+		if (!share) {
+			throw new BizError('分享不存在', 404);
+		}
+
+		// 检查权限（只有创建者或管理员可以修改）
+		const currentUser = await accountService.selectById(c, userId);
+		const isAdmin = currentUser && (currentUser.email === c.env.admin || currentUser.role === 'admin');
+		const isOwner = share.userId === userId;
+
+		if (!isAdmin && !isOwner) {
+			throw new BizError('您没有权限修改此分享', 403);
+		}
+
+		// 更新高级设置
+		await shareService.updateAdvancedSettings(c, shareId, settings);
+
+		return c.json(result.success('高级设置更新成功'));
+	} catch (error) {
+		console.error('更新高级设置失败:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code);
+		}
+		return c.json(result.fail('更新高级设置失败'), 500);
 	}
 });
 
