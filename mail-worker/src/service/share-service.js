@@ -28,7 +28,8 @@ const shareService = {
 			keywordFilter,
 			expireTime,
 			rateLimitPerSecond,
-			rateLimitPerMinute
+			rateLimitPerMinute,
+			shareType
 		} = params;
 
 		// 生成分享token
@@ -42,7 +43,8 @@ const shareService = {
 			expireTime,
 			userId,
 			rateLimitPerSecond: rateLimitPerSecond || 5,
-			rateLimitPerMinute: rateLimitPerMinute || 60
+			rateLimitPerMinute: rateLimitPerMinute || 60,
+			shareType: shareType || 1
 		};
 		
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();

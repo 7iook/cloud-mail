@@ -14,7 +14,24 @@
       label-width="120px"
       @submit.prevent
     >
-      <el-form-item label="目标邮箱" prop="targetEmails">
+      <el-form-item label="分享类型" prop="shareType">
+        <el-radio-group v-model="form.shareType" @change="handleShareTypeChange">
+          <el-radio :value="1">
+            <div class="share-type-option">
+              <div class="option-title">单邮箱分享</div>
+              <div class="option-desc">为指定邮箱创建专用分享链接</div>
+            </div>
+          </el-radio>
+          <el-radio :value="2">
+            <div class="share-type-option">
+              <div class="option-title">白名单验证分享</div>
+              <div class="option-desc">访问者需输入白名单邮箱进行验证</div>
+            </div>
+          </el-radio>
+        </el-radio-group>
+      </el-form-item>
+
+      <el-form-item v-if="form.shareType === 1" label="目标邮箱" prop="targetEmails">
         <div class="email-select-container">
           <div class="select-actions">
             <el-button size="small" @click="selectAll" :disabled="loadingWhitelist">
@@ -194,6 +211,7 @@ const showWhitelistDialog = ref(false);
 
 // 表单数据
 const form = reactive({
+  shareType: 1, // 1=单邮箱分享, 2=白名单验证分享
   targetEmails: [],
   shareName: '',
   keywordFilter: '验证码|verification|code|otp',
@@ -203,16 +221,19 @@ const form = reactive({
 });
 
 // 表单验证规则
-const rules = {
-  targetEmails: [
+const rules = computed(() => ({
+  shareType: [
+    { required: true, message: '请选择分享类型', trigger: 'change' }
+  ],
+  targetEmails: form.shareType === 1 ? [
     { required: true, message: '请选择目标邮箱', trigger: 'change' },
     { type: 'array', min: 1, message: '至少选择一个邮箱', trigger: 'change' }
-  ],
+  ] : [],
   shareName: [
     { required: true, message: '请输入分享名称', trigger: 'blur' },
     { min: 2, max: 100, message: '分享名称长度在 2 到 100 个字符', trigger: 'blur' }
   ]
-};
+}));
 
 // 计算属性
 const availableEmails = computed(() => {
@@ -288,8 +309,21 @@ const handleWhitelistUpdated = () => {
   ElMessage.success('邮箱白名单更新成功');
 };
 
+// 处理分享类型变更
+const handleShareTypeChange = (type) => {
+  if (type === 2) {
+    // 切换到白名单验证分享时，清空目标邮箱选择
+    form.targetEmails = [];
+    tempSelectedEmails.value = [];
+  }
+  nextTick(() => {
+    formRef.value?.clearValidate();
+  });
+};
+
 // 重置表单
 const resetForm = () => {
+  form.shareType = 1;
   form.targetEmails = [];
   form.shareName = '';
   form.keywordFilter = '验证码|verification|code|otp';
@@ -311,20 +345,39 @@ const handleSubmit = async () => {
     const expireTime = form.expireTime || dayjs().add(7, 'day').toISOString();
     const results = [];
 
-    // 为每个选中的邮箱创建分享
-    for (const email of form.targetEmails) {
+    if (form.shareType === 2) {
+      // 类型2：白名单验证分享，只创建一个分享
       const shareData = {
-        targetEmail: email,
-        shareName: form.shareName || `${email}的验证码接收`,
+        targetEmail: 'whitelist@placeholder.com', // 占位邮箱，实际验证时会被替换
+        shareName: form.shareName || '白名单验证分享',
         keywordFilter: form.keywordFilter,
-        expireTime: expireTime
+        expireTime: expireTime,
+        shareType: 2
       };
 
       try {
         const result = await createShare(shareData);
-        results.push({ email, success: true, result });
+        results.push({ email: '白名单验证分享', success: true, result });
       } catch (error) {
-        results.push({ email, success: false, error: error.message });
+        results.push({ email: '白名单验证分享', success: false, error: error.message });
+      }
+    } else {
+      // 类型1：为每个选中的邮箱创建分享
+      for (const email of form.targetEmails) {
+        const shareData = {
+          targetEmail: email,
+          shareName: form.shareName || `${email}的验证码接收`,
+          keywordFilter: form.keywordFilter,
+          expireTime: expireTime,
+          shareType: 1
+        };
+
+        try {
+          const result = await createShare(shareData);
+          results.push({ email, success: true, result });
+        } catch (error) {
+          results.push({ email, success: false, error: error.message });
+        }
       }
     }
 
@@ -440,6 +493,29 @@ const handleClose = () => {
 .email-icon {
   font-size: 16px;
   flex-shrink: 0;
+}
+
+.share-type-option {
+  .option-title {
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    margin-bottom: 4px;
+  }
+
+  .option-desc {
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    line-height: 1.4;
+  }
+}
+
+.el-radio {
+  margin-right: 24px;
+  margin-bottom: 16px;
+
+  &:last-child {
+    margin-right: 0;
+  }
 }
 
 .email-selector {

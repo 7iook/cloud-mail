@@ -15,7 +15,7 @@ import { shareRateLimitMiddleware } from '../middleware/rate-limiter';
 // 创建邮箱验证码分享
 app.post('/share/create', async (c) => {
 	try {
-		const { targetEmail, shareName, keywordFilter, expireTime, rateLimitPerSecond, rateLimitPerMinute } = await c.req.json();
+		const { targetEmail, shareName, keywordFilter, expireTime, rateLimitPerSecond, rateLimitPerMinute, shareType } = await c.req.json();
 		const userId = userContext.getUserId(c);
 
 		// 验证目标邮箱格式
@@ -79,7 +79,8 @@ app.post('/share/create', async (c) => {
 			keywordFilter: keywordFilter || '验证码|verification|code|otp',
 			expireTime: expireTime || dayjs().add(7, 'day').toISOString(),
 			rateLimitPerSecond: rateLimitPerSecond || 5,
-			rateLimitPerMinute: rateLimitPerMinute || 60
+			rateLimitPerMinute: rateLimitPerMinute || 60,
+			shareType: shareType || 1 // 默认为类型1（单邮箱分享）
 		};
 
 		const shareRecord = await shareService.create(c, shareData, userId);
@@ -133,7 +134,8 @@ app.get('/share/info/:shareToken', shareRateLimitMiddleware, async (c) => {
 			shareName: shareRecord.shareName,
 			keywordFilter: shareRecord.keywordFilter,
 			createTime: shareRecord.createTime,
-			expireTime: shareRecord.expireTime
+			expireTime: shareRecord.expireTime,
+			shareType: shareRecord.shareType || 1
 		}));
 
 	} catch (error) {
@@ -160,11 +162,39 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 		// 从数据库获取分享信息
 		const shareRecord = await shareService.getByToken(c, shareToken);
 
-		// 验证用户输入的邮箱是否与分享的邮箱匹配
-		if (userEmail && userEmail.toLowerCase() !== shareRecord.targetEmail.toLowerCase()) {
-			errorMessage = '输入的邮箱与分享邮箱不匹配';
-			accessResult = 'rejected';
-			throw new BizError(errorMessage, 400);
+		// 根据分享类型进行不同的验证
+		if (shareRecord.shareType === 2) {
+			// 类型2：白名单验证分享
+			if (!userEmail) {
+				errorMessage = '请输入邮箱地址进行验证';
+				accessResult = 'rejected';
+				throw new BizError(errorMessage, 400);
+			}
+
+			// 获取邮箱白名单配置
+			const { shareWhitelist } = await settingService.query(c);
+			const whitelistEmails = shareWhitelist ? shareWhitelist.split(',').filter(email => email.trim()) : [];
+
+			// 验证邮箱是否在白名单中
+			const isInWhitelist = whitelistEmails.some(whiteEmail =>
+				whiteEmail.trim().toLowerCase() === userEmail.toLowerCase()
+			);
+
+			if (!isInWhitelist) {
+				errorMessage = '该邮箱不在访问白名单中';
+				accessResult = 'rejected';
+				throw new BizError(errorMessage, 403);
+			}
+
+			// 白名单验证通过，使用输入的邮箱作为目标邮箱
+			shareRecord.targetEmail = userEmail;
+		} else {
+			// 类型1：单邮箱分享（原有逻辑）
+			if (userEmail && userEmail.toLowerCase() !== shareRecord.targetEmail.toLowerCase()) {
+				errorMessage = '输入的邮箱与分享邮箱不匹配';
+				accessResult = 'rejected';
+				throw new BizError(errorMessage, 400);
+			}
 		}
 
 		// 再次验证邮箱白名单（防止绕过）

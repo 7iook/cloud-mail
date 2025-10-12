@@ -20,9 +20,33 @@ app.get('/share/stream/:shareToken', shareRateLimitMiddleware, async (c) => {
 		// 验证分享链接
 		const shareRecord = await shareService.getByToken(c, shareToken);
 
-		// 验证邮箱匹配
-		if (userEmail && userEmail.toLowerCase() !== shareRecord.targetEmail.toLowerCase()) {
-			throw new BizError('输入的邮箱与分享邮箱不匹配', 400);
+		// 根据分享类型进行不同的验证
+		if (shareRecord.shareType === 2) {
+			// 类型2：白名单验证分享
+			if (!userEmail) {
+				throw new BizError('请输入邮箱地址进行验证', 400);
+			}
+
+			// 获取邮箱白名单配置
+			const { shareWhitelist } = await settingService.query(c);
+			const whitelistEmails = shareWhitelist ? shareWhitelist.split(',').filter(email => email.trim()) : [];
+
+			// 验证邮箱是否在白名单中
+			const isInWhitelist = whitelistEmails.some(whiteEmail =>
+				whiteEmail.trim().toLowerCase() === userEmail.toLowerCase()
+			);
+
+			if (!isInWhitelist) {
+				throw new BizError('该邮箱不在访问白名单中', 403);
+			}
+
+			// 白名单验证通过，使用输入的邮箱作为目标邮箱
+			shareRecord.targetEmail = userEmail;
+		} else {
+			// 类型1：单邮箱分享（原有逻辑）
+			if (userEmail && userEmail.toLowerCase() !== shareRecord.targetEmail.toLowerCase()) {
+				throw new BizError('输入的邮箱与分享邮箱不匹配', 400);
+			}
 		}
 
 		// 验证白名单

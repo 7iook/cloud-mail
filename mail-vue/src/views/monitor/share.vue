@@ -48,6 +48,41 @@
 
     <!-- 邮件列表 - 直接复用全部邮件页面的实现 -->
     <div v-else class="emails-container">
+      <!-- 白名单验证输入框 (仅类型2分享显示) -->
+      <div v-if="shareInfo?.shareType === 2" class="email-verification-section">
+        <div class="verification-header">
+          <h3>邮箱验证</h3>
+          <p>请输入您的邮箱地址以查看验证码</p>
+        </div>
+        <div class="verification-form">
+          <el-input
+            v-model="verificationEmail"
+            placeholder="请输入邮箱地址"
+            size="large"
+            :disabled="verifying"
+            @keyup.enter="handleEmailVerification"
+            class="email-input"
+          >
+            <template #prefix>
+              <Icon icon="material-symbols:email" />
+            </template>
+          </el-input>
+          <el-button
+            type="primary"
+            size="large"
+            :loading="verifying"
+            @click="handleEmailVerification"
+            :disabled="!verificationEmail"
+          >
+            验证邮箱
+          </el-button>
+        </div>
+        <div v-if="verificationError" class="verification-error">
+          <Icon icon="material-symbols:error" />
+          {{ verificationError }}
+        </div>
+      </div>
+
       <SplitPaneLayout class="split-container">
         <!-- 邮件列表 -->
         <template #list>
@@ -94,6 +129,11 @@ const loading = ref(true)
 const error = ref('')
 const monitorConfig = ref(null)
 const scroll = ref({})
+const shareInfo = ref(null)
+const verificationEmail = ref('')
+const verifying = ref(false)
+const verificationError = ref('')
+const emailsVerified = ref(false)
 
 // 获取别名类型文本
 const getAliasTypeText = (aliasType) => {
@@ -130,10 +170,27 @@ const jumpContent = (email) => {
 
 // 获取邮件列表（适配emailScroll组件）
 const getEmailList = (emailId, size) => {
-  return getShareEmails(shareToken, {
+  // 类型2分享且未验证邮箱时，返回空列表
+  if (shareInfo.value?.shareType === 2 && !emailsVerified.value) {
+    return Promise.resolve({
+      list: [],
+      total: 0,
+      latestEmail: null
+    })
+  }
+
+  // 构建请求参数
+  const params = {
     emailId: emailId || 0,
     size: size || 20
-  }).then(response => {
+  }
+
+  // 类型2分享需要添加验证邮箱参数
+  if (shareInfo.value?.shareType === 2 && verificationEmail.value) {
+    params.userEmail = verificationEmail.value
+  }
+
+  return getShareEmails(shareToken, params).then(response => {
     // 修复：返回emailScroll组件期望的数据格式
     return {
       list: response.emails || [],
@@ -172,12 +229,51 @@ const getFriendlyErrorMessage = (err) => {
 const loadShareInfo = async () => {
   try {
     const info = await getShareInfo(shareToken)
+    shareInfo.value = info
     monitorConfig.value = info
+
+    // 如果是类型1分享，直接显示邮件
+    if (info.shareType === 1) {
+      emailsVerified.value = true
+    }
+
     loading.value = false
   } catch (err) {
     console.error('加载分享信息失败:', err)
     error.value = getFriendlyErrorMessage(err)
     loading.value = false
+  }
+}
+
+// 处理邮箱验证
+const handleEmailVerification = async () => {
+  if (!verificationEmail.value) {
+    verificationError.value = '请输入邮箱地址'
+    return
+  }
+
+  verifying.value = true
+  verificationError.value = ''
+
+  try {
+    // 使用输入的邮箱调用邮件获取API进行验证
+    await getShareEmails(shareToken, { userEmail: verificationEmail.value })
+
+    // 验证成功，更新状态
+    emailsVerified.value = true
+    monitorConfig.value.emailAddress = verificationEmail.value
+
+    // 刷新邮件列表
+    if (scroll.value?.refresh) {
+      scroll.value.refresh()
+    }
+
+    ElMessage.success('邮箱验证成功')
+  } catch (err) {
+    console.error('Email verification failed:', err)
+    verificationError.value = getFriendlyErrorMessage(err)
+  } finally {
+    verifying.value = false
   }
 }
 
@@ -405,5 +501,58 @@ onUnmounted(() => {
 
 .error-actions .el-button {
   min-width: 100px;
+}
+
+.email-verification-section {
+  background: var(--el-bg-color-page);
+  border: 1px solid var(--el-border-color);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.verification-header {
+  text-align: center;
+  margin-bottom: 20px;
+
+  h3 {
+    margin: 0 0 8px 0;
+    color: var(--el-text-color-primary);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: var(--el-text-color-regular);
+    font-size: 14px;
+  }
+}
+
+.verification-form {
+  display: flex;
+  gap: 12px;
+  max-width: 500px;
+  margin: 0 auto;
+
+  .email-input {
+    flex: 1;
+  }
+}
+
+.verification-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--el-color-error-light-9);
+  border: 1px solid var(--el-color-error-light-7);
+  border-radius: 4px;
+  color: var(--el-color-error);
+  font-size: 14px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
 }
 </style>
