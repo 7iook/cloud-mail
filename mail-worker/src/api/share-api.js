@@ -79,10 +79,10 @@ app.post('/share/create', async (c) => {
 app.get('/share/list', async (c) => {
 	try {
 		const userId = userContext.getUserId(c);
-		const { page = 1, pageSize = 20 } = c.req.query();
+		const { page = 1, pageSize = 20, status } = c.req.query();
 
-		const shares = await shareService.getUserShares(c, userId, parseInt(page), parseInt(pageSize));
-		const total = await shareService.getUserShareCount(c, userId);
+		const shares = await shareService.getUserShares(c, userId, parseInt(page), parseInt(pageSize), status);
+		const total = await shareService.getUserShareCount(c, userId, status);
 
 		return c.json(result.ok({
 			list: shares,
@@ -399,15 +399,19 @@ app.get('/share/stats/:shareId', async (c) => {
 // 刷新分享Token
 app.post('/share/:shareId/refresh-token', async (c) => {
 	try {
+		console.log('=== Refresh token started ===');
 		const userId = userContext.getUserId(c);
 		const shareId = parseInt(c.req.param('shareId'));
+		console.log('User ID:', userId, 'Share ID:', shareId);
 
 		const refreshResult = await shareService.refreshToken(c, shareId, userId);
+		console.log('Refresh result:', refreshResult);
 
 		return c.json(result.ok(refreshResult));
 
 	} catch (error) {
 		console.error('Refresh share token error:', error);
+		console.error('Error stack:', error.stack);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -418,19 +422,28 @@ app.post('/share/:shareId/refresh-token', async (c) => {
 // 批量操作分享
 app.post('/share/batch', async (c) => {
 	try {
+		console.log('=== Batch operation started ===');
 		const userId = userContext.getUserId(c);
-		const { action, shareIds, ...options } = await c.req.json();
+		console.log('User ID:', userId);
+		
+		const requestBody = await c.req.json();
+		console.log('Request body:', JSON.stringify(requestBody));
+		
+		const { action, shareIds, ...options } = requestBody;
 
 		if (!action || !shareIds || !Array.isArray(shareIds) || shareIds.length === 0) {
 			throw new BizError('参数错误：需要提供action和shareIds', 400);
 		}
 
+		console.log('Calling batchOperate with:', { action, shareIds, userId, options });
 		const operationResult = await shareService.batchOperate(c, action, shareIds, userId, options);
+		console.log('Operation result:', operationResult);
 
 		return c.json(result.ok(operationResult));
 
 	} catch (error) {
 		console.error('Batch operate shares error:', error);
+		console.error('Error stack:', error.stack);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -438,15 +451,111 @@ app.post('/share/batch', async (c) => {
 	}
 });
 
+
+
+// 更新分享每日限额
+app.post('/share/:shareId/update-limit', async (c) => {
+	try {
+		// 从认证中间件获取用户信息
+		const user = c.get('user');
+		if (!user) {
+			return c.json(result.fail('用户未认证'), 401);
+		}
+		
+		const userId = user.userId;
+		const shareId = parseInt(c.req.param('shareId'));
+		const { otpLimitDaily } = await c.req.json();
+
+		if (typeof otpLimitDaily !== 'number' || otpLimitDaily < 0) {
+			throw new BizError('参数错误：otpLimitDaily必须是非负整数', 400);
+		}
+
+		// 调用service方法
+		const updateResult = await shareService.updateLimit(c, shareId, userId, otpLimitDaily);
+
+		return c.json(result.ok(updateResult));
+
+	} catch (error) {
+		console.error('Update share limit error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('更新限额失败'), 500);
+	}
+});
+
+// 更新分享名称
+app.patch('/share/:shareId/name', async (c) => {
+	try {
+		const user = c.get('user');
+		if (!user) {
+			return c.json(result.fail('用户未认证'), 401);
+		}
+		
+		const userId = user.userId;
+		const shareId = parseInt(c.req.param('shareId'));
+		const { shareName } = await c.req.json();
+
+		if (!shareName || typeof shareName !== 'string' || shareName.trim().length === 0) {
+			throw new BizError('参数错误：shareName不能为空', 400);
+		}
+
+		const updateResult = await shareService.updateName(c, shareId, userId, shareName.trim());
+
+		return c.json(result.ok(updateResult));
+
+	} catch (error) {
+		console.error('Update share name error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('更新分享名称失败'), 500);
+	}
+});
+
+// 更新分享过期时间
+app.patch('/share/:shareId/expire', async (c) => {
+	try {
+		const user = c.get('user');
+		if (!user) {
+			return c.json(result.fail('用户未认证'), 401);
+		}
+		
+		const userId = user.userId;
+		const shareId = parseInt(c.req.param('shareId'));
+		const { expireTime } = await c.req.json();
+
+		if (!expireTime || typeof expireTime !== 'string') {
+			throw new BizError('参数错误：expireTime不能为空', 400);
+		}
+
+		const updateResult = await shareService.updateExpireTime(c, shareId, userId, expireTime);
+
+		return c.json(result.ok(updateResult));
+
+	} catch (error) {
+		console.error('Update share expire time error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('更新过期时间失败'), 500);
+	}
+});
+
 // 更新分享状态
 app.patch('/share/:shareId/status', async (c) => {
 	try {
-		const userId = userContext.getUserId(c);
+		const user = c.get('user');
+		if (!user) {
+			return c.json(result.fail('用户未认证'), 401);
+		}
+		
+		const userId = user.userId;
 		const shareId = parseInt(c.req.param('shareId'));
 		const { status } = await c.req.json();
 
-		if (typeof status !== 'boolean' && typeof status !== 'number') {
-			throw new BizError('参数错误：status必须是布尔值或数字', 400);
+		if (!status || typeof status !== 'string') {
+			throw new BizError('参数错误：status不能为空', 400);
 		}
 
 		const updateResult = await shareService.updateStatus(c, shareId, userId, status);
@@ -462,26 +571,3 @@ app.patch('/share/:shareId/status', async (c) => {
 	}
 });
 
-// 更新分享每日限额
-app.patch('/share/:shareId/limit', async (c) => {
-	try {
-		const userId = userContext.getUserId(c);
-		const shareId = parseInt(c.req.param('shareId'));
-		const { otpLimitDaily } = await c.req.json();
-
-		if (typeof otpLimitDaily !== 'number' || otpLimitDaily < 0) {
-			throw new BizError('参数错误：otpLimitDaily必须是非负整数', 400);
-		}
-
-		const updateResult = await shareService.updateLimit(c, shareId, userId, otpLimitDaily);
-
-		return c.json(result.ok(updateResult));
-
-	} catch (error) {
-		console.error('Update share limit error:', error);
-		if (error instanceof BizError) {
-			return c.json(result.fail(error.message), error.code || 400);
-		}
-		return c.json(result.fail('更新限额失败'), 500);
-	}
-});

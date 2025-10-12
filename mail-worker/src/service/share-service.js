@@ -1,5 +1,5 @@
-import orm from '../entity/orm';
 import { share } from '../entity/share';
+import orm from '../entity/orm';
 import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
@@ -76,7 +76,8 @@ const shareService = {
 		const shareRow = await orm(c).select().from(share)
 			.where(and(
 				eq(share.shareToken, shareToken),
-				eq(share.isActive, 1)
+				eq(share.isActive, 1),
+				eq(share.status, 'active')
 			))
 			.get();
 
@@ -246,29 +247,7 @@ const shareService = {
 		return { success: true, affected: shares.length };
 	},
 
-	// 更新分享状态
-	async updateStatus(c, shareId, userId, status) {
-		// 验证分享是否存在且属于当前用户
-		const shareRow = await this.getById(c, shareId);
-		if (!shareRow) {
-			throw new BizError('分享不存在', 404);
-		}
-		if (shareRow.userId !== userId) {
-			throw new BizError('无权限操作此分享', 403);
-		}
 
-		// 更新状态
-		await orm(c).update(share)
-			.set({ isActive: status ? 1 : 0 })
-			.where(eq(share.shareId, shareId))
-			.run();
-
-		// 清除缓存
-		const cacheManager = new CacheManager(c);
-		await cacheManager.delete(`share:${shareRow.shareToken}`);
-
-		return { success: true };
-	},
 
 	// 更新分享每日限额
 	async updateLimit(c, shareId, userId, otpLimitDaily) {
@@ -284,6 +263,78 @@ const shareService = {
 		// 更新每日限额
 		await orm(c).update(share)
 			.set({ otpLimitDaily })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+
+		return { success: true };
+	},
+
+	// 更新分享名称
+	async updateName(c, shareId, userId, shareName) {
+		// 验证分享是否存在且属于当前用户
+		const shareRow = await this.getById(c, shareId);
+		if (!shareRow) {
+			throw new BizError('分享不存在', 404);
+		}
+		if (shareRow.userId !== userId) {
+			throw new BizError('无权限操作此分享', 403);
+		}
+
+		// 更新分享名称
+		await orm(c).update(share)
+			.set({ shareName })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+
+		return { success: true };
+	},
+
+	// 更新分享过期时间
+	async updateExpireTime(c, shareId, userId, expireTime) {
+		// 验证分享是否存在且属于当前用户
+		const shareRow = await this.getById(c, shareId);
+		if (!shareRow) {
+			throw new BizError('分享不存在', 404);
+		}
+		if (shareRow.userId !== userId) {
+			throw new BizError('无权限操作此分享', 403);
+		}
+
+		// 更新过期时间
+		await orm(c).update(share)
+			.set({ expireTime })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+
+		return { success: true };
+	},
+
+	// 更新分享状态
+	async updateStatus(c, shareId, userId, status) {
+		// 验证分享是否存在且属于当前用户
+		const shareRow = await this.getById(c, shareId);
+		if (!shareRow) {
+			throw new BizError('分享不存在', 404);
+		}
+		if (shareRow.userId !== userId) {
+			throw new BizError('无权限操作此分享', 403);
+		}
+
+		// 更新状态
+		await orm(c).update(share)
+			.set({ status })
 			.where(eq(share.shareId, shareId))
 			.run();
 

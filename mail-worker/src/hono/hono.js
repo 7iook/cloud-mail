@@ -6,6 +6,14 @@ import { cors } from 'hono/cors';
 
 app.use('*', cors());
 
+// 添加全局请求日志中间件
+app.use('*', async (c, next) => {
+	console.log(`=== REQUEST: ${c.req.method} ${c.req.url} ===`);
+	console.log('Headers:', Object.fromEntries(c.req.raw.headers.entries()));
+	await next();
+	console.log(`=== RESPONSE: ${c.res.status} ===`);
+});
+
 app.onError((err, c) => {
 	if (err.name === 'BizError') {
 		console.log(err.message);

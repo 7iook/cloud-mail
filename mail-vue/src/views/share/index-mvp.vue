@@ -93,9 +93,9 @@
               刷新
             </el-button>
 
-            <!-- 选中提示 -->
+            <!-- 选中提示 - 增强信息显示 -->
             <span v-if="selectedRows.length > 0" class="selected-tip">
-              已选择 <strong>{{ selectedRows.length }}</strong> 项
+              已选择 <strong>{{ selectedRows.length }}</strong> / {{ shareList.length }} 项
             </span>
           </div>
         </div>
@@ -103,6 +103,7 @@
         <!-- 分享列表 - 参考截图的表格设计 -->
         <div class="share-content">
           <el-table
+            ref="tableRef"
             :data="shareList"
             style="width: 100%"
             v-loading="loading"
@@ -131,10 +132,33 @@
             <!-- 目标邮箱 -->
             <el-table-column prop="targetEmail" label="目标邮箱" min-width="200" show-overflow-tooltip />
 
-            <!-- 分享名称 -->
-            <el-table-column prop="shareName" label="分享名称" min-width="150" show-overflow-tooltip />
+            <!-- 分享名称 - 支持内联编辑 -->
+            <el-table-column label="分享名称" min-width="150">
+              <template #default="scope">
+                <div 
+                  v-if="!scope.row.editingName" 
+                  @dblclick="startEditName(scope.row)"
+                  class="editable-cell"
+                  :title="scope.row.shareName"
+                >
+                  {{ scope.row.shareName }}
+                  <Icon icon="material-symbols:edit" class="edit-icon" />
+                </div>
+                <el-input
+                  v-else
+                  v-model="scope.row.tempShareName"
+                  size="small"
+                  @blur="saveShareName(scope.row)"
+                  @keyup.enter="saveShareName(scope.row)"
+                  @keyup.esc="cancelEditName(scope.row)"
+                  ref="nameInput"
+                  maxlength="100"
+                  show-word-limit
+                />
+              </template>
+            </el-table-column>
 
-            <!-- 每日邮件统计 - 新增MVP功能 -->
+            <!-- 每日邮件统计 - 支持内联编辑限制 -->
             <el-table-column label="今日邮件" width="130" align="center">
               <template #default="scope">
                 <el-progress
@@ -144,7 +168,28 @@
                   :show-text="false"
                 />
                 <div class="otp-count">
-                  {{ scope.row.otp_count_daily || 0 }} / {{ scope.row.otp_limit_daily || 100 }}
+                  {{ scope.row.otpCountDaily || 0 }} / 
+                  <span 
+                    v-if="!scope.row.editingLimit"
+                    @dblclick="startEditLimit(scope.row)"
+                    class="editable-limit"
+                    :title="'双击编辑每日限制'"
+                  >
+                    {{ scope.row.otpLimitDaily || 100 }}
+                    <Icon icon="material-symbols:edit" class="edit-icon-small" />
+                  </span>
+                  <el-input-number
+                    v-else
+                    v-model="scope.row.tempOtpLimit"
+                    size="small"
+                    :min="1"
+                    :max="10000"
+                    @blur="saveOtpLimit(scope.row)"
+                    @keyup.enter="saveOtpLimit(scope.row)"
+                    @keyup.esc="cancelEditLimit(scope.row)"
+                    ref="limitInput"
+                    style="width: 80px;"
+                  />
                 </div>
               </template>
             </el-table-column>
@@ -165,12 +210,32 @@
               </template>
             </el-table-column>
 
-            <!-- 过期时间 -->
-            <el-table-column prop="expireTime" label="过期时间" width="180">
+            <!-- 过期时间 - 支持内联编辑 -->
+            <el-table-column label="过期时间" width="200">
               <template #default="scope">
-                <span :class="{'expire-warning': isExpiringSoon(scope.row)}">
+                <div 
+                  v-if="!scope.row.editingExpire"
+                  @dblclick="startEditExpire(scope.row)"
+                  class="editable-cell"
+                  :class="{'expire-warning': isExpiringSoon(scope.row)}"
+                  :title="'双击编辑过期时间'"
+                >
                   {{ tzDayjs(scope.row.expireTime).format('YYYY-MM-DD HH:mm') }}
-                </span>
+                  <Icon icon="material-symbols:edit" class="edit-icon" />
+                </div>
+                <el-date-picker
+                  v-else
+                  v-model="scope.row.tempExpireTime"
+                  type="datetime"
+                  size="small"
+                  format="YYYY-MM-DD HH:mm"
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  @blur="saveExpireTime(scope.row)"
+                  @change="saveExpireTime(scope.row)"
+                  ref="expireInput"
+                  style="width: 180px;"
+                  :disabled-date="(date) => date < new Date()"
+                />
               </template>
             </el-table-column>
 
@@ -279,7 +344,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Icon } from '@iconify/vue';
 import { Refresh, Delete } from '@element-plus/icons-vue';
@@ -289,7 +354,10 @@ import {
   getShareList,
   deleteShare,
   refreshShareToken,
-  batchOperateShares
+  batchOperateShares,
+  updateShareName,
+  updateShareLimit,
+  updateShareExpireTime
 } from '@/request/share.js';
 import ShareCreateDialog from '@/components/share/ShareCreateDialog.vue';
 import ShareWhitelistDialog from '@/components/share/ShareWhitelistDialog.vue';
@@ -308,6 +376,9 @@ const showWhitelistDialog = ref(false);
 const showCustomDaysDialog = ref(false);
 const customDays = ref(7);
 const activeTab = ref('management');
+
+// Table ref for Element Plus API access
+const tableRef = ref();
 const filterStatus = ref(''); // '', 'active', 'expired', 'disabled'
 
 // 统计数据
@@ -461,6 +532,26 @@ const handleSelectionChange = (selection) => {
   selectedRows.value = selection;
 };
 
+// 计算是否全选状态
+const isAllSelected = computed(() => {
+  return shareList.value.length > 0 && selectedRows.value.length === shareList.value.length;
+});
+
+// 全选/取消全选功能
+const toggleSelectAll = () => {
+  if (!tableRef.value) return;
+  
+  if (isAllSelected.value) {
+    // 取消全选
+    tableRef.value.clearSelection();
+  } else {
+    // 全选当前页面所有行
+    shareList.value.forEach(row => {
+      tableRef.value.toggleRowSelection(row, true);
+    });
+  }
+};
+
 // 刷新Token
 const handleRefreshToken = async (share) => {
   try {
@@ -517,12 +608,39 @@ const confirmCustomExtend = () => {
 const handleBatchExtend = async (days) => {
   if (selectedRows.value.length === 0) return;
 
+  // 构建详细的确认信息
+  const selectedSharesInfo = selectedRows.value.map(share => 
+    `• ID ${share.shareId}: ${share.targetEmail} (${share.shareName || '未命名'})`
+  ).join('\n');
+
+  const confirmMessage = `
+<div style="text-align: left;">
+  <h4 style="margin: 0 0 12px 0; color: #409EFF;">批量延长操作确认</h4>
+  <p style="margin: 8px 0;"><strong>操作内容：</strong>延长 ${selectedRows.value.length} 个分享的有效期</p>
+  <p style="margin: 8px 0;"><strong>延长时间：</strong>${days} 天</p>
+  <p style="margin: 8px 0;"><strong>操作影响：</strong>所选分享的过期时间将延后 ${days} 天</p>
+  
+  <details style="margin: 12px 0;">
+    <summary style="cursor: pointer; color: #606266;">查看受影响的分享 (${selectedRows.value.length} 项)</summary>
+    <div style="margin-top: 8px; padding: 8px; background: #f5f7fa; border-radius: 4px; font-size: 12px; max-height: 120px; overflow-y: auto;">
+      ${selectedSharesInfo}
+    </div>
+  </details>
+  
+  <p style="margin: 8px 0 0 0; color: #909399; font-size: 12px;">
+    💡 提示：此操作可以撤销，您可以随时调整分享的有效期
+  </p>
+</div>`;
+
   try {
     await ElMessageBox.confirm(
-      `确定要为选中的 ${selectedRows.value.length} 个分享延长 ${days} 天有效期吗？`,
+      confirmMessage,
       '确认批量延长',
       {
-        type: 'info'
+        type: 'info',
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: `延长 ${days} 天`,
+        cancelButtonText: '取消操作'
       }
     );
 
@@ -543,12 +661,39 @@ const handleBatchExtend = async (days) => {
 const handleBatchDisable = async () => {
   if (selectedRows.value.length === 0) return;
 
+  // 构建详细的确认信息
+  const selectedSharesInfo = selectedRows.value.map(share => 
+    `• ID ${share.shareId}: ${share.targetEmail} (${share.shareName || '未命名'})`
+  ).join('\n');
+
+  const confirmMessage = `
+<div style="text-align: left;">
+  <h4 style="margin: 0 0 12px 0; color: #E6A23C;">批量禁用操作确认</h4>
+  <p style="margin: 8px 0;"><strong>操作内容：</strong>禁用 ${selectedRows.value.length} 个分享</p>
+  <p style="margin: 8px 0;"><strong>操作影响：</strong>所选分享的访问链接将立即失效</p>
+  <p style="margin: 8px 0;"><strong>用户影响：</strong>访问者将无法通过分享链接查看邮件</p>
+  
+  <details style="margin: 12px 0;">
+    <summary style="cursor: pointer; color: #606266;">查看受影响的分享 (${selectedRows.value.length} 项)</summary>
+    <div style="margin-top: 8px; padding: 8px; background: #fdf6ec; border-radius: 4px; font-size: 12px; max-height: 120px; overflow-y: auto;">
+      ${selectedSharesInfo}
+    </div>
+  </details>
+  
+  <p style="margin: 8px 0 0 0; color: #E6A23C; font-size: 12px;">
+    ⚠️ 注意：禁用后可以重新启用，但访问者需要重新获取链接
+  </p>
+</div>`;
+
   try {
     await ElMessageBox.confirm(
-      `确定要禁用选中的 ${selectedRows.value.length} 个分享吗？禁用后访问链接将无法访问。`,
+      confirmMessage,
       '确认批量禁用',
       {
-        type: 'warning'
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: `禁用 ${selectedRows.value.length} 个分享`,
+        cancelButtonText: '取消操作'
       }
     );
 
@@ -569,12 +714,39 @@ const handleBatchDisable = async () => {
 const handleBatchEnable = async () => {
   if (selectedRows.value.length === 0) return;
 
+  // 构建详细的确认信息
+  const selectedSharesInfo = selectedRows.value.map(share => 
+    `• ID ${share.shareId}: ${share.targetEmail} (${share.shareName || '未命名'})`
+  ).join('\n');
+
+  const confirmMessage = `
+<div style="text-align: left;">
+  <h4 style="margin: 0 0 12px 0; color: #67C23A;">批量启用操作确认</h4>
+  <p style="margin: 8px 0;"><strong>操作内容：</strong>启用 ${selectedRows.value.length} 个分享</p>
+  <p style="margin: 8px 0;"><strong>操作影响：</strong>所选分享的访问链接将立即生效</p>
+  <p style="margin: 8px 0;"><strong>用户影响：</strong>访问者可以通过分享链接查看邮件内容</p>
+  
+  <details style="margin: 12px 0;">
+    <summary style="cursor: pointer; color: #606266;">查看受影响的分享 (${selectedRows.value.length} 项)</summary>
+    <div style="margin-top: 8px; padding: 8px; background: #f0f9ff; border-radius: 4px; font-size: 12px; max-height: 120px; overflow-y: auto;">
+      ${selectedSharesInfo}
+    </div>
+  </details>
+  
+  <p style="margin: 8px 0 0 0; color: #67C23A; font-size: 12px;">
+    ✅ 提示：启用后分享链接将立即可用，请确保内容适合公开访问
+  </p>
+</div>`;
+
   try {
     await ElMessageBox.confirm(
-      `确定要启用选中的 ${selectedRows.value.length} 个分享吗？`,
+      confirmMessage,
       '确认批量启用',
       {
-        type: 'success'
+        type: 'success',
+        dangerouslyUseHTMLString: true,
+        confirmButtonText: `启用 ${selectedRows.value.length} 个分享`,
+        cancelButtonText: '取消操作'
       }
     );
 
@@ -626,6 +798,130 @@ const handleShareCreated = (results) => {
 // 处理白名单更新
 const handleWhitelistUpdated = () => {
   ElMessage.success('邮箱白名单更新成功');
+};
+
+// ========== 内联编辑功能 ==========
+
+// 开始编辑分享名称
+const startEditName = (row) => {
+  row.editingName = true;
+  row.tempShareName = row.shareName;
+  // 下一帧聚焦输入框
+  nextTick(() => {
+    const input = document.querySelector(`[data-share-id="${row.shareId}"] .el-input__inner`);
+    if (input) input.focus();
+  });
+};
+
+// 保存分享名称
+const saveShareName = async (row) => {
+  if (!row.tempShareName || row.tempShareName.trim() === '') {
+    ElMessage.warning('分享名称不能为空');
+    return;
+  }
+
+  if (row.tempShareName.trim() === row.shareName) {
+    cancelEditName(row);
+    return;
+  }
+
+  try {
+    await updateShareName(row.shareId, row.tempShareName.trim());
+    row.shareName = row.tempShareName.trim();
+    row.editingName = false;
+    ElMessage.success('分享名称更新成功');
+  } catch (error) {
+    console.error('Update share name error:', error);
+    ElMessage.error('更新分享名称失败');
+  }
+};
+
+// 取消编辑分享名称
+const cancelEditName = (row) => {
+  row.editingName = false;
+  row.tempShareName = row.shareName;
+};
+
+// 开始编辑每日限制
+const startEditLimit = (row) => {
+  row.editingLimit = true;
+  row.tempOtpLimit = row.otpLimitDaily || 100;
+  // 下一帧聚焦输入框
+  nextTick(() => {
+    const input = document.querySelector(`[data-share-id="${row.shareId}"] .el-input-number input`);
+    if (input) input.focus();
+  });
+};
+
+// 保存每日限制
+const saveOtpLimit = async (row) => {
+  if (!row.tempOtpLimit || row.tempOtpLimit < 1) {
+    ElMessage.warning('每日限制必须大于0');
+    return;
+  }
+
+  if (row.tempOtpLimit === row.otpLimitDaily) {
+    cancelEditLimit(row);
+    return;
+  }
+
+  try {
+    await updateShareLimit(row.shareId, row.tempOtpLimit);
+    row.otpLimitDaily = row.tempOtpLimit;
+    row.editingLimit = false;
+    ElMessage.success('每日限制更新成功');
+  } catch (error) {
+    console.error('Update share limit error:', error);
+    ElMessage.error('更新每日限制失败');
+  }
+};
+
+// 取消编辑每日限制
+const cancelEditLimit = (row) => {
+  row.editingLimit = false;
+  row.tempOtpLimit = row.otpLimitDaily || 100;
+};
+
+// 开始编辑过期时间
+const startEditExpire = (row) => {
+  row.editingExpire = true;
+  row.tempExpireTime = row.expireTime;
+};
+
+// 保存过期时间
+const saveExpireTime = async (row) => {
+  if (!row.tempExpireTime) {
+    ElMessage.warning('过期时间不能为空');
+    return;
+  }
+
+  if (row.tempExpireTime === row.expireTime) {
+    cancelEditExpire(row);
+    return;
+  }
+
+  // 验证过期时间必须在未来
+  const expireDate = new Date(row.tempExpireTime);
+  if (expireDate <= new Date()) {
+    ElMessage.warning('过期时间必须在未来');
+    return;
+  }
+
+  try {
+    await updateShareExpireTime(row.shareId, row.tempExpireTime);
+    row.expireTime = row.tempExpireTime;
+    row.editingExpire = false;
+    ElMessage.success('过期时间更新成功');
+  } catch (error) {
+    console.error('Update share expire time error:', error);
+    ElMessage.error('更新过期时间失败');
+  }
+};
+
+// 取消编辑过期时间
+const cancelEditExpire = (row) => {
+  row.editingExpire = false;
+  row.tempExpireTime = row.expireTime;
 };
 </script>
 
@@ -719,5 +1015,57 @@ const handleWhitelistUpdated = () => {
 
 .copy-btn {
   flex-shrink: 0;
+}
+
+/* 内联编辑样式 */
+.editable-cell {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  position: relative;
+  display: inline-block;
+  min-width: 100px;
+}
+
+.editable-cell:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.editable-cell .edit-icon {
+  opacity: 0;
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--el-color-primary);
+  transition: opacity 0.2s;
+}
+
+.editable-cell:hover .edit-icon {
+  opacity: 1;
+}
+
+.editable-limit {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  position: relative;
+  display: inline-block;
+}
+
+.editable-limit:hover {
+  background-color: var(--el-fill-color-light);
+}
+
+.editable-limit .edit-icon-small {
+  opacity: 0;
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--el-color-primary);
+  transition: opacity 0.2s;
+}
+
+.editable-limit:hover .edit-icon-small {
+  opacity: 1;
 }
 </style>

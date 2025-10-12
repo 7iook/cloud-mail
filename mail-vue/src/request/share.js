@@ -77,5 +77,13 @@ export function updateShareStatus(shareId, status) {
 
 // 更新分享每日限额
 export function updateShareLimit(shareId, otpLimitDaily) {
-    return http.patch(`/share/${shareId}/limit`, { otpLimitDaily });
+    return http.post(`/share/${shareId}/update-limit`, { otpLimitDaily });
+}
+
+export function updateShareName(shareId, shareName) {
+    return http.patch(`/share/${shareId}/name`, { shareName });
+}
+
+export function updateShareExpireTime(shareId, expireTime) {
+    return http.patch(`/share/${shareId}/expire`, { expireTime });
 }

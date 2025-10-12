@@ -3,7 +3,12 @@ import constant from '../const/constant';
 
 const userContext = {
 	getUserId(c) {
-		return c.get('user').userId;
+		const user = c.get('user');
+		if (!user) {
+			console.error('User context not found in Hono context');
+			throw new Error('User context not found');
+		}
+		return user.userId;
 	},
 
 	getUser(c) {

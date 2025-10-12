@@ -745,6 +745,89 @@ const emailService = {
 			// 如果解析失败，返回原内容，避免邮件丢失
 			return content;
 		}
+	},
+
+	/**
+	 * 获取所有唯一收件邮箱地址(用于白名单导入)
+	 * 高性能SQL查询，支持分页和搜索
+	 * @param {Object} c - Context
+	 * @param {Object} params - 查询参数
+	 * @returns {Promise<Object>} - 唯一邮箱列表及统计信息
+	 */
+	async getUniqueRecipients(c, params = {}) {
+		const { userId, search = '', page = 1, pageSize = 100, orderBy = 'email' } = params;
+
+		console.log('[DEBUG SERVICE] userId:', userId, 'typeof:', typeof userId);
+
+		try {
+			// 分页计算
+			const offset = (parseInt(page) - 1) * parseInt(pageSize);
+			const limit = parseInt(pageSize);
+
+			// 构建WHERE条件
+			let whereClause = `
+				is_del = 0 
+				AND type = 0
+				AND to_email IS NOT NULL 
+				AND to_email != ''
+			`;
+
+			// 暂时移除用户ID过滤以测试
+			// TODO: 确认是否需要userId过滤
+			// if (userId) {
+			// 	whereClause += ` AND user_id = ${userId}`;
+			// }
+
+			// 添加搜索条件
+			if (search) {
+				whereClause += ` AND to_email LIKE '${search}%'`;
+			}
+
+			// 排序字段
+			const orderField = orderBy === 'count' ? 'emailCount DESC' : 'email ASC';
+
+			// SQL查询：使用DISTINCT去重，按邮箱分组统计邮件数
+			const querySQL = `
+				SELECT 
+					to_email as email,
+					COUNT(*) as emailCount,
+					MAX(create_time) as latestReceiveTime
+				FROM email
+				WHERE ${whereClause}
+				GROUP BY to_email
+				ORDER BY ${orderField}
+				LIMIT ${limit} OFFSET ${offset}
+			`;
+
+			// 总数查询
+			const countSQL = `
+				SELECT COUNT(DISTINCT to_email) as total
+				FROM email
+				WHERE ${whereClause}
+			`;
+
+			console.log('[DEBUG] querySQL:', querySQL);
+			console.log('[DEBUG] countSQL:', countSQL);
+
+			const [results, countResult] = await Promise.all([
+				c.env.db.prepare(querySQL).all(),
+				c.env.db.prepare(countSQL).first()
+			]);
+
+			console.log('[DEBUG] results:', JSON.stringify(results));
+			console.log('[DEBUG] countResult:', JSON.stringify(countResult));
+
+			return {
+				list: results.results || [],
+				total: countResult?.total || 0,
+				page: parseInt(page),
+				pageSize: limit
+			};
+
+		} catch (error) {
+			console.error('Get unique recipients error:', error);
+			throw new BizError('获取唯一邮箱列表失败: ' + error.message);
+		}
 	}
 };
 

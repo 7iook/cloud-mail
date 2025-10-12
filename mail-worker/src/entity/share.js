@@ -12,7 +12,12 @@ export const share = sqliteTable('share', {
 	userId: integer('user_id').notNull(),
 	isActive: integer('is_active').default(1).notNull(),
 	rateLimitPerSecond: integer('rate_limit_per_second').default(5).notNull(),
-	rateLimitPerMinute: integer('rate_limit_per_minute').default(60).notNull()
+	rateLimitPerMinute: integer('rate_limit_per_minute').default(60).notNull(),
+	status: text('status').default('active'),
+	otpCountDaily: integer('otp_count_daily').default(0),
+	otpLimitDaily: integer('otp_limit_daily').default(100),
+	lastResetDate: text('last_reset_date'),
+	remark: text('remark').default('')
 });
 
 export default share;
