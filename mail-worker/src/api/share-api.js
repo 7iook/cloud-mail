@@ -7,6 +7,7 @@ import emailService from '../service/email-service';
 import settingService from '../service/setting-service';
 import shareService from '../service/share-service';
 import shareAccessLogService from '../service/share-access-log-service';
+import emailUtils from '../utils/email-utils';
 import BizError from '../error/biz-error';
 import dayjs from 'dayjs';
 import { shareRateLimitMiddleware } from '../middleware/rate-limiter';
@@ -36,20 +37,34 @@ app.post('/share/create', async (c) => {
 			}
 		}
 
-		// 验证邮箱是否存在于系统中
-		const existingAccount = await accountService.selectByEmailIncludeDel(c, targetEmail);
-		if (!existingAccount) {
-			throw new BizError('指定的邮箱不存在于系统中', 404);
+		// 验证邮箱域名是否在允许的域名列表中
+		if (!c.env.domain.includes(emailUtils.getDomain(targetEmail))) {
+			throw new BizError('该邮箱域名不在系统支持的域名列表中', 403);
 		}
 
-		// 验证用户是否有权限分享此邮箱
-		// 对于邮箱验证码接码服务，管理员可以分享系统中的任何邮箱
-		// 检查当前用户是否为管理员或邮箱所有者
+		// 检查当前用户是否为管理员
 		const currentUser = await userService.selectById(c, userId);
 		const isAdmin = currentUser && (currentUser.email === c.env.admin || currentUser.role === 'admin');
 
-		// 对于邮件分享系统，管理员应该能够为任何邮箱创建分享
-		// 普通用户只能为自己的邮箱创建分享
+		// 验证邮箱是否存在于系统中，如果不存在则按需创建（仅管理员可以）
+		let existingAccount = await accountService.selectByEmailIncludeDel(c, targetEmail);
+		if (!existingAccount) {
+			if (!isAdmin) {
+				throw new BizError('该邮箱不存在于系统中，只有管理员可以为新邮箱创建分享', 403);
+			}
+
+			// 管理员可以为白名单中的邮箱按需创建账户
+			try {
+				existingAccount = await accountService.add(c, { email: targetEmail }, userId);
+				console.log(`管理员为邮箱 ${targetEmail} 自动创建了账户记录`);
+			} catch (error) {
+				console.error('自动创建邮箱账户失败:', error);
+				throw new BizError('创建邮箱账户失败: ' + error.message, 500);
+			}
+		}
+
+		// 验证用户是否有权限分享此邮箱
+		// 管理员可以分享任何邮箱，普通用户只能分享自己的邮箱
 		if (!isAdmin) {
 			const isOwner = existingAccount.userId === userId;
 			if (!isOwner) {
@@ -167,12 +182,19 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 			}
 		}
 
-		// 获取该邮箱的账户信息
-		const targetAccount = await accountService.selectByEmailIncludeDel(c, shareRecord.targetEmail);
+		// 获取该邮箱的账户信息，如果不存在则按需创建
+		let targetAccount = await accountService.selectByEmailIncludeDel(c, shareRecord.targetEmail);
 		if (!targetAccount) {
-			errorMessage = '目标邮箱不存在';
-			accessResult = 'failed';
-			throw new BizError(errorMessage, 404);
+			// 如果邮箱账户不存在，使用分享创建者的userId自动创建
+			try {
+				targetAccount = await accountService.add(c, { email: shareRecord.targetEmail }, shareRecord.userId);
+				console.log(`为分享访问自动创建邮箱账户: ${shareRecord.targetEmail}`);
+			} catch (error) {
+				console.error('访问分享时自动创建邮箱账户失败:', error);
+				errorMessage = '邮箱账户创建失败';
+				accessResult = 'failed';
+				throw new BizError(errorMessage, 500);
+			}
 		}
 
 		// 获取该邮箱的最新邮件

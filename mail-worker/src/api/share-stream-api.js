@@ -37,10 +37,17 @@ app.get('/share/stream/:shareToken', shareRateLimitMiddleware, async (c) => {
 			}
 		}
 
-		// 获取目标账户
-		const targetAccount = await accountService.selectByEmailIncludeDel(c, shareRecord.targetEmail);
+		// 获取目标账户，如果不存在则按需创建
+		let targetAccount = await accountService.selectByEmailIncludeDel(c, shareRecord.targetEmail);
 		if (!targetAccount) {
-			throw new BizError('目标邮箱不存在', 404);
+			// 如果邮箱账户不存在，使用分享创建者的userId自动创建
+			try {
+				targetAccount = await accountService.add(c, { email: shareRecord.targetEmail }, shareRecord.userId);
+				console.log(`为SSE流访问自动创建邮箱账户: ${shareRecord.targetEmail}`);
+			} catch (error) {
+				console.error('SSE流访问时自动创建邮箱账户失败:', error);
+				throw new BizError('邮箱账户创建失败', 500);
+			}
 		}
 
 		// 获取自动刷新配置
