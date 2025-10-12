@@ -1,6 +1,6 @@
 import orm from '../entity/orm';
 import { share } from '../entity/share';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
 import cryptoUtils from '../utils/crypto-utils';
@@ -199,7 +199,7 @@ const shareService = {
 		// 验证所有分享都属于当前用户
 		const shares = await orm(c).select().from(share)
 			.where(and(
-				sql`${share.shareId} IN (${sql.join(shareIds.map(id => sql`${id}`), sql`, `)})`,
+				inArray(share.shareId, shareIds),
 				eq(share.userId, userId),
 				eq(share.isActive, 1)
 			))
@@ -233,7 +233,7 @@ const shareService = {
 		// 执行批量更新
 		await orm(c).update(share)
 			.set(updateData)
-			.where(sql`${share.shareId} IN (${sql.join(shareIds.map(id => sql`${id}`), sql`, `)})`)
+			.where(inArray(share.shareId, shareIds))
 			.run();
 
 		// 清除相关缓存
