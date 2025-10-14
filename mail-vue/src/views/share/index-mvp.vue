@@ -158,43 +158,144 @@
               </template>
             </el-table-column>
 
-            <!-- 每日邮件统计 - 支持内联编辑限制 -->
-            <el-table-column label="今日邮件" width="130" align="center">
+            <!-- 今日访问统计 - 支持内联编辑限制 -->
+            <el-table-column label="今日访问" width="170" align="center">
               <template #default="scope">
-                <el-progress
-                  :percentage="getOtpPercentage(scope.row)"
-                  :color="getProgressColor(scope.row)"
-                  :stroke-width="12"
-                  :show-text="false"
-                />
-                <div class="otp-count">
-                  {{ scope.row.otpCountDaily || 0 }} / 
-                  <span 
-                    v-if="!scope.row.editingLimit"
-                    @dblclick="startEditLimit(scope.row)"
-                    class="editable-limit"
-                    :title="'双击编辑每日限制'"
-                  >
-                    {{ scope.row.otpLimitDaily || 100 }}
-                    <Icon 
-                      icon="material-symbols:edit" 
-                      class="edit-icon-small" 
-                      @click.stop="startEditLimit(scope.row)"
-                      :title="'单击编辑每日限制'"
-                    />
-                  </span>
-                  <el-input-number
-                    v-else
-                    v-model="scope.row.tempOtpLimit"
-                    size="small"
-                    :min="1"
-                    :max="10000"
-                    @blur="saveOtpLimit(scope.row)"
-                    @keyup.enter="saveOtpLimit(scope.row)"
-                    @keyup.esc="cancelEditLimit(scope.row)"
-                    ref="limitInput"
-                    style="width: 80px;"
+                <div v-if="scope.row.otpLimitEnabled === 1">
+                  <el-progress
+                    :percentage="getOtpPercentage(scope.row)"
+                    :color="getProgressColor(scope.row)"
+                    :stroke-width="12"
+                    :show-text="false"
                   />
+                  <div class="otp-count">
+                    {{ scope.row.otpCountDaily || 0 }} /
+
+                    <!-- 查看模式 -->
+                    <span
+                      v-if="!scope.row.editingLimit"
+                      @click.stop="startEditLimit(scope.row)"
+                      class="editable-limit"
+                      :title="'单击编辑每日访问限制'"
+                    >
+                      {{ scope.row.otpLimitDaily || 100 }}
+                      <Icon
+                        icon="material-symbols:edit"
+                        class="edit-icon-small"
+                      />
+                    </span>
+
+                    <!-- 编辑模式 -->
+                    <div v-else class="inline-edit-wrapper">
+                      <el-input-number
+                        v-model="scope.row.tempOtpLimit"
+                        size="default"
+                        :min="1"
+                        :max="10000"
+                        :loading="scope.row.savingLimit"
+                        @keyup.enter="saveOtpLimit(scope.row)"
+                        @keyup.esc="cancelEditLimit(scope.row)"
+                        ref="limitInput"
+                        style="width: 150px;"
+                        class="inline-edit-input"
+                      />
+                      <div class="inline-edit-actions-below">
+                        <el-button
+                          size="small"
+                          @click="cancelEditLimit(scope.row)"
+                          class="action-btn-below"
+                          :icon="''"
+                          title="取消编辑 (Esc)"
+                        >
+                          <Icon icon="material-symbols:close" style="font-size: 14px;" />
+                        </el-button>
+                        <el-button
+                          size="small"
+                          type="primary"
+                          @click="saveOtpLimit(scope.row)"
+                          :loading="scope.row.savingLimit"
+                          class="action-btn-below"
+                          :icon="''"
+                          title="保存 (Enter)"
+                        >
+                          <Icon icon="material-symbols:check" style="font-size: 14px;" />
+                        </el-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="limit-disabled">
+                  <el-tag type="info" size="small">无限制</el-tag>
+                  <div class="otp-count-text">{{ scope.row.otpCountDaily || 0 }} 次</div>
+                </div>
+              </template>
+            </el-table-column>
+
+            <!-- 显示限制 - 支持内联编辑 -->
+            <el-table-column label="显示限制" width="140" align="center">
+              <template #default="scope">
+                <div v-if="scope.row.verificationCodeLimitEnabled === 1">
+                  <!-- 查看模式 -->
+                  <div
+                    v-if="!scope.row.editingDisplayLimit"
+                    class="inline-edit-container"
+                    @click.stop="startEditDisplayLimit(scope.row)"
+                    :title="'单击编辑显示限制'"
+                    style="cursor: pointer;"
+                  >
+                    <el-tag
+                      type="success"
+                      size="small"
+                      class="editable-tag"
+                    >
+                      最多 {{ scope.row.verificationCodeLimit || 100 }} 条
+                      <Icon
+                        icon="material-symbols:edit"
+                        class="edit-icon-small"
+                      />
+                    </el-tag>
+                  </div>
+
+                  <!-- 编辑模式 -->
+                  <div v-else class="inline-edit-active">
+                    <el-input-number
+                      v-model="scope.row.tempDisplayLimit"
+                      size="default"
+                      :min="1"
+                      :max="1000"
+                      :loading="scope.row.savingDisplayLimit"
+                      @keyup.enter="saveDisplayLimit(scope.row)"
+                      @keyup.esc="cancelEditDisplayLimit(scope.row)"
+                      ref="displayLimitInput"
+                      style="width: 150px;"
+                      class="inline-edit-input"
+                    />
+                    <div class="inline-edit-actions-below">
+                      <el-button
+                        size="small"
+                        @click="cancelEditDisplayLimit(scope.row)"
+                        class="action-btn-below"
+                        :icon="''"
+                        title="取消编辑 (Esc)"
+                      >
+                        <Icon icon="material-symbols:close" style="font-size: 14px;" />
+                      </el-button>
+                      <el-button
+                        size="small"
+                        type="primary"
+                        @click="saveDisplayLimit(scope.row)"
+                        :loading="scope.row.savingDisplayLimit"
+                        class="action-btn-below"
+                        :icon="''"
+                        title="保存 (Enter)"
+                      >
+                        <Icon icon="material-symbols:check" style="font-size: 14px;" />
+                      </el-button>
+                    </div>
+                  </div>
+                </div>
+                <div v-else>
+                  <el-tag type="info" size="small">显示全部</el-tag>
                 </div>
               </template>
             </el-table-column>
@@ -244,20 +345,25 @@
               </template>
             </el-table-column>
 
-            <!-- 分享链接 -->
+            <!-- 分享链接 - 超链接化 -->
             <el-table-column label="分享链接" min-width="280">
               <template #default="scope">
                 <div class="share-url-cell">
-                  <el-input
-                    :value="scope.row.shareUrl"
-                    readonly
-                    size="small"
-                    class="share-url-input"
-                  />
+                  <div class="share-url-container">
+                    <a
+                      :href="scope.row.shareUrl"
+                      target="_blank"
+                      class="share-url-link"
+                      :title="'点击在新标签页中打开分享页面'"
+                    >
+                      {{ scope.row.shareUrl }}
+                    </a>
+                  </div>
                   <el-button
                     size="small"
                     @click="copyShareUrl(scope.row.shareUrl)"
                     class="copy-btn"
+                    :title="'复制分享链接'"
                   >
                     <Icon icon="material-symbols:content-copy" />
                   </el-button>
@@ -380,7 +486,8 @@ import {
   batchOperateShares,
   updateShareName,
   updateShareLimit,
-  updateShareExpireTime
+  updateShareExpireTime,
+  updateShareDisplayLimit
 } from '@/request/share.js';
 import ShareCreateDialog from '@/components/share/ShareCreateDialog.vue';
 import ShareAdvancedEditDialog from '@/components/share/ShareAdvancedEditDialog.vue';
@@ -435,6 +542,15 @@ const loadShareList = async () => {
     let list = [];
     if (response.data && response.data.list) {
       list = response.data.list;
+
+      // 优先使用后端返回的统计数据
+      if (response.data.stats) {
+        stats.total = response.data.stats.total;
+        stats.active = response.data.stats.active;
+        stats.expired = response.data.stats.expired;
+        stats.disabled = response.data.stats.disabled;
+        console.log('Using backend stats:', response.data.stats);
+      }
     } else if (response.list) {
       list = response.list;
     } else if (Array.isArray(response)) {
@@ -444,18 +560,36 @@ const loadShareList = async () => {
     console.log('Processed share list:', list);
 
     // 前端计算状态（如果后端未返回）
-    list = list.map(item => ({
+    list = list.map(item => reactive({
       ...item,
       status: item.status || calculateStatus(item),
       daysRemaining: item.daysRemaining !== undefined
         ? item.daysRemaining
-        : calculateDaysRemaining(item)
+        : calculateDaysRemaining(item),
+      // 初始化所有编辑状态属性，确保响应式追踪的完整性
+      // 分享名称编辑状态
+      editingName: false,
+      tempShareName: item.shareName || '',
+      // 每日访问限制编辑状态
+      editingLimit: false,
+      savingLimit: false,
+      tempOtpLimit: item.otpLimitDaily || 100,  // 修正：使用 tempOtpLimit 而不是 tempLimit
+      // 显示限制编辑状态
+      editingDisplayLimit: false,
+      savingDisplayLimit: false,
+      tempDisplayLimit: item.verificationCodeLimit || 100,
+      // 过期时间编辑状态
+      editingExpire: false,
+      tempExpireTime: item.expireTime || null
     }));
 
     shareList.value = list;
 
-    // 更新统计
-    updateStats(list);
+    // 如果后端没有返回统计数据，使用前端计算（向后兼容）
+    if (!response.data?.stats) {
+      updateStats(list);
+      console.log('Using frontend stats calculation');
+    }
   } catch (error) {
     console.error('Load share list error:', error);
     ElMessage.error(`加载分享列表失败: ${error.message || '未知错误'}`);
@@ -671,10 +805,21 @@ const handleBatchExtend = async (days) => {
     );
 
     const shareIds = selectedRows.value.map(row => row.shareId);
-    await batchOperateShares('extend', shareIds, { extendDays: days });
+    // Fix: 使用后端返回的实际影响行数
+    const result = await batchOperateShares('extend', shareIds, { extendDays: days });
 
-    ElMessage.success(`成功延长 ${selectedRows.value.length} 个分享的有效期`);
-    loadShareList();
+    // Fix: 等待列表刷新完成后再显示成功消息，确保UI已更新
+    await loadShareList();
+
+    // Fix: 使用后端返回的实际数量，而不是前端选中的数量
+    const affectedCount = result?.affected || 0;
+    ElMessage.success(`成功延长 ${affectedCount} 个分享的有效期`);
+
+    // Fix: 清空选中项，避免UI状态不一致
+    selectedRows.value = [];
+    if (tableRef.value) {
+      tableRef.value.clearSelection();
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Batch extend error:', error);
@@ -724,10 +869,21 @@ const handleBatchDisable = async () => {
     );
 
     const shareIds = selectedRows.value.map(row => row.shareId);
-    await batchOperateShares('disable', shareIds);
+    // Fix: 使用后端返回的实际影响行数
+    const result = await batchOperateShares('disable', shareIds);
 
-    ElMessage.success(`成功禁用 ${selectedRows.value.length} 个分享`);
-    loadShareList();
+    // Fix: 等待列表刷新完成后再显示成功消息，确保UI已更新
+    await loadShareList();
+
+    // Fix: 使用后端返回的实际数量，而不是前端选中的数量
+    const affectedCount = result?.affected || 0;
+    ElMessage.success(`成功禁用 ${affectedCount} 个分享`);
+
+    // Fix: 清空选中项，避免UI状态不一致
+    selectedRows.value = [];
+    if (tableRef.value) {
+      tableRef.value.clearSelection();
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Batch disable error:', error);
@@ -777,10 +933,21 @@ const handleBatchEnable = async () => {
     );
 
     const shareIds = selectedRows.value.map(row => row.shareId);
-    await batchOperateShares('enable', shareIds);
+    // Fix: 使用后端返回的实际影响行数
+    const result = await batchOperateShares('enable', shareIds);
 
-    ElMessage.success(`成功启用 ${selectedRows.value.length} 个分享`);
-    loadShareList();
+    // Fix: 等待列表刷新完成后再显示成功消息，确保UI已更新
+    await loadShareList();
+
+    // Fix: 使用后端返回的实际数量，而不是前端选中的数量
+    const affectedCount = result?.affected || 0;
+    ElMessage.success(`成功启用 ${affectedCount} 个邮件分享链接`);
+
+    // Fix: 清空选中项，避免UI状态不一致
+    selectedRows.value = [];
+    if (tableRef.value) {
+      tableRef.value.clearSelection();
+    }
   } catch (error) {
     if (error !== 'cancel') {
       console.error('Batch enable error:', error);
@@ -872,10 +1039,13 @@ const cancelEditName = (row) => {
 const startEditLimit = (row) => {
   row.editingLimit = true;
   row.tempOtpLimit = row.otpLimitDaily || 100;
+  row.savingLimit = false;
+
   // 下一帧聚焦输入框
   nextTick(() => {
-    const input = document.querySelector(`[data-share-id="${row.shareId}"] .el-input-number input`);
-    if (input) input.focus();
+    if (limitInput.value && limitInput.value.focus) {
+      limitInput.value.focus();
+    }
   });
 };
 
@@ -891,38 +1061,130 @@ const saveOtpLimit = async (row) => {
     return;
   }
 
+  // 添加加载状态
+  row.savingLimit = true;
+
   try {
     const response = await updateShareLimit(row.shareId, row.tempOtpLimit);
 
     row.otpLimitDaily = row.tempOtpLimit;
     row.editingLimit = false;
+    row.savingLimit = false;
     ElMessage.success('每日限制更新成功');
   } catch (error) {
-    ElMessage.error('更新每日限制失败: ' + (error.message || '未知错误'));
+    row.savingLimit = false;
+    console.error('Update limit error:', error);
+
+    // 改进的错误处理
+    let errorMessage = '更新每日限制失败';
+    if (error.response?.data?.message) {
+      errorMessage += ': ' + error.response.data.message;
+    } else if (error.message) {
+      errorMessage += ': ' + error.message;
+    }
+
+    ElMessage.error(errorMessage);
+
+    // 保持编辑状态，让用户可以重试
+    // row.editingLimit = false; // 注释掉，保持编辑状态
   }
 };
 
 // 取消编辑每日限制
 const cancelEditLimit = (row) => {
   row.editingLimit = false;
+  row.savingLimit = false;
   row.tempOtpLimit = row.otpLimitDaily || 100;
+};
+
+// ========== 显示限制内联编辑功能 ==========
+
+// Ref管理 - 简化版本
+const limitInput = ref(null);
+const displayLimitInput = ref(null);
+
+// 开始编辑显示限制
+const startEditDisplayLimit = (row) => {
+  row.editingDisplayLimit = true;
+  row.tempDisplayLimit = row.verificationCodeLimit || 100;
+  row.savingDisplayLimit = false;
+
+  // 下一帧聚焦输入框
+  nextTick(() => {
+    if (displayLimitInput.value && displayLimitInput.value.focus) {
+      displayLimitInput.value.focus();
+    }
+  });
+};
+
+// 保存显示限制
+const saveDisplayLimit = async (row) => {
+  if (!row.tempDisplayLimit || row.tempDisplayLimit < 1) {
+    ElMessage.warning('显示限制必须大于0');
+    return;
+  }
+
+  if (row.tempDisplayLimit === row.verificationCodeLimit) {
+    cancelEditDisplayLimit(row);
+    return;
+  }
+
+  // 添加加载状态
+  row.savingDisplayLimit = true;
+
+  try {
+    const response = await updateShareDisplayLimit(row.shareId, row.tempDisplayLimit);
+
+    row.verificationCodeLimit = row.tempDisplayLimit;
+    row.editingDisplayLimit = false;
+    row.savingDisplayLimit = false;
+    ElMessage.success('显示限制更新成功');
+  } catch (error) {
+    row.savingDisplayLimit = false;
+    console.error('Update display limit error:', error);
+
+    // 改进的错误处理
+    let errorMessage = '更新显示限制失败';
+    if (error.response?.data?.message) {
+      errorMessage += ': ' + error.response.data.message;
+    } else if (error.message) {
+      errorMessage += ': ' + error.message;
+    }
+
+    ElMessage.error(errorMessage);
+
+    // 保持编辑状态，让用户可以重试
+    // row.editingDisplayLimit = false; // 注释掉，保持编辑状态
+  }
+};
+
+// 取消编辑显示限制
+const cancelEditDisplayLimit = (row) => {
+  row.editingDisplayLimit = false;
+  row.savingDisplayLimit = false;
+  row.tempDisplayLimit = row.verificationCodeLimit || 100;
 };
 
 // 处理页面点击事件，触发自动保存
 const handlePageClick = (event) => {
   // 检查是否点击在空白区域（不是输入框或按钮）
   const target = event.target;
-  const isInputArea = target.closest('.el-input-number') || 
-                     target.closest('.el-button') || 
+  const isInputArea = target.closest('.el-input-number') ||
+                     target.closest('.el-button') ||
                      target.closest('.el-dialog') ||
                      target.closest('.el-select') ||
                      target.closest('.el-date-picker');
-  
+
   if (!isInputArea) {
     // 查找当前正在编辑的行并保存
-    const editingRow = shareList.value.find(row => row.editingLimit);
-    if (editingRow) {
-      saveOtpLimit(editingRow);
+    const editingOtpRow = shareList.value.find(row => row.editingLimit);
+    if (editingOtpRow) {
+      saveOtpLimit(editingOtpRow);
+    }
+
+    const editingDisplayRow = shareList.value.find(row => row.editingDisplayLimit);
+    if (editingDisplayRow) {
+      saveDisplayLimit(editingDisplayRow);
     }
   }
 };
@@ -1066,6 +1328,29 @@ const cancelEditExpire = (row) => {
   align-items: center;
 }
 
+.share-url-container {
+  flex: 1;
+  overflow: hidden;
+}
+
+.share-url-link {
+  color: #409eff;
+  text-decoration: none;
+  font-size: 13px;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.share-url-link:hover {
+  background-color: #ecf5ff;
+  text-decoration: underline;
+}
+
 .share-url-input {
   flex: 1;
 }
@@ -1124,5 +1409,175 @@ const cancelEditExpire = (row) => {
 
 .editable-limit:hover .edit-icon-small {
   opacity: 1;
+}
+
+.limit-disabled {
+  text-align: center;
+}
+
+.otp-count-text {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-top: 4px;
+}
+
+/* 内联编辑优化样式 - 2025 现代设计 */
+.inline-edit-container {
+  position: relative;
+}
+
+.editable-tag {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.editable-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 编辑模式容器 - 垂直布局设计，居中对齐 */
+.inline-edit-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  /* 垂直布局，按钮在输入框下方，居中对齐 */
+}
+
+.inline-edit-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+  /* 垂直布局，按钮在输入框下方，居中对齐 */
+}
+
+/* 输入框样式 - 简洁设计，通过输入框本身提供视觉反馈 */
+.inline-edit-input {
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.inline-edit-input:hover {
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1) !important;
+}
+
+.inline-edit-input:focus,
+.inline-edit-input:focus-within {
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15) !important;
+}
+
+/* 按钮容器 */
+.inline-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.inline-edit-actions-mini {
+  display: flex;
+  gap: 6px;
+  margin-left: 4px;
+}
+
+/* 按钮样式 - 简洁扁平化设计 */
+.save-btn, .save-btn-mini {
+  min-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.save-btn:hover, .save-btn-mini:hover {
+  transform: scale(1.05) !important;
+}
+
+.save-btn:active, .save-btn-mini:active {
+  transform: scale(0.95) !important;
+}
+
+.cancel-btn, .cancel-btn-mini {
+  min-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.cancel-btn:hover, .cancel-btn-mini:hover {
+  transform: scale(1.05) !important;
+  background-color: var(--el-color-danger-light-9) !important;
+  border-color: var(--el-color-danger-light-5) !important;
+}
+
+.cancel-btn:active, .cancel-btn-mini:active {
+  transform: scale(0.95) !important;
+}
+
+/* 输入框下方的按钮容器 - 横向布局，居中对齐 */
+.inline-edit-actions-below {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 输入框下方的操作按钮 - 统一样式 */
+.action-btn-below {
+  min-width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.action-btn-below:hover {
+  transform: scale(1.05) !important;
+}
+
+.action-btn-below:active {
+  transform: scale(0.95) !important;
+}
+
+/* 旧样式保留（向后兼容） */
+.cancel-btn-below {
+  height: 24px !important;
+  padding: 0 8px !important;
+  font-size: 12px !important;
+  color: var(--el-text-color-secondary) !important;
+  border: none !important;
+  background: transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.cancel-btn-below:hover {
+  color: var(--el-color-danger) !important;
+  background-color: var(--el-color-danger-light-9) !important;
+}
+
+.cancel-btn-below:active {
+  transform: scale(0.95) !important;
+}
+
+/* 加载状态样式 */
+.inline-edit-input.is-loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* 错误状态样式 */
+.inline-edit-error {
+  border-color: var(--el-color-danger) !important;
+  box-shadow: 0 0 0 4px rgba(245, 108, 108, 0.2) !important;
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
 }
 </style>
