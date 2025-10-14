@@ -80,6 +80,11 @@ export function updateShareLimit(shareId, otpLimitDaily) {
     return http.post(`/share/${shareId}/update-limit`, { otpLimitDaily });
 }
 
+// 更新分享显示限制
+export function updateShareDisplayLimit(shareId, verificationCodeLimit) {
+    return http.post(`/share/${shareId}/update-display-limit`, { verificationCodeLimit });
+}
+
 export function updateShareName(shareId, shareName) {
     return http.patch(`/share/${shareId}/name`, { shareName });
 }
