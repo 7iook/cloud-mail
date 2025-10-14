@@ -23,6 +23,8 @@ const init = {
 		await this.v1_7DB(c);
 		await this.v2DB(c);
 		await this.v2_1DB(c); // MVP: 分享管理功能增强
+		await this.v2_2DB(c); // 添加显示数量限制和访问次数限制的开关控制
+		await this.v2_3DB(c); // 添加分享域名字段支持
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
 	},
@@ -87,6 +89,42 @@ const init = {
 			]);
 		} catch (e) {
 			console.error(e.message)
+		}
+	},
+
+	async v2_2DB(c) {
+		// 添加显示数量限制和访问次数限制的开关控制
+		try {
+			await c.env.db.batch([
+				c.env.db.prepare(`ALTER TABLE share ADD COLUMN verification_code_limit INTEGER DEFAULT 100 NOT NULL;`),
+				c.env.db.prepare(`ALTER TABLE share ADD COLUMN verification_code_limit_enabled INTEGER DEFAULT 1 NOT NULL;`),
+				c.env.db.prepare(`ALTER TABLE share ADD COLUMN otp_limit_enabled INTEGER DEFAULT 1 NOT NULL;`)
+			]);
+
+			// 更新现有记录
+			await c.env.db.prepare(`
+				UPDATE share SET
+					verification_code_limit = 100,
+					verification_code_limit_enabled = 1,
+					otp_limit_enabled = 1
+				WHERE verification_code_limit IS NULL
+			`).run();
+		} catch (e) {
+			console.warn(`跳过字段添加，原因：${e.message}`);
+		}
+	},
+
+	async v2_3DB(c) {
+		// 添加分享域名字段支持
+		try {
+			await c.env.db.prepare(`ALTER TABLE share ADD COLUMN share_domain TEXT;`).run();
+
+			// 创建索引优化查询性能
+			await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_share_domain ON share(share_domain);`).run();
+
+			console.log('分享域名字段添加成功');
+		} catch (e) {
+			console.warn(`跳过分享域名字段添加，原因：${e.message}`);
 		}
 	},
 
@@ -615,6 +653,7 @@ const init = {
 				share_token TEXT NOT NULL UNIQUE,
 				target_email TEXT NOT NULL,
 				share_name TEXT NOT NULL,
+				share_domain TEXT,
 				keyword_filter TEXT DEFAULT '',
 				expire_time TEXT NOT NULL,
 				create_time TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,

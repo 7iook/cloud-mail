@@ -99,7 +99,8 @@ app.use('*', async (c, next) => {
 	}
 
 	// 处理分享token直接访问（如 /share/wp4Qug766zM2gRBaNu6vg25w7ZwZx8hk）
-	if (path.startsWith('/share/') && path.length > 7 && !path.includes('/list') && !path.includes('/create') && !path.includes('/logs') && !path.includes('/stats') && !path.includes('/batch') && !path.includes('/refresh-token') && !path.includes('/update-limit') && !path.includes('/name') && !path.includes('/expire') && !path.includes('/status')) {
+
+	if (path.startsWith('/share/') && path.length > 7 && !path.includes('/list') && !path.includes('/create') && !path.includes('/logs') && !path.includes('/stats') && !path.includes('/batch') && !path.includes('/refresh-token') && !path.includes('/update-limit') && !path.includes('/update-display-limit') && !path.includes('/name') && !path.includes('/expire') && !path.includes('/status')) {
 		return await next();
 	}
 

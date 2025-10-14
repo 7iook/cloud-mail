@@ -5,6 +5,8 @@ const en = {
     starred: 'Starred',
     settings: 'Settings',
     analytics: 'Analytics',
+    emailShare: 'Email Share',
+    accessDeniedMsg: 'Access denied, please check your permissions',
     allUsers: 'All Users',
     allMail: 'All Mail',
     permissions: 'Role',

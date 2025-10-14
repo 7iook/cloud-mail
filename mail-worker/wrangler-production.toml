@@ -31,6 +31,6 @@ crons = ["0 16 * * *"]
 # Production environment variables
 [vars]
 orm_log = false
-domain = ["7ix.asia", "augmentcode.site", "lx028l.xyz"]
-admin = "admin@7ix.asia"
-jwt_secret = "prod-7ix-asia-2025-jwt-9f8e7d6c5b4a3210-secure-token-cloud-mail"
+domain = ["example.com", "example2.com", "example3.com"]
+admin = "admin@example.com"
+jwt_secret = "your-production-jwt-secret-here-please-change-this"

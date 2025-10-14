@@ -7,15 +7,85 @@ import cryptoUtils from '../utils/crypto-utils';
 import dayjs from 'dayjs';
 import CacheManager from '../utils/cache-manager';
 
-// 获取基础URL，优先使用环境变量中的域名
-function getBaseUrl(c) {
-	const domains = c.env.domain;
-	if (domains && domains.length > 0) {
-		// 使用第一个域名作为默认域名
-		return `https://${domains[0]}`;
+// 获取基础URL，支持用户指定域名
+function getBaseUrl(c, userSpecifiedDomain = null) {
+	try {
+		// 智能协议检测：根据请求环境自动选择HTTP或HTTPS
+		const getProtocol = () => {
+			// 优先从请求URL中获取协议
+			if (c.req && c.req.url) {
+				const url = new URL(c.req.url);
+				return url.protocol.replace(':', '');
+			}
+
+			// 检查是否为开发环境（localhost或127.0.0.1）
+			const isLocalDev = (domain) => {
+				return domain.includes('localhost') ||
+				       domain.includes('127.0.0.1') ||
+				       domain.includes('0.0.0.0') ||
+				       /:\d+$/.test(domain); // 包含端口号通常是开发环境
+			};
+
+			// 如果有用户指定域名，检查是否为开发环境
+			if (userSpecifiedDomain && isLocalDev(userSpecifiedDomain)) {
+				return 'http';
+			}
+
+			// 检查环境变量域名
+			const domains = c.env.domain;
+			if (domains && Array.isArray(domains) && domains.length > 0) {
+				const domain = domains[0].trim();
+				if (domain && isLocalDev(domain)) {
+					return 'http';
+				}
+			}
+
+			// 默认使用HTTPS（生产环境）
+			return 'https';
+		};
+
+		const protocol = getProtocol();
+		console.log(`[ShareService] Detected protocol: ${protocol}`);
+
+		// 优先使用用户指定的域名
+		if (userSpecifiedDomain && userSpecifiedDomain.trim()) {
+			const domain = userSpecifiedDomain.trim();
+			console.log(`[ShareService] Using user specified domain: ${domain}`);
+			// 如果用户域名已包含协议，直接使用；否则添加检测到的协议
+			if (domain.startsWith('http://') || domain.startsWith('https://')) {
+				return domain.replace(/\/$/, ''); // 移除末尾斜杠
+			} else {
+				return `${protocol}://${domain}`;
+			}
+		}
+
+		// 回退到环境变量配置的域名
+		const domains = c.env.domain;
+		if (domains && Array.isArray(domains) && domains.length > 0) {
+			const domain = domains[0].trim();
+			if (domain) {
+				console.log(`[ShareService] Using configured domain: ${domain}`);
+				return `${protocol}://${domain}`;
+			}
+		}
+
+		// 回退到请求URL
+		if (c.req && c.req.url) {
+			const urlParts = c.req.url.split('/');
+			if (urlParts.length >= 3) {
+				const baseUrl = urlParts.slice(0, 3).join('/');
+				console.log(`[ShareService] Using request URL as base: ${baseUrl}`);
+				return baseUrl;
+			}
+		}
+
+		// 最后的回退：使用默认值（这种情况不应该发生）
+		console.error('[ShareService] Failed to determine base URL, using default');
+		return `${protocol}://localhost`;
+	} catch (error) {
+		console.error('[ShareService] Error in getBaseUrl:', error);
+		return 'http://localhost';
 	}
-	// 回退到请求URL
-	return c.req.url.split('/').slice(0, 3).join('/');
 }
 
 const shareService = {
@@ -25,12 +95,17 @@ const shareService = {
 		const {
 			targetEmail,
 			shareName,
+			shareDomain,
 			keywordFilter,
 			expireTime,
 			rateLimitPerSecond,
 			rateLimitPerMinute,
 			shareType,
-			authorizedEmails
+			authorizedEmails,
+			verificationCodeLimit,
+			verificationCodeLimitEnabled,
+			otpLimitDaily,
+			otpLimitEnabled
 		} = params;
 
 		// 生成分享token
@@ -52,19 +127,30 @@ const shareService = {
 			shareToken,
 			targetEmail,
 			shareName,
+			shareDomain: shareDomain || null, // 保存用户选择的域名，NULL表示使用默认域名
 			keywordFilter: keywordFilter || '验证码|verification|code|otp',
 			expireTime,
 			userId,
 			rateLimitPerSecond: rateLimitPerSecond || 5,
 			rateLimitPerMinute: rateLimitPerMinute || 60,
 			shareType: shareType || 1,
-			authorizedEmails: authorizedEmailsJson
+			authorizedEmails: authorizedEmailsJson,
+			// 显示数量限制
+			verificationCodeLimit: verificationCodeLimit !== undefined ? verificationCodeLimit : 100,
+			verificationCodeLimitEnabled: verificationCodeLimitEnabled !== undefined ? verificationCodeLimitEnabled : 1,
+			// 访问次数限制
+			otpLimitDaily: otpLimitDaily !== undefined ? otpLimitDaily : 100,
+			otpLimitEnabled: otpLimitEnabled !== undefined ? otpLimitEnabled : 1
 		};
 
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();
 
-		// 生成分享URL，优先使用环境变量中的域名
-		const baseUrl = getBaseUrl(c);
+		// 生成分享URL，优先使用用户指定的域名
+		console.log('=== 生成分享URL调试信息 ===');
+		console.log('传入的shareDomain:', shareDomain);
+		const baseUrl = getBaseUrl(c, shareDomain);
+		console.log('生成的baseUrl:', baseUrl);
+		console.log('最终分享URL:', `${baseUrl}/share/${shareToken}`);
 
 		return {
 			...shareRow,
@@ -80,20 +166,27 @@ const shareService = {
 		const cached = await cacheManager.get(cacheKey);
 
 		if (cached) {
-			// 检查缓存的数据是否过期
-			if (!dayjs().isAfter(dayjs(cached.expireTime))) {
+			// Fix: 检查缓存的数据是否有效（启用状态）
+			// 禁用的分享不应该被访问
+			const isDisabled = cached.isActive === 0;
+
+			if (!isDisabled) {
+				// 缓存有效且分享未禁用，返回缓存数据
+				// 注意：不在这里检查过期，让调用方决定如何处理过期分享
 				return cached;
 			}
-			// 缓存过期，删除缓存
+
+			// 分享已禁用，删除缓存并抛出错误
 			await cacheManager.delete(cacheKey);
+			throw new BizError('分享已被禁用', 403);
 		}
 
-		// 从数据库获取
+		// Fix: 从数据库获取 - 只检查 isActive，不检查 status
+		// 这样已过期的分享也能被获取，由调用方决定如何处理
 		const shareRow = await orm(c).select().from(share)
 			.where(and(
 				eq(share.shareToken, shareToken),
-				eq(share.isActive, 1),
-				eq(share.status, 'active')
+				eq(share.isActive, 1)
 			))
 			.get();
 
@@ -101,8 +194,10 @@ const shareService = {
 			throw new BizError('分享不存在或已失效', 404);
 		}
 
-		// 检查是否过期
+		// Fix: 检查是否过期 - 返回更友好的错误消息
 		if (dayjs().isAfter(dayjs(shareRow.expireTime))) {
+			// 仍然缓存过期的分享，避免重复查询数据库
+			await cacheManager.set(cacheKey, shareRow, 300);
 			throw new BizError('分享已过期', 410);
 		}
 
@@ -112,37 +207,65 @@ const shareService = {
 		return shareRow;
 	},
 
-	// 获取用户的分享列表
-	async getUserShares(c, userId, page = 1, pageSize = 20) {
+	// 获取用户的分享列表（支持状态筛选）
+	async getUserShares(c, userId, page = 1, pageSize = 20, status) {
 		const offset = (page - 1) * pageSize;
-		
+
+		// 构建查询条件
+		const conditions = [eq(share.userId, userId)];
+
+		// 根据status参数添加筛选条件
+		if (status === 'active') {
+			// 活跃状态：isActive=1 且 status='active'
+			conditions.push(eq(share.isActive, 1));
+			conditions.push(eq(share.status, 'active'));
+		} else if (status === 'expired') {
+			// 已过期状态：isActive=1 且 status='expired'
+			conditions.push(eq(share.isActive, 1));
+			conditions.push(eq(share.status, 'expired'));
+		} else if (status === 'disabled') {
+			// 已禁用状态：isActive=0
+			conditions.push(eq(share.isActive, 0));
+		}
+		// 如果status为空或其他值，不添加额外筛选条件（返回所有状态）
+
 		const shares = await orm(c).select().from(share)
-			.where(and(
-				eq(share.userId, userId),
-				eq(share.isActive, 1)
-			))
+			.where(and(...conditions))
 			.orderBy(desc(share.createTime))
 			.limit(pageSize)
 			.offset(offset)
 			.all();
-			
-		// 添加分享URL，优先使用环境变量中的域名
-		const baseUrl = getBaseUrl(c);
-		return shares.map(shareRow => ({
-			...shareRow,
-			shareUrl: `${baseUrl}/share/${shareRow.shareToken}`
-		}));
+
+		// 添加分享URL，优先使用保存的用户域名，然后回退到环境变量中的域名
+		return shares.map(shareRow => {
+			const baseUrl = getBaseUrl(c, shareRow.shareDomain);
+			return {
+				...shareRow,
+				shareUrl: `${baseUrl}/share/${shareRow.shareToken}`
+			};
+		});
 	},
 
-	// 获取分享总数
-	async getUserShareCount(c, userId) {
+	// 获取分享总数（支持状态筛选）
+	async getUserShareCount(c, userId, status) {
+		// 构建查询条件
+		const conditions = [eq(share.userId, userId)];
+
+		// 根据status参数添加筛选条件
+		if (status === 'active') {
+			conditions.push(eq(share.isActive, 1));
+			conditions.push(eq(share.status, 'active'));
+		} else if (status === 'expired') {
+			conditions.push(eq(share.isActive, 1));
+			conditions.push(eq(share.status, 'expired'));
+		} else if (status === 'disabled') {
+			conditions.push(eq(share.isActive, 0));
+		}
+
 		const result = await orm(c).select({ count: sql`count(*)` }).from(share)
-			.where(and(
-				eq(share.userId, userId),
-				eq(share.isActive, 1)
-			))
+			.where(and(...conditions))
 			.get();
-			
+
 		return result.count;
 	},
 
@@ -213,12 +336,11 @@ const shareService = {
 
 	// 批量操作分享
 	async batchOperate(c, action, shareIds, userId, options = {}) {
-		// 验证所有分享都属于当前用户
+		// 验证所有分享都属于当前用户（移除isActive限制，允许操作禁用的分享）
 		const shares = await orm(c).select().from(share)
 			.where(and(
 				inArray(share.shareId, shareIds),
-				eq(share.userId, userId),
-				eq(share.isActive, 1)
+				eq(share.userId, userId)
 			))
 			.all();
 
@@ -230,19 +352,37 @@ const shareService = {
 		switch (action) {
 			case 'extend':
 				// 延长有效期 - 兼容 days 和 extendDays 两种参数名
-				const days = options.days || options.extendDays || 7;
-				// 使用 sql.raw 避免参数绑定问题
+				const days = parseInt(options.days || options.extendDays || 7);
+
+				// 验证天数范围
+				if (isNaN(days) || days < 1 || days > 365) {
+					throw new BizError('延长天数必须在1-365之间', 400);
+				}
+
+				// Fix: 使用 sql 模板标签而不是 sql.raw，避免SQL注入和语法错误
+				// SQLite的datetime函数需要正确的列引用
 				updateData = {
-					expireTime: sql.raw(`datetime(expireTime, '+${days} days')`)
+					expireTime: sql`datetime(${share.expireTime}, '+' || ${days} || ' days')`
 				};
 				break;
 			case 'disable':
-				// 禁用
-				updateData = { isActive: 0 };
+				// Fix: 禁用时同时更新 isActive 和 status 字段，保持数据一致性
+				updateData = {
+					isActive: 0,
+					status: 'disabled'
+				};
 				break;
 			case 'enable':
-				// 启用
-				updateData = { isActive: 1 };
+				// Fix: 启用时同时更新 isActive 和 status 字段
+				// 需要重新计算status（可能是active或expired）
+				updateData = {
+					isActive: 1,
+					// 使用SQL CASE表达式根据过期时间设置正确的status
+					status: sql`CASE
+						WHEN datetime(${share.expireTime}) < datetime('now') THEN 'expired'
+						ELSE 'active'
+					END`
+				};
 				break;
 			default:
 				throw new BizError('不支持的操作类型', 400);
@@ -287,6 +427,56 @@ const shareService = {
 		await cacheManager.delete(`share:${shareRow.shareToken}`);
 
 		return { success: true };
+	},
+
+	// 更新分享显示限制
+	async updateDisplayLimit(c, shareId, userId, verificationCodeLimit) {
+		// 验证分享是否存在且属于当前用户
+		const shareRow = await this.getById(c, shareId);
+		if (!shareRow) {
+			throw new BizError('分享不存在', 404);
+		}
+		if (shareRow.userId !== userId) {
+			throw new BizError('无权限操作此分享', 403);
+		}
+
+		// 更新显示限制
+		await orm(c).update(share)
+			.set({ verificationCodeLimit })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+
+		return { success: true };
+	},
+
+	// 增加每日访问计数
+	async incrementDailyCount(c, shareId) {
+		await orm(c).update(share)
+			.set({ otpCountDaily: sql`${share.otpCountDaily} + 1` })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		const shareRow = await this.getById(c, shareId);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
+	},
+
+	// 重置每日访问计数
+	async resetDailyCount(c, shareId, today) {
+		await orm(c).update(share)
+			.set({ otpCountDaily: 0, lastResetDate: today })
+			.where(eq(share.shareId, shareId))
+			.run();
+
+		// 清除缓存
+		const cacheManager = new CacheManager(c);
+		const shareRow = await this.getById(c, shareId);
+		await cacheManager.delete(`share:${shareRow.shareToken}`);
 	},
 
 	// 更新分享名称

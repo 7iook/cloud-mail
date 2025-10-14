@@ -231,10 +231,18 @@ const loadAccessLogs = async () => {
 const loadShareStats = async (shareId) => {
   try {
     const response = await getShareStats(shareId, { days: 7 });
-    selectedShareStats.value = response.data || response;
+    // 添加安全检查，防止response.data为undefined
+    if (response && response.data) {
+      selectedShareStats.value = response.data;
+    } else if (response) {
+      selectedShareStats.value = response;
+    } else {
+      selectedShareStats.value = null;
+    }
   } catch (error) {
     console.error('Load share stats error:', error);
-    ElMessage.error('加载访问统计失败');
+    // 不显示错误提示，因为可能是权限问题或分享不存在
+    selectedShareStats.value = null;
   }
 };
 

@@ -75,8 +75,18 @@ http.interceptors.response.use((res) => {
     (error) => {
 
         if (error.status === 403) {
-            location.reload();
-            return;
+            // 不刷新页面，避免无限循环
+            ElMessage({
+                message: i18n.global.t('accessDeniedMsg') || '访问被拒绝，请重新登录',
+                type: 'error',
+                plain: true,
+                grouping: true,
+                repeatNum: -4,
+            })
+            // 清除token并重定向到登录页
+            localStorage.removeItem('token')
+            router.push('/login')
+            return Promise.reject(error)
         }
 
         const showMsg = error.config.noMsg;

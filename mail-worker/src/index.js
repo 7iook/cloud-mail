@@ -37,32 +37,16 @@ export default {
 					
 				} catch (error) {
 					console.log(`=== SHARE TOKEN INVALID: ${shareToken}, Error: ${error.message} ===`);
-					
-					// Token无效，返回404页面（不暴露域名）
-					return new Response(`<!DOCTYPE html>
-<html>
-<head>
-    <title>404 - Page Not Found</title>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
-        .error-container { max-width: 400px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #e74c3c; margin-bottom: 20px; }
-        p { color: #666; line-height: 1.6; }
-    </style>
-</head>
-<body>
-    <div class="error-container">
-        <h1>404</h1>
-        <p>The requested page could not be found.</p>
-        <p>Please check the URL and try again.</p>
-    </div>
-</body>
-</html>`, {
+
+					// Token无效，返回纯文本404响应（激进式安全策略）
+					// 完全不渲染任何HTML内容，防止域名和系统信息泄露
+					return new Response('Not Found', {
 						status: 404,
 						headers: {
-							'Content-Type': 'text/html; charset=utf-8',
-							'Cache-Control': 'no-cache, no-store, must-revalidate'
+							'Content-Type': 'text/plain; charset=utf-8',
+							'Cache-Control': 'no-store, no-cache, must-revalidate',
+							'Pragma': 'no-cache',
+							'Expires': '0'
 						}
 					});
 				}

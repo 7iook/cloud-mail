@@ -21,7 +21,14 @@ export const share = sqliteTable('share', {
 	// 新增字段：分享类型支持
 	shareType: integer('share_type').default(1).notNull(), // 1=单邮箱分享, 2=白名单验证分享
 	// 授权邮箱列表（JSON数组格式，用于Type 2分享）
-	authorizedEmails: text('authorized_emails').default('[]').notNull()
+	authorizedEmails: text('authorized_emails').default('[]').notNull(),
+	// 显示数量限制功能
+	verificationCodeLimit: integer('verification_code_limit').default(100).notNull(),
+	verificationCodeLimitEnabled: integer('verification_code_limit_enabled').default(1).notNull(), // 1=启用, 0=禁用
+	// 访问次数限制开关
+	otpLimitEnabled: integer('otp_limit_enabled').default(1).notNull(), // 1=启用, 0=禁用
+	// 分享域名字段
+	shareDomain: text('share_domain') // 用户选择的分享域名，NULL表示使用默认域名
 });
 
 export default share;

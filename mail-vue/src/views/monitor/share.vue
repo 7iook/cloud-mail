@@ -52,7 +52,7 @@
       <div v-if="shareInfo?.shareType === 2" class="email-verification-section">
         <div class="verification-header">
           <h3>邮箱验证</h3>
-          <p>请输入您的邮箱地址以查看验证码</p>
+          <p>请输入您的邮箱地址以获取最新验证码</p>
         </div>
         <div class="verification-form">
           <el-input
@@ -74,7 +74,7 @@
             @click="handleEmailVerification"
             :disabled="!verificationEmail"
           >
-            验证邮箱
+            获取最新验证码
           </el-button>
         </div>
         <div v-if="verificationError" class="verification-error">

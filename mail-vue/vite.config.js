@@ -12,7 +12,16 @@ export default defineConfig(({mode}) => {
         server: {
             host: true,
             port: 3001,
-            hmr: true,
+            hmr: {
+                protocol: 'ws',
+                host: 'localhost',
+                port: 3001
+            },
+            allowedHosts: [
+                'localhost',
+                '127.0.0.1',
+                '.localhost'  // 允许所有*.localhost域名
+            ]
         },
         base: env.VITE_STATIC_URL || '/',
         plugins: [vue(),

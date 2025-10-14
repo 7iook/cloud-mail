@@ -52,11 +52,11 @@ const routes = [
                 }
             },
             {
-                path: '/share-management',
+                path: '/email-share',
                 name: 'share',
                 component: () => import('@/views/share/index-mvp.vue'),
                 meta: {
-                    title: 'shareManagement',
+                    title: 'emailShare',
                     name: 'share',
                     menu: true
                 }
@@ -129,6 +129,11 @@ router.beforeEach((to, from, next) => {
     }
 
     if (token && to.name === 'login') {
+        // 如果来源是登录页或根路径，重定向到首页
+        if (!from.path || from.path === '/login' || from.path === '/') {
+            return next('/inbox')
+        }
+        // 否则重定向回来源页
         return next(from.path)
     }
 

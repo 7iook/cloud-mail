@@ -24,14 +24,14 @@
           </el-radio>
           <el-radio :value="2">
             <div class="share-type-option">
-              <div class="option-title">白名单验证分享</div>
-              <div class="option-desc">访问者需输入白名单邮箱进行验证</div>
+              <div class="option-title">邮箱输入分享</div>
+              <div class="option-desc">访问者需输入指定邮箱进行验证</div>
             </div>
           </el-radio>
         </el-radio-group>
       </el-form-item>
 
-      <el-form-item v-if="form.shareType === 1" label="目标邮箱" prop="targetEmails">
+      <el-form-item label="目标邮箱" prop="targetEmails">
         <div class="email-select-container">
           <!-- 邮箱选择方式 -->
           <div class="email-selection-mode">
@@ -54,8 +54,8 @@
             <span class="selected-count">已选择 {{ form.targetEmails.length }} 个邮箱</span>
           </div>
 
-          <!-- 已选择的邮箱展示区域 -->
-          <div v-if="form.targetEmails.length > 0" class="selected-emails-display">
+          <!-- 已选择的邮箱展示区域 - 始终显示，避免界面跳动 -->
+          <div class="selected-emails-display">
             <div class="selected-emails-header">
               <span class="header-title">已选择的邮箱 ({{ form.targetEmails.length }})</span>
             </div>
@@ -72,6 +72,11 @@
                 <Icon icon="material-symbols:email" class="email-icon" />
                 {{ email }}
               </el-tag>
+              <!-- 空状态提示 -->
+              <div v-if="form.targetEmails.length === 0" class="empty-selection-hint">
+                <Icon icon="material-symbols:info-outline" />
+                <span>请从下方列表中选择邮箱</span>
+              </div>
             </div>
           </div>
 
@@ -95,13 +100,34 @@
               </el-select>
             </div>
 
-            <div v-loading="loadingAllEmails" class="email-list">
-              <el-checkbox-group v-model="selectedEmailsFromAll" @change="handleEmailSelectionChange">
+            <div class="email-list">
+              <!-- 骨架屏加载状态 -->
+              <div v-if="loadingAllEmails" class="skeleton-grid">
+                <div v-for="i in 10" :key="`skeleton-${i}`" class="skeleton-item">
+                  <div class="skeleton-checkbox"></div>
+                  <div class="skeleton-content">
+                    <div class="skeleton-email"></div>
+                    <div class="skeleton-stats">
+                      <div class="skeleton-stat"></div>
+                      <div class="skeleton-stat"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 实际邮箱列表 -->
+              <el-checkbox-group v-else v-model="selectedEmailsFromAll" @change="handleEmailSelectionChange">
                 <div
-                  v-for="item in displayEmails"
+                  v-for="(item, index) in displayEmails"
                   :key="item.email"
                   class="email-item"
                   :class="{ 'selected': selectedEmailsFromAll.includes(item.email) }"
+                  tabindex="0"
+                  role="checkbox"
+                  :aria-checked="selectedEmailsFromAll.includes(item.email)"
+                  :aria-label="`${item.email}, ${item.emailCount} 封邮件`"
+                  @keydown.space.prevent="toggleEmailSelection(item.email)"
+                  @keydown.enter.prevent="toggleEmailSelection(item.email)"
                 >
                   <el-checkbox :label="item.email">
                     <div class="email-item-content">
@@ -172,17 +198,36 @@
           </div>
         </div>
         <div class="form-tip">
-          从邮箱白名单中选择要分享的邮箱。如需添加新邮箱，请点击"管理邮箱白名单"按钮。
+          <span v-if="form.shareType === 1">从邮箱白名单中选择要分享的邮箱。如需添加新邮箱，请点击"管理邮箱白名单"按钮。</span>
+          <span v-else>选择允许访问的目标邮箱。访问者需要输入这些邮箱地址才能查看验证码。</span>
         </div>
       </el-form-item>
 
       <el-form-item label="分享名称" prop="shareName">
         <el-input
           v-model="form.shareName"
-          placeholder="请输入分享名称"
+          placeholder="留空将自动生成分享名称"
           maxlength="100"
           show-word-limit
         />
+      </el-form-item>
+
+      <el-form-item label="分享域名" prop="shareDomain">
+        <el-select
+          v-model="form.shareDomain"
+          placeholder="选择分享链接的域名"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="domain in availableDomains"
+            :key="domain.value"
+            :label="domain.label"
+            :value="domain.value"
+          />
+        </el-select>
+        <div class="form-tip">
+          选择生成分享链接使用的域名。本地开发时会自动检测端口。
+        </div>
       </el-form-item>
 
       <el-form-item label="关键词过滤" prop="keywordFilter">
@@ -234,6 +279,52 @@
           </div>
         </div>
       </el-form-item>
+
+      <!-- 显示数量限制 -->
+      <el-form-item label="显示数量限制">
+        <div class="limit-control">
+          <el-switch
+            v-model="form.verificationCodeLimitEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <el-input-number
+            v-model="form.verificationCodeLimit"
+            :min="1"
+            :max="1000"
+            :step="10"
+            :disabled="!form.verificationCodeLimitEnabled"
+            style="width: 150px; margin-left: 12px"
+          />
+          <span class="unit-text">条</span>
+        </div>
+        <div class="form-tip">
+          控制每次访问最多显示的验证码数量。禁用后显示全部验证码。
+        </div>
+      </el-form-item>
+
+      <!-- 访问次数限制 -->
+      <el-form-item label="访问次数限制">
+        <div class="limit-control">
+          <el-switch
+            v-model="form.otpLimitEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <el-input-number
+            v-model="form.otpLimitDaily"
+            :min="1"
+            :max="10000"
+            :step="10"
+            :disabled="!form.otpLimitEnabled"
+            style="width: 150px; margin-left: 12px"
+          />
+          <span class="unit-text">次/天</span>
+        </div>
+        <div class="form-tip">
+          控制每天最多可以访问的次数。禁用后无限制访问。
+        </div>
+      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -261,6 +352,7 @@ import { getUniqueRecipients } from '@/request/all-email.js';
 import dayjs from 'dayjs';
 import { Icon } from '@iconify/vue';
 import ShareWhitelistDialog from './ShareWhitelistDialog.vue';
+import { useSettingStore } from '@/store/setting.js';
 
 const props = defineProps({
   modelValue: {
@@ -270,6 +362,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'created']);
+
+// Store
+const settingStore = useSettingStore();
 
 // 响应式数据
 const visible = ref(false);
@@ -299,10 +394,17 @@ const form = reactive({
   shareType: 1, // 1=单邮箱分享, 2=白名单验证分享
   targetEmails: [],
   shareName: '',
+  shareDomain: '', // 分享域名
   keywordFilter: '验证码|verification|code|otp',
   expireTime: '',
   rateLimitPerSecond: 5,
-  rateLimitPerMinute: 60
+  rateLimitPerMinute: 60,
+  // 显示数量限制
+  verificationCodeLimit: 100,
+  verificationCodeLimitEnabled: true,
+  // 访问次数限制
+  otpLimitDaily: 100,
+  otpLimitEnabled: true
 });
 
 // 表单验证规则
@@ -310,13 +412,12 @@ const rules = computed(() => ({
   shareType: [
     { required: true, message: '请选择分享类型', trigger: 'change' }
   ],
-  targetEmails: form.shareType === 1 ? [
+  targetEmails: [
     { required: true, message: '请选择目标邮箱', trigger: 'change' },
     { type: 'array', min: 1, message: '至少选择一个邮箱', trigger: 'change' }
-  ] : [],
+  ],
   shareName: [
-    { required: true, message: '请输入分享名称', trigger: 'blur' },
-    { min: 2, max: 100, message: '分享名称长度在 2 到 100 个字符', trigger: 'blur' }
+    { max: 100, message: '分享名称长度不能超过 100 个字符', trigger: 'blur' }
   ]
 }));
 
@@ -330,6 +431,13 @@ watch(() => props.modelValue, (val) => {
   visible.value = val;
   if (val) {
     resetForm();
+    // 初始化默认域名（在resetForm之后）
+    nextTick(() => {
+      if (availableDomains.value.length > 0) {
+        form.shareDomain = availableDomains.value[0].value;
+        console.log('初始化默认域名:', form.shareDomain);
+      }
+    });
     if (emailSelectionMode.value === 'fromAllEmails') {
       loadAllEmails();
     }
@@ -388,6 +496,20 @@ const selectAll = () => {
   }
 };
 
+// 键盘支持：切换邮箱选中状态
+const toggleEmailSelection = (email) => {
+  const index = selectedEmailsFromAll.value.indexOf(email);
+  if (index > -1) {
+    // 已选中，取消选中
+    selectedEmailsFromAll.value.splice(index, 1);
+  } else {
+    // 未选中，添加选中
+    selectedEmailsFromAll.value.push(email);
+  }
+  // 同步到form
+  form.targetEmails = [...selectedEmailsFromAll.value];
+};
+
 // 清空所有选择
 const clearAll = () => {
   form.targetEmails = [];
@@ -400,6 +522,64 @@ const clearAll = () => {
 const isValidEmail = (email) => {
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   return emailRegex.test(email);
+};
+
+// 可用域名列表
+const availableDomains = computed(() => {
+  const domains = [];
+
+  // 添加配置的域名
+  if (settingStore.domainList && settingStore.domainList.length > 0) {
+    settingStore.domainList.forEach(domain => {
+      const cleanDomain = domain.replace(/^@/, '');
+      domains.push({
+        label: `https://${cleanDomain}`,
+        value: cleanDomain
+      });
+    });
+  }
+
+  // 本地开发环境：自动检测当前域名和端口
+  if (import.meta.env.DEV) {
+    const currentHost = window.location.host;
+    if (!domains.some(d => d.value === currentHost)) {
+      domains.unshift({
+        label: `${window.location.protocol}//${currentHost} (本地开发)`,
+        value: currentHost
+      });
+    }
+  }
+
+  // 如果没有任何域名，使用当前域名作为默认值
+  if (domains.length === 0) {
+    const currentHost = window.location.host;
+    domains.push({
+      label: `${window.location.protocol}//${currentHost} (默认)`,
+      value: currentHost
+    });
+  }
+
+  return domains;
+});
+
+// 生成随机分享名称
+const generateRandomShareName = (shareType, emailCount = 1) => {
+  const adjectives = ['快速', '安全', '便捷', '智能', '高效', '专业', '可靠', '简单'];
+  const nouns = ['验证码', '邮件', '分享', '服务', '通道', '接收'];
+  const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+  const timestamp = new Date().toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(/[\/\s:]/g, '');
+
+  if (shareType === 2) {
+    return `${randomAdjective}${randomNoun}分享-${emailCount}邮箱-${timestamp}`;
+  } else {
+    return `${randomAdjective}${randomNoun}接收-${timestamp}`;
+  }
 };
 
 // 处理批量输入
@@ -497,11 +677,7 @@ const handleWhitelistUpdated = () => {
 
 // 处理分享类型变更
 const handleShareTypeChange = (type) => {
-  if (type === 2) {
-    // 切换到白名单验证分享时，清空目标邮箱选择
-    form.targetEmails = [];
-    selectedEmailsFromAll.value = [];
-  }
+  // 不再清空目标邮箱选择，两种类型都需要选择目标邮箱
   nextTick(() => {
     formRef.value?.clearValidate();
   });
@@ -512,8 +688,13 @@ const resetForm = () => {
   form.shareType = 1;
   form.targetEmails = [];
   form.shareName = '';
+  form.shareDomain = ''; // 重置域名选择
   form.keywordFilter = '验证码|verification|code|otp';
   form.expireTime = '';
+  form.verificationCodeLimit = 100;
+  form.verificationCodeLimitEnabled = true;
+  form.otpLimitDaily = 100;
+  form.otpLimitEnabled = true;
   selectedEmailsFromAll.value = [];
   batchEmailInput.value = '';
   singleEmailInput.value = '';
@@ -530,6 +711,12 @@ const handleSubmit = async () => {
 
     submitting.value = true;
 
+    // 调试日志：打印用户选择的域名
+    console.log('=== 创建分享调试信息 ===');
+    console.log('用户选择的域名:', form.shareDomain);
+    console.log('可用域名列表:', availableDomains.value);
+    console.log('表单数据:', form);
+
     const expireTime = form.expireTime || dayjs().add(7, 'day').toISOString();
     const results = [];
 
@@ -543,12 +730,17 @@ const handleSubmit = async () => {
       const shareData = {
         targetEmail: form.targetEmails[0], // 使用第一个邮箱作为主邮箱（向后兼容）
         authorizedEmails: form.targetEmails, // 授权邮箱列表
-        shareName: form.shareName || `多邮箱验证分享 (${form.targetEmails.length}个邮箱)`,
+        shareName: form.shareName || generateRandomShareName(2, form.targetEmails.length),
+        shareDomain: form.shareDomain, // 用户选择的域名
         keywordFilter: form.keywordFilter,
         expireTime: expireTime,
         shareType: 2,
         rateLimitPerSecond: form.rateLimitPerSecond,
-        rateLimitPerMinute: form.rateLimitPerMinute
+        rateLimitPerMinute: form.rateLimitPerMinute,
+        verificationCodeLimit: form.verificationCodeLimit,
+        verificationCodeLimitEnabled: form.verificationCodeLimitEnabled,
+        otpLimitDaily: form.otpLimitDaily,
+        otpLimitEnabled: form.otpLimitEnabled
       };
 
       try {
@@ -562,10 +754,15 @@ const handleSubmit = async () => {
       for (const email of form.targetEmails) {
         const shareData = {
           targetEmail: email,
-          shareName: form.shareName || `${email}的验证码接收`,
+          shareName: form.shareName || generateRandomShareName(1),
+          shareDomain: form.shareDomain, // 用户选择的域名
           keywordFilter: form.keywordFilter,
           expireTime: expireTime,
-          shareType: 1
+          shareType: 1,
+          verificationCodeLimit: form.verificationCodeLimit,
+          verificationCodeLimitEnabled: form.verificationCodeLimitEnabled,
+          otpLimitDaily: form.otpLimitDaily,
+          otpLimitEnabled: form.otpLimitEnabled
         };
 
         try {
@@ -643,16 +840,24 @@ const handleClose = () => {
   font-weight: 500;
 }
 
+/* 已选邮箱展示区域 - 固定高度避免跳动 */
 .selected-emails-display {
   margin-bottom: 16px;
   padding: 16px;
   background-color: var(--el-fill-color-extra-light);
   border-radius: 8px;
   border: 1px solid var(--el-border-color-lighter);
+  /* 固定高度，避免界面跳动 */
+  min-height: 120px;
+  max-height: 120px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .selected-emails-header {
   margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .header-title {
@@ -665,8 +870,8 @@ const handleClose = () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
-  max-height: 200px;
   overflow-y: auto;
+  flex: 1;
 }
 
 .selected-email-tag {
@@ -689,6 +894,22 @@ const handleClose = () => {
 .email-icon {
   font-size: 16px;
   flex-shrink: 0;
+}
+
+/* 空状态提示 */
+.empty-selection-hint {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: var(--el-text-color-placeholder);
+  font-size: 14px;
+}
+
+.empty-selection-hint svg {
+  font-size: 18px;
 }
 
 .share-type-option {
@@ -743,18 +964,387 @@ const handleClose = () => {
   margin-bottom: 12px;
 }
 
-.email-list {
-  min-height: 60px;
-  padding: 8px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 4px;
-  background-color: var(--el-fill-color-lighter);
+/* 搜索栏样式 */
+.search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
+.search-input {
+  flex: 1;
+}
+
+.sort-select {
+  width: 180px;
+}
+
+/* 邮箱列表 - 网格布局 */
+.email-list {
+  min-height: 200px;
+  padding: 16px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 12px;
+  background-color: var(--el-bg-color);
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.email-list :deep(.el-checkbox-group) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+/* 响应式断点 - 长方形卡片布局 */
+@media (min-width: 1400px) {
+  .email-list :deep(.el-checkbox-group) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .email-list :deep(.el-checkbox-group) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  .email-list :deep(.el-checkbox-group) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 600px) and (max-width: 899px) {
+  .email-list :deep(.el-checkbox-group) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 599px) {
+  .email-list :deep(.el-checkbox-group) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 邮箱卡片样式 - 长方形设计（横向长方形）*/
+.email-item {
+  position: relative;
+  border: 2px solid var(--el-border-color-light);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--el-bg-color);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  min-height: 80px;
+  max-height: 80px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 渐入动画 */
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.email-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--el-color-primary-light-5);
+}
+
+.email-item.selected {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+  /* 选中时的微动画 */
+  animation: selectPulse 0.4s ease-out;
+}
+
+/* 键盘焦点指示器 - 符合WCAG 2.1标准 */
+.email-item:focus {
+  outline: none; /* 移除默认outline */
+}
+
+.email-item:focus-visible {
+  outline: 3px solid var(--el-color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.25);
+  border-color: var(--el-color-primary);
+}
+
+/* 暗色模式下的焦点指示器 */
+html.dark .email-item:focus-visible {
+  outline-color: var(--el-color-primary-light-3);
+  box-shadow: 0 0 0 4px rgba(64, 158, 255, 0.4);
+}
+
+/* 骨架屏样式 */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-bg-color);
+  min-height: 80px;
+  max-height: 80px;
+}
+
+.skeleton-checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  flex-shrink: 0;
+}
+
+.skeleton-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-email {
+  height: 16px;
+  width: 70%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.skeleton-stat {
+  height: 12px;
+  width: 80px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 暗色模式下的骨架屏 */
+html.dark .skeleton-checkbox,
+html.dark .skeleton-email,
+html.dark .skeleton-stat {
+  background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+  background-size: 200% 100%;
+}
+
+html.dark .skeleton-item {
+  border-color: var(--el-border-color);
+  background: var(--el-fill-color-darker);
+}
+
+/* 暗色模式优化 */
+html.dark .email-item {
+  background: var(--el-fill-color-darker);
+  border-color: var(--el-border-color);
+}
+
+html.dark .email-item:hover {
+  background: var(--el-fill-color-dark);
+  border-color: var(--el-color-primary-light-3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .email-item.selected {
+  background: rgba(64, 158, 255, 0.15);
+  border-color: var(--el-color-primary-light-3);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+}
+
+html.dark .email-address {
+  color: var(--el-text-color-primary);
+}
+
+html.dark .email-stats {
+  color: var(--el-text-color-secondary);
+}
+
+html.dark .stat-item svg {
+  color: var(--el-text-color-placeholder);
+}
+
+/* 已选邮箱标签暗色模式 */
+html.dark .selected-email-tag {
+  background: rgba(64, 158, 255, 0.2);
+  border-color: var(--el-color-primary-light-3);
+  color: var(--el-color-primary-light-3);
+}
+
+html.dark .empty-selection-hint {
+  color: var(--el-text-color-secondary);
+}
+
+/* 搜索栏暗色模式 */
+html.dark .search-input :deep(.el-input__wrapper) {
+  background: var(--el-fill-color-darker);
+  border-color: var(--el-border-color);
+}
+
+html.dark .sort-select :deep(.el-input__wrapper) {
+  background: var(--el-fill-color-darker);
+  border-color: var(--el-border-color);
+}
+
+.email-item.selected:hover {
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+@keyframes selectPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 隐藏默认的checkbox，使用整个卡片作为点击区域 */
+.email-item :deep(.el-checkbox) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.email-item :deep(.el-checkbox__input) {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+}
+
+.email-item :deep(.el-checkbox__label) {
+  flex: 1;
+  padding-left: 0;
+  width: 100%;
+}
+
+/* 邮箱内容区域 */
+.email-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.email-address {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.email-address .email-icon {
+  font-size: 16px;
+  color: var(--el-color-primary);
+  flex-shrink: 0;
+}
+
+.email-text {
+  flex: 1;
+  line-height: 1.3;
+  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 统计信息 - 横向紧凑布局 */
+.email-stats {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  padding-top: 4px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-item svg {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+  flex-shrink: 0;
+}
+
+/* 空状态提示 */
 .empty-tip {
   color: var(--el-text-color-placeholder);
   text-align: center;
-  padding: 20px;
+  padding: 40px 20px;
   font-size: 14px;
+}
+
+/* 分页样式优化 */
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 限制控制样式 */
+.limit-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.unit-text {
+  color: #606266;
+  font-size: 14px;
+  margin-left: 8px;
 }
 </style>

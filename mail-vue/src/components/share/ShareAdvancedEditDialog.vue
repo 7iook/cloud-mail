@@ -35,17 +35,46 @@
         <div class="form-tip">留空表示永不过期</div>
       </el-form-item>
 
-      <!-- 每日限额 -->
-      <el-form-item label="每日限额" prop="otpLimitDaily">
-        <el-input-number
-          v-model="formData.otpLimitDaily"
-          :min="1"
-          :max="10000"
-          :step="1"
-          style="width: 200px"
-        />
-        <span class="unit-text">次/天</span>
-        <div class="form-tip">每天最多可以接收的验证码数量</div>
+      <!-- 访问次数限制 -->
+      <el-form-item label="访问次数限制">
+        <div class="limit-control">
+          <el-switch
+            v-model="formData.otpLimitEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <el-input-number
+            v-model="formData.otpLimitDaily"
+            :min="1"
+            :max="10000"
+            :step="10"
+            :disabled="!formData.otpLimitEnabled"
+            style="width: 150px; margin-left: 12px"
+          />
+          <span class="unit-text">次/天</span>
+        </div>
+        <div class="form-tip">每天最多可以访问的次数（不是显示数量）。禁用后无限制访问。</div>
+      </el-form-item>
+
+      <!-- 显示数量限制 -->
+      <el-form-item label="显示数量限制">
+        <div class="limit-control">
+          <el-switch
+            v-model="formData.verificationCodeLimitEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <el-input-number
+            v-model="formData.verificationCodeLimit"
+            :min="1"
+            :max="1000"
+            :step="10"
+            :disabled="!formData.verificationCodeLimitEnabled"
+            style="width: 150px; margin-left: 12px"
+          />
+          <span class="unit-text">条</span>
+        </div>
+        <div class="form-tip">每次访问最多显示的验证码数量。禁用后显示全部。</div>
       </el-form-item>
 
       <!-- 频率限制 -->
@@ -138,9 +167,12 @@ const formData = reactive({
   shareName: '',
   expireTime: '',
   otpLimitDaily: 100,
+  otpLimitEnabled: true,
   rateLimitPerSecond: 5,
   rateLimitPerMinute: 60,
-  keywordFilter: ''
+  keywordFilter: '',
+  verificationCodeLimit: 100,
+  verificationCodeLimitEnabled: true
 })
 
 // 表单验证规则
@@ -165,9 +197,12 @@ watch(() => props.modelValue, (newVal) => {
       shareName: props.shareData.shareName || '',
       expireTime: props.shareData.expireTime || '',
       otpLimitDaily: props.shareData.otpLimitDaily || 100,
+      otpLimitEnabled: props.shareData.otpLimitEnabled !== undefined ? props.shareData.otpLimitEnabled === 1 : true,
       rateLimitPerSecond: props.shareData.rateLimitPerSecond || 5,
       rateLimitPerMinute: props.shareData.rateLimitPerMinute || 60,
-      keywordFilter: props.shareData.keywordFilter || ''
+      keywordFilter: props.shareData.keywordFilter || '',
+      verificationCodeLimit: props.shareData.verificationCodeLimit || 100,
+      verificationCodeLimitEnabled: props.shareData.verificationCodeLimitEnabled !== undefined ? props.shareData.verificationCodeLimitEnabled === 1 : true
     })
   }
 })
@@ -206,25 +241,34 @@ const handleSave = async () => {
       promises.push(updateShareExpireTime(formData.shareId, formData.expireTime))
     }
     
-    // 更新每日限额
-    if (formData.otpLimitDaily !== props.shareData.otpLimitDaily) {
+    // 更新每日限额和访问限制开关
+    if (formData.otpLimitDaily !== props.shareData.otpLimitDaily ||
+        (formData.otpLimitEnabled ? 1 : 0) !== props.shareData.otpLimitEnabled) {
       promises.push(updateShareLimit(formData.shareId, formData.otpLimitDaily))
     }
-    
-    // 更新高级设置（频率限制和关键词过滤）
-    if (formData.rateLimitPerSecond !== props.shareData.rateLimitPerSecond ||
-        formData.rateLimitPerMinute !== props.shareData.rateLimitPerMinute ||
-        formData.keywordFilter !== props.shareData.keywordFilter) {
-      
+
+    // 更新高级设置（频率限制、关键词过滤、显示数量限制）
+    const needsAdvancedUpdate =
+      formData.rateLimitPerSecond !== props.shareData.rateLimitPerSecond ||
+      formData.rateLimitPerMinute !== props.shareData.rateLimitPerMinute ||
+      formData.keywordFilter !== props.shareData.keywordFilter ||
+      formData.verificationCodeLimit !== props.shareData.verificationCodeLimit ||
+      (formData.verificationCodeLimitEnabled ? 1 : 0) !== props.shareData.verificationCodeLimitEnabled ||
+      (formData.otpLimitEnabled ? 1 : 0) !== props.shareData.otpLimitEnabled
+
+    if (needsAdvancedUpdate) {
       // 如果API不存在，则提示用户
       if (typeof updateShareAdvancedSettings === 'function') {
         promises.push(updateShareAdvancedSettings(formData.shareId, {
           rateLimitPerSecond: formData.rateLimitPerSecond,
           rateLimitPerMinute: formData.rateLimitPerMinute,
-          keywordFilter: formData.keywordFilter
+          keywordFilter: formData.keywordFilter,
+          verificationCodeLimit: formData.verificationCodeLimit,
+          verificationCodeLimitEnabled: formData.verificationCodeLimitEnabled ? 1 : 0,
+          otpLimitEnabled: formData.otpLimitEnabled ? 1 : 0
         }))
       } else {
-        ElMessage.warning('频率限制和关键词过滤功能暂未支持修改，请联系管理员')
+        ElMessage.warning('高级设置功能暂未支持修改，请联系管理员')
       }
     }
     
@@ -273,6 +317,12 @@ const handleSave = async () => {
   min-width: 80px;
   font-size: 14px;
   color: #606266;
+}
+
+.limit-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .dialog-footer {

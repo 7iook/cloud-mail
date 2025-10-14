@@ -5,6 +5,8 @@ const zhTW = {
     starred: '已加星',
     settings: '設定',
     analytics: '分析',
+    emailShare: '郵件分享',
+    accessDeniedMsg: '存取被拒絕，請檢查您的權限',
     allUsers: '所有使用者',
     allMail: '所有郵件',
     permissions: '角色',

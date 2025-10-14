@@ -8,54 +8,149 @@ import settingService from '../service/setting-service';
 import shareService from '../service/share-service';
 import shareAccessLogService from '../service/share-access-log-service';
 import emailUtils from '../utils/email-utils';
+import verifyUtils from '../utils/verify-utils'; // Fix P0-1: 添加邮箱验证工具
+import sanitizeUtils from '../utils/sanitize-utils'; // Fix P0-5: 添加输入清理工具
 import BizError from '../error/biz-error';
 import dayjs from 'dayjs';
 import { shareRateLimitMiddleware } from '../middleware/rate-limiter';
+import { share } from '../entity/share';
+import { account } from '../entity/account';
+import orm from '../entity/orm';
+import { eq } from 'drizzle-orm';
 
 // 创建邮箱验证码分享
 app.post('/share/create', async (c) => {
 	try {
-		const { targetEmail, authorizedEmails, shareName, keywordFilter, expireTime, rateLimitPerSecond, rateLimitPerMinute, shareType } = await c.req.json();
+		const { targetEmail, authorizedEmails, shareName, shareDomain, keywordFilter, expireTime, rateLimitPerSecond, rateLimitPerMinute, shareType, verificationCodeLimit, verificationCodeLimitEnabled, otpLimitDaily, otpLimitEnabled } = await c.req.json();
 		const userId = userContext.getUserId(c);
 
-		// 验证目标邮箱格式
-		if (!targetEmail || !targetEmail.includes('@')) {
+	// 调试日志：打印接收到的域名参数
+	console.log('=== 后端接收分享创建请求 ===');
+	console.log('接收到的shareDomain:', shareDomain);
+	console.log('请求体:', { targetEmail, shareName, shareDomain, shareType });
+
+		// Fix P0-5: 清理用户输入，防止 XSS 攻击
+		const cleanedTargetEmail = sanitizeUtils.sanitizeEmail(targetEmail);
+		const cleanedShareName = sanitizeUtils.sanitizeInput(shareName, 200);
+		const cleanedKeywordFilter = sanitizeUtils.sanitizeInput(keywordFilter, 500);
+
+		// Fix P0-1: 使用标准邮箱验证替代简陋的 includes('@') 检查
+		if (!cleanedTargetEmail || !verifyUtils.isEmail(cleanedTargetEmail)) {
 			throw new BizError('请输入有效的邮箱地址', 400);
+		}
+
+		// Fix P1-1: 输入长度限制
+		const MAX_SHARE_NAME_LENGTH = 200;
+		const MAX_KEYWORD_FILTER_LENGTH = 500;
+		const MAX_AUTHORIZED_EMAILS = 50;
+
+		if (shareName && shareName.length > MAX_SHARE_NAME_LENGTH) {
+			throw new BizError(`分享名称不能超过 ${MAX_SHARE_NAME_LENGTH} 个字符`, 400);
+		}
+
+		if (keywordFilter && keywordFilter.length > MAX_KEYWORD_FILTER_LENGTH) {
+			throw new BizError(`关键词过滤器不能超过 ${MAX_KEYWORD_FILTER_LENGTH} 个字符`, 400);
+		}
+
+		// Fix P1-2: 数值范围验证
+		const MIN_RATE_LIMIT = 1;
+		const MAX_RATE_LIMIT_PER_SECOND = 100;
+		const MAX_RATE_LIMIT_PER_MINUTE = 1000;
+
+		if (rateLimitPerSecond !== undefined) {
+			const rate = parseInt(rateLimitPerSecond);
+			if (isNaN(rate) || rate < MIN_RATE_LIMIT || rate > MAX_RATE_LIMIT_PER_SECOND) {
+				throw new BizError(`每秒频率限制必须在 ${MIN_RATE_LIMIT}-${MAX_RATE_LIMIT_PER_SECOND} 之间`, 400);
+			}
+		}
+
+		if (rateLimitPerMinute !== undefined) {
+			const rate = parseInt(rateLimitPerMinute);
+			if (isNaN(rate) || rate < MIN_RATE_LIMIT || rate > MAX_RATE_LIMIT_PER_MINUTE) {
+				throw new BizError(`每分钟频率限制必须在 ${MIN_RATE_LIMIT}-${MAX_RATE_LIMIT_PER_MINUTE} 之间`, 400);
+			}
+		}
+
+		// Fix P1-3: expireTime 验证
+		const MIN_EXPIRE_HOURS = 1;
+		const MAX_EXPIRE_DAYS = 365;
+
+		if (expireTime) {
+			const expireDate = dayjs(expireTime);
+			const now = dayjs();
+			
+			if (!expireDate.isValid()) {
+				throw new BizError('过期时间格式错误', 400);
+			}
+			
+			if (expireDate.isBefore(now.add(MIN_EXPIRE_HOURS, 'hour'))) {
+				throw new BizError(`过期时间必须至少在 ${MIN_EXPIRE_HOURS} 小时后`, 400);
+			}
+			
+			if (expireDate.isAfter(now.add(MAX_EXPIRE_DAYS, 'day'))) {
+				throw new BizError(`过期时间不能超过 ${MAX_EXPIRE_DAYS} 天`, 400);
+			}
+		}
+
+		// Fix P1-4: shareType 验证
+		const VALID_SHARE_TYPES = [1, 2];
+
+		if (shareType !== undefined && !VALID_SHARE_TYPES.includes(shareType)) {
+			throw new BizError('无效的分享类型，必须为 1 或 2', 400);
+		}
+
+		// Fix P1-4: 确保 Type 2 分享必须提供 authorizedEmails
+		if (shareType === 2 && (!authorizedEmails || authorizedEmails.length === 0)) {
+			throw new BizError('Type 2 分享必须提供至少一个授权邮箱', 400);
 		}
 
 		// 对于 Type 2 分享，验证 authorizedEmails
 		if (shareType === 2 && authorizedEmails) {
-			if (!Array.isArray(authorizedEmails) || authorizedEmails.length === 0) {
-				throw new BizError('Type 2 分享需要提供授权邮箱列表', 400);
+			if (!Array.isArray(authorizedEmails)) {
+				throw new BizError('授权邮箱列表必须是数组格式', 400);
 			}
-			// 验证每个邮箱格式
+
+			// Fix P1-1: 限制授权邮箱数量
+			if (authorizedEmails.length > MAX_AUTHORIZED_EMAILS) {
+				throw new BizError(`授权邮箱数量不能超过 ${MAX_AUTHORIZED_EMAILS} 个`, 400);
+			}
+
+			// Fix P0-1: 使用标准邮箱验证
 			for (const email of authorizedEmails) {
-				if (!email || !email.includes('@')) {
+				if (!email || !verifyUtils.isEmail(email)) {
 					throw new BizError(`无效的邮箱地址: ${email}`, 400);
 				}
 			}
 		}
 
-		// 验证邮箱域名是否在允许的域名列表中
-		if (!c.env.domain.includes(emailUtils.getDomain(targetEmail))) {
-			throw new BizError('该邮箱域名不在系统支持的域名列表中', 403);
-		}
-
+		// Fix P0-5: 使用清理后的邮箱地址
 		// 检查当前用户是否为管理员
 		const currentUser = await userService.selectById(c, userId);
 		const isAdmin = currentUser && (currentUser.email === c.env.admin || currentUser.role === 'admin');
 
+		// 验证邮箱域名是否在允许的域名列表中（管理员可以绕过此限制）
+		if (!isAdmin && !c.env.domain.includes(emailUtils.getDomain(cleanedTargetEmail))) {
+			throw new BizError('该邮箱域名不在系统支持的域名列表中', 403);
+		}
+
 		// 验证邮箱是否存在于系统中，如果不存在则按需创建（仅管理员可以）
-		let existingAccount = await accountService.selectByEmailIncludeDel(c, targetEmail);
+		let existingAccount = await accountService.selectByEmailIncludeDel(c, cleanedTargetEmail);
 		if (!existingAccount) {
 			if (!isAdmin) {
 				throw new BizError('该邮箱不存在于系统中，只有管理员可以为新邮箱创建分享', 403);
 			}
 
-			// 管理员可以为白名单中的邮箱按需创建账户
+			// Fix: 管理员可以为任何域名的邮箱创建账户，绕过域名限制
 			try {
-				existingAccount = await accountService.add(c, { email: targetEmail }, userId);
-				console.log(`管理员为邮箱 ${targetEmail} 自动创建了账户记录`);
+				// 直接插入账户记录，绕过 accountService.add 的域名验证
+				const accountData = {
+					email: cleanedTargetEmail,
+					userId: userId,
+					name: cleanedTargetEmail.split('@')[0] // 使用邮箱前缀作为名称
+				};
+
+				existingAccount = await orm(c).insert(account).values(accountData).returning().get();
+				console.log(`管理员为邮箱 ${cleanedTargetEmail} 自动创建了账户记录`);
 			} catch (error) {
 				console.error('自动创建邮箱账户失败:', error);
 				throw new BizError('创建邮箱账户失败: ' + error.message, 500);
@@ -69,18 +164,29 @@ app.post('/share/create', async (c) => {
 			if (!isOwner) {
 				throw new BizError('您没有权限分享此邮箱', 403);
 			}
+		} else {
+			// 管理员权限：可以分享任何邮箱，包括系统中的其他邮箱
+			console.log(`管理员 ${currentUser.email} 为邮箱 ${cleanedTargetEmail} 创建分享`);
 		}
 
+		// Fix P0-5: 使用清理后的输入创建分享记录
 		// 创建分享记录到数据库
 		const shareData = {
-			targetEmail: targetEmail,
-			shareName: shareName || `${targetEmail}的验证码接收`,
-			keywordFilter: keywordFilter || '验证码|verification|code|otp',
+			targetEmail: cleanedTargetEmail,
+			shareName: cleanedShareName || `${cleanedTargetEmail}的验证码接收`,
+			shareDomain: shareDomain, // 用户指定的域名
+			keywordFilter: cleanedKeywordFilter || '验证码|verification|code|otp',
 			expireTime: expireTime || dayjs().add(7, 'day').toISOString(),
 			rateLimitPerSecond: rateLimitPerSecond || 5,
 			rateLimitPerMinute: rateLimitPerMinute || 60,
 			shareType: shareType || 1, // 默认为类型1（单邮箱分享）
-			authorizedEmails: authorizedEmails // 直接传递数组，由 service 层处理 JSON 转换
+			authorizedEmails: authorizedEmails, // 直接传递数组，由 service 层处理 JSON 转换
+			// 显示数量限制
+			verificationCodeLimit: verificationCodeLimit !== undefined ? verificationCodeLimit : 100,
+			verificationCodeLimitEnabled: verificationCodeLimitEnabled !== undefined ? (verificationCodeLimitEnabled ? 1 : 0) : 1,
+			// 访问次数限制
+			otpLimitDaily: otpLimitDaily !== undefined ? otpLimitDaily : 100,
+			otpLimitEnabled: otpLimitEnabled !== undefined ? (otpLimitEnabled ? 1 : 0) : 1
 		};
 
 		const shareRecord = await shareService.create(c, shareData, userId);
@@ -105,9 +211,18 @@ app.get('/share/list', async (c) => {
 		const shares = await shareService.getUserShares(c, userId, parseInt(page), parseInt(pageSize), status);
 		const total = await shareService.getUserShareCount(c, userId, status);
 
+		// 返回各状态的统计数据（用于前端标签显示）
+		const stats = {
+			total: await shareService.getUserShareCount(c, userId),
+			active: await shareService.getUserShareCount(c, userId, 'active'),
+			expired: await shareService.getUserShareCount(c, userId, 'expired'),
+			disabled: await shareService.getUserShareCount(c, userId, 'disabled')
+		};
+
 		return c.json(result.ok({
 			list: shares,
 			total: total,
+			stats: stats,
 			page: parseInt(page),
 			pageSize: parseInt(pageSize)
 		}));
@@ -171,13 +286,33 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 				throw new BizError(errorMessage, 400);
 			}
 
-			// 获取该分享的授权邮箱列表
+			// Fix P0-3: JSON 解析失败时应拒绝访问而非静默失败
 			let authorizedEmails = [];
 			try {
-				authorizedEmails = shareRecord.authorizedEmails ? JSON.parse(shareRecord.authorizedEmails) : [];
+				if (!shareRecord.authorizedEmails) {
+					throw new BizError('授权邮箱列表配置错误', 500);
+				}
+				authorizedEmails = JSON.parse(shareRecord.authorizedEmails);
+				
+				if (!Array.isArray(authorizedEmails) || authorizedEmails.length === 0) {
+					throw new BizError('授权邮箱列表格式错误', 500);
+				}
 			} catch (error) {
 				console.error('解析授权邮箱列表失败:', error);
-				authorizedEmails = [];
+				errorMessage = '分享配置错误，请联系管理员';
+				accessResult = 'failed';
+				
+				// 记录访问日志
+				await shareAccessLogService.create(c, {
+					shareId: shareRecord.shareId,
+					accessIp: clientIp,
+					accessEmail: userEmail || '',
+					accessResult: accessResult,
+					errorMessage: errorMessage,
+					extractedCodes: '[]'
+				});
+				
+				throw new BizError(errorMessage, 500);
 			}
 
 			// 验证邮箱是否在该分享的授权列表中
@@ -191,8 +326,8 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 				throw new BizError(errorMessage, 403);
 			}
 
-			// 验证通过，使用输入的邮箱作为目标邮箱
-			shareRecord.targetEmail = userEmail;
+			// Fix P0-6: 使用新变量而非直接修改查询结果对象
+			// 验证通过，使用输入的邮箱作为有效目标邮箱
 		} else {
 			// 类型1：单邮箱分享（原有逻辑）
 			if (userEmail && userEmail.toLowerCase() !== shareRecord.targetEmail.toLowerCase()) {
@@ -202,20 +337,24 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 			}
 		}
 
+		// Fix P0-6: 根据分享类型确定有效的目标邮箱
+		const effectiveTargetEmail = shareRecord.shareType === 2 ? userEmail : shareRecord.targetEmail;
+
 		// 验证邮箱域名是否在系统支持的域名列表中
-		if (!c.env.domain.includes(emailUtils.getDomain(shareRecord.targetEmail))) {
+		if (!c.env.domain.includes(emailUtils.getDomain(effectiveTargetEmail))) {
 			errorMessage = '该邮箱域名不在系统支持的域名列表中';
 			accessResult = 'rejected';
 			throw new BizError(errorMessage, 403);
 		}
 
+		// Fix P0-6: 使用 effectiveTargetEmail 而非 shareRecord.targetEmail
 		// 获取该邮箱的账户信息，如果不存在则按需创建
-		let targetAccount = await accountService.selectByEmailIncludeDel(c, shareRecord.targetEmail);
+		let targetAccount = await accountService.selectByEmailIncludeDel(c, effectiveTargetEmail);
 		if (!targetAccount) {
 			// 如果邮箱账户不存在，使用分享创建者的userId自动创建
 			try {
-				targetAccount = await accountService.add(c, { email: shareRecord.targetEmail }, shareRecord.userId);
-				console.log(`为分享访问自动创建邮箱账户: ${shareRecord.targetEmail}`);
+				targetAccount = await accountService.add(c, { email: effectiveTargetEmail }, shareRecord.userId);
+				console.log(`为分享访问自动创建邮箱账户: ${effectiveTargetEmail}`);
 			} catch (error) {
 				console.error('访问分享时自动创建邮箱账户失败:', error);
 				errorMessage = '邮箱账户创建失败';
@@ -299,8 +438,35 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 			};
 		});
 
-		// 限制最新3封过滤后的邮件
-		const latestFilteredEmails = filteredEmails.slice(0, 3);
+		// 检查访问次数限制（如果启用）
+		if (shareRecord.otpLimitEnabled === 1) {
+			const today = dayjs().format('YYYY-MM-DD');
+
+			// 如果是新的一天，重置计数
+			if (shareRecord.lastResetDate !== today) {
+				await shareService.resetDailyCount(c, shareRecord.shareId, today);
+				shareRecord.otpCountDaily = 0;
+			}
+
+			// 检查是否达到每日限制
+			if (shareRecord.otpCountDaily >= shareRecord.otpLimitDaily) {
+				errorMessage = `今日访问次数已达上限（${shareRecord.otpLimitDaily}次）`;
+				accessResult = 'rejected';
+				throw new BizError(errorMessage, 429);
+			}
+
+			// 增加访问计数
+			await shareService.incrementDailyCount(c, shareRecord.shareId);
+		}
+
+		// 应用显示数量限制（如果启用）
+		let latestFilteredEmails;
+		if (shareRecord.verificationCodeLimitEnabled === 1) {
+			latestFilteredEmails = filteredEmails.slice(0, shareRecord.verificationCodeLimit || 100);
+		} else {
+			latestFilteredEmails = filteredEmails; // 禁用时显示全部
+		}
+
 		emailCount = latestFilteredEmails.length;
 		accessResult = 'success';
 
@@ -395,8 +561,11 @@ app.get('/share/logs/:shareId', async (c) => {
 		const shareId = parseInt(c.req.param('shareId'));
 		const params = c.req.query();
 
-		// 验证分享是否属于当前用户
-		const shareRecord = await shareService.getById(c, shareId);
+		// 验证分享是否属于当前用户（允许查询禁用的分享）
+		const shareRecord = await orm(c).select().from(share)
+			.where(eq(share.shareId, shareId))
+			.get();
+
 		if (!shareRecord || shareRecord.userId !== userId) {
 			throw new BizError('无权限查看此分享的访问日志', 403);
 		}
@@ -424,8 +593,11 @@ app.get('/share/stats/:shareId', async (c) => {
 		const shareId = parseInt(c.req.param('shareId'));
 		const { days = 7 } = c.req.query();
 
-		// 验证分享是否属于当前用户
-		const shareRecord = await shareService.getById(c, shareId);
+		// 验证分享是否属于当前用户（允许查询禁用的分享）
+		const shareRecord = await orm(c).select().from(share)
+			.where(eq(share.shareId, shareId))
+			.get();
+
 		if (!shareRecord || shareRecord.userId !== userId) {
 			throw new BizError('无权限查看此分享的统计数据', 403);
 		}
@@ -515,7 +687,7 @@ app.post('/share/:shareId/update-limit', async (c) => {
 		if (!user) {
 			return c.json(result.fail('用户未认证'), 401);
 		}
-		
+
 		const userId = user.userId;
 		const shareId = parseInt(c.req.param('shareId'));
 		const { otpLimitDaily } = await c.req.json();
@@ -535,6 +707,37 @@ app.post('/share/:shareId/update-limit', async (c) => {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
 		return c.json(result.fail('更新限额失败'), 500);
+	}
+});
+
+// 更新分享显示限制
+app.post('/share/:shareId/update-display-limit', async (c) => {
+	try {
+		// 从认证中间件获取用户信息
+		const user = c.get('user');
+		if (!user) {
+			return c.json(result.fail('用户未认证'), 401);
+		}
+
+		const userId = user.userId;
+		const shareId = parseInt(c.req.param('shareId'));
+		const { verificationCodeLimit } = await c.req.json();
+
+		if (typeof verificationCodeLimit !== 'number' || verificationCodeLimit < 1 || verificationCodeLimit > 1000) {
+			throw new BizError('参数错误：显示限制必须是1-1000之间的整数', 400);
+		}
+
+		// 调用service方法
+		const updateResult = await shareService.updateDisplayLimit(c, shareId, userId, verificationCodeLimit);
+
+		return c.json(result.ok(updateResult));
+
+	} catch (error) {
+		console.error('Update share display limit error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('更新显示限制失败'), 500);
 	}
 });
 

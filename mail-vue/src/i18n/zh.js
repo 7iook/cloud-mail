@@ -5,6 +5,8 @@ const zh = {
     starred: '星标邮件',
     settings: '个人设置',
     analytics: '分析页',
+    emailShare: '邮件分享',
+    accessDeniedMsg: '访问被拒绝，请检查您的权限',
     allUsers: '用户列表',
     allMail: '全部邮件',
     permissions: '权限控制',
