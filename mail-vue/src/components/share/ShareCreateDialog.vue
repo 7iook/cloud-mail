@@ -166,6 +166,18 @@
 
           <!-- 批量输入 -->
           <div v-if="emailSelectionMode === 'batchInput'" class="batch-input-container">
+            <div class="batch-input-header">
+              <span class="batch-input-title">邮箱列表</span>
+              <el-button
+                type="primary"
+                size="small"
+                @click="showRandomGeneratorDialog = true"
+                :icon="Icon"
+              >
+                <Icon icon="material-symbols:auto-awesome" />
+                随机生成
+              </el-button>
+            </div>
             <el-input
               v-model="batchEmailInput"
               type="textarea"
@@ -212,7 +224,17 @@
         />
       </el-form-item>
 
-      <el-form-item label="分享域名" prop="shareDomain">
+      <el-form-item label="域名选择方式">
+        <el-radio-group v-model="domainSelectionMode">
+          <el-radio value="auto">自动匹配邮箱域名</el-radio>
+          <el-radio value="manual">手动选择域名</el-radio>
+        </el-radio-group>
+        <div class="form-tip">
+          自动模式：从邮箱列表中自动选择最频繁的域名；手动模式：手动选择分享链接的域名
+        </div>
+      </el-form-item>
+
+      <el-form-item v-if="domainSelectionMode === 'manual'" label="分享域名" prop="shareDomain">
         <el-select
           v-model="form.shareDomain"
           placeholder="选择分享链接的域名"
@@ -230,7 +252,19 @@
         </div>
       </el-form-item>
 
-      <el-form-item label="关键词过滤" prop="keywordFilter">
+      <!-- 过滤模式选择 -->
+      <el-form-item label="过滤模式" prop="filterMode">
+        <el-radio-group v-model="form.filterMode" @change="onFilterModeChange">
+          <el-radio :label="1">关键词过滤</el-radio>
+          <el-radio :label="2">模板匹配</el-radio>
+        </el-radio-group>
+        <div class="form-tip">
+          关键词过滤：通过关键词匹配邮件内容；模板匹配：使用预定义模板精确提取验证码
+        </div>
+      </el-form-item>
+
+      <!-- 关键词过滤配置 -->
+      <el-form-item v-if="form.filterMode === 1" label="关键词过滤" prop="keywordFilter">
         <el-input
           v-model="form.keywordFilter"
           placeholder="验证码|verification|code|otp"
@@ -240,6 +274,43 @@
           用于过滤包含特定关键词的邮件，多个关键词用"|"分隔
         </div>
       </el-form-item>
+
+      <!-- 模板匹配配置 -->
+      <div v-if="form.filterMode === 2">
+        <el-form-item label="选择模板" prop="templateId">
+          <div class="template-selector-container">
+            <el-select
+              v-model="form.templateId"
+              placeholder="请选择邮件模板"
+              class="template-select"
+              @change="onTemplateChange"
+            >
+              <el-option
+                v-for="template in availableTemplates"
+                :key="template.id"
+                :label="template.name"
+                :value="template.id"
+              >
+                <div>
+                  <div>{{ template.name }}</div>
+                  <div style="font-size: 12px; color: #999;">{{ template.description }}</div>
+                </div>
+              </el-option>
+            </el-select>
+            <el-button type="primary" class="manage-template-btn" @click="showTemplateManagement = true">管理模板</el-button>
+          </div>
+          <div class="form-tip">
+            选择预定义的邮件模板进行精确匹配和验证码提取
+          </div>
+        </el-form-item>
+
+        <el-form-item label="显示选项">
+          <el-checkbox v-model="form.showFullEmail">显示完整邮件内容</el-checkbox>
+          <div class="form-tip">
+            取消勾选时，仅显示提取的验证码，不显示完整邮件内容
+          </div>
+        </el-form-item>
+      </div>
 
       <el-form-item label="过期时间" prop="expireTime">
         <el-date-picker
@@ -256,7 +327,15 @@
       </el-form-item>
 
       <el-form-item label="频率限制">
-        <div style="display: flex; gap: 20px; align-items: center;">
+        <div class="limit-control">
+          <el-switch
+            v-model="form.rateLimitEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <span class="unit-text" style="margin-left: 12px;">启用后可设置访问频率限制</span>
+        </div>
+        <div v-if="form.rateLimitEnabled" style="display: flex; gap: 20px; align-items: center; margin-top: 12px;">
           <div style="flex: 1;">
             <el-input-number
               v-model="form.rateLimitPerSecond"
@@ -269,14 +348,17 @@
           </div>
           <div style="flex: 1;">
             <el-input-number
-              v-model="form.rateLimitPerMinute"
-              :min="10"
-              :max="1000"
-              placeholder="每分钟最大请求数"
+              v-model="form.autoRecoverySeconds"
+              :min="0"
+              :max="3600"
+              placeholder="自动恢复时间"
               style="width: 100%;"
             />
-            <div class="form-tip">每分钟最大请求数（默认60次，正常用户不受影响）</div>
+            <div class="form-tip">触发限制后需等待的秒数（默认60秒，0表示禁用自动恢复）</div>
           </div>
+        </div>
+        <div class="form-tip">
+          禁用频率限制后，访问者可以无限制地请求验证码。建议仅在信任环境中禁用。
         </div>
       </el-form-item>
 
@@ -325,6 +407,88 @@
           控制每天最多可以访问的次数。禁用后无限制访问。
         </div>
       </el-form-item>
+
+      <!-- 新增：最新邮件数量限制 -->
+      <el-form-item label="最新邮件显示数量">
+        <div class="limit-control">
+          <el-input-number
+            v-model="form.latestEmailCount"
+            :min="1"
+            :max="100"
+            :step="1"
+            placeholder="留空显示全部"
+            style="width: 200px"
+            clearable
+          />
+          <span class="unit-text">封</span>
+        </div>
+        <div class="form-tip">
+          控制分享链接最多显示多少封最新邮件。留空表示显示全部邮件。
+        </div>
+      </el-form-item>
+
+      <!-- 新增：自动刷新功能 -->
+      <el-form-item label="自动刷新">
+        <div class="limit-control">
+          <el-switch
+            v-model="form.autoRefreshEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <el-select
+            v-model="form.autoRefreshInterval"
+            :disabled="!form.autoRefreshEnabled"
+            style="width: 120px; margin-left: 12px"
+          >
+            <el-option label="30秒" :value="30" />
+            <el-option label="60秒" :value="60" />
+            <el-option label="120秒" :value="120" />
+            <el-option label="300秒" :value="300" />
+          </el-select>
+          <span class="unit-text">间隔</span>
+        </div>
+        <div class="form-tip">
+          启用后，访问者的页面会自动刷新获取最新邮件。建议间隔不少于30秒。
+        </div>
+      </el-form-item>
+
+      <!-- 新增：冷却功能配置 -->
+      <el-form-item label="获取验证码冷却">
+        <div class="limit-control">
+          <el-switch
+            v-model="form.cooldownEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <el-input-number
+            v-model="form.cooldownSeconds"
+            :min="1"
+            :max="300"
+            :step="1"
+            :disabled="!form.cooldownEnabled"
+            style="width: 120px; margin-left: 12px"
+          />
+          <span class="unit-text">秒</span>
+        </div>
+        <div class="form-tip">
+          控制点击"获取最新验证码"按钮后的冷却时间。禁用后可无限制点击。
+        </div>
+      </el-form-item>
+
+      <!-- 新增：人机验证功能 -->
+      <el-form-item label="人机验证">
+        <div class="limit-control">
+          <el-switch
+            v-model="form.enableCaptcha"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <span class="unit-text" style="margin-left: 12px;">启用后触发频率限制时需要进行人机验证</span>
+        </div>
+        <div class="form-tip">
+          启用Cloudflare Turnstile人机验证，防止恶意访问。当访问频率超过限制时，访问者需要完成验证才能继续访问。
+        </div>
+      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -342,6 +506,56 @@
     v-model="showWhitelistDialog"
     @updated="handleWhitelistUpdated"
   />
+
+  <!-- 模板管理对话框 -->
+  <TemplateManagementDialog
+    v-model="showTemplateManagement"
+    @updated="handleTemplateManagementUpdated"
+  />
+
+  <!-- 随机邮箱生成对话框 -->
+  <el-dialog
+    v-model="showRandomGeneratorDialog"
+    title="随机生成邮箱"
+    width="500px"
+    @close="resetRandomGenerator"
+  >
+    <div class="random-generator-content">
+      <el-form :model="randomGeneratorForm" label-width="100px">
+        <el-form-item label="选择域名">
+          <el-select
+            v-model="randomGeneratorForm.domain"
+            placeholder="选择域名"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="domain in availableDomains"
+              :key="domain.value"
+              :label="domain.label"
+              :value="domain.value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="生成数量">
+          <el-radio-group v-model="randomGeneratorForm.count">
+            <el-radio :value="10">10个</el-radio>
+            <el-radio :value="20">20个</el-radio>
+            <el-radio :value="100">100个</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="showRandomGeneratorDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleGenerateRandomEmails">
+          生成
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -349,9 +563,11 @@ import { ref, reactive, watch, nextTick, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { createShare } from '@/request/share.js';
 import { getUniqueRecipients } from '@/request/all-email.js';
+import { getAvailableTemplates } from '@/request/email-template.js';
 import dayjs from 'dayjs';
 import { Icon } from '@iconify/vue';
 import ShareWhitelistDialog from './ShareWhitelistDialog.vue';
+import TemplateManagementDialog from './TemplateManagementDialog.vue';
 import { useSettingStore } from '@/store/setting.js';
 
 const props = defineProps({
@@ -375,6 +591,11 @@ const showWhitelistDialog = ref(false);
 // 邮箱选择相关
 const emailSelectionMode = ref('fromAllEmails'); // 'fromAllEmails', 'batchInput', 'singleInput'
 const loadingAllEmails = ref(false);
+
+// 模板相关数据
+const availableTemplates = ref([]);
+const showTemplateManagement = ref(false);
+const loadingTemplates = ref(false);
 const displayEmails = ref([]);
 const selectedEmailsFromAll = ref([]);
 const totalEmails = ref(0);
@@ -389,6 +610,16 @@ const batchEmailInput = ref('');
 // 单个输入相关
 const singleEmailInput = ref('');
 
+// 随机生成相关
+const showRandomGeneratorDialog = ref(false);
+const randomGeneratorForm = reactive({
+  domain: '',
+  count: 10
+});
+
+// 域名选择模式
+const domainSelectionMode = ref('auto'); // 'auto' 或 'manual'
+
 // 表单数据
 const form = reactive({
   shareType: 1, // 1=单邮箱分享, 2=白名单验证分享
@@ -397,14 +628,28 @@ const form = reactive({
   shareDomain: '', // 分享域名
   keywordFilter: '验证码|verification|code|otp',
   expireTime: '',
+  rateLimitEnabled: true, // 频率限制开关，默认启用
   rateLimitPerSecond: 5,
-  rateLimitPerMinute: 60,
+  autoRecoverySeconds: 60,
   // 显示数量限制
   verificationCodeLimit: 100,
   verificationCodeLimitEnabled: true,
   // 访问次数限制
   otpLimitDaily: 100,
-  otpLimitEnabled: true
+  otpLimitEnabled: true,
+  // 模板匹配功能
+  filterMode: 1, // 1=关键词过滤, 2=模板匹配
+  templateId: '',
+  showFullEmail: true,
+  // 新增：邮件数量限制和自动刷新功能
+  latestEmailCount: null, // null表示显示全部，数字表示显示最新N封
+  autoRefreshEnabled: false, // 自动刷新开关
+  autoRefreshInterval: 30, // 自动刷新间隔（秒）
+  // 新增：冷却功能配置
+  cooldownEnabled: true, // 冷却功能开关，默认启用
+  cooldownSeconds: 10, // 冷却时间（秒），默认10秒
+  // 新增：人机验证功能
+  enableCaptcha: false // 人机验证开关，默认禁用
 });
 
 // 表单验证规则
@@ -418,6 +663,9 @@ const rules = computed(() => ({
   ],
   shareName: [
     { max: 100, message: '分享名称长度不能超过 100 个字符', trigger: 'blur' }
+  ],
+  cooldownSeconds: [
+    { type: 'number', min: 1, max: 300, message: '冷却时间必须在 1-300 秒之间', trigger: 'blur' }
   ]
 }));
 
@@ -485,7 +733,15 @@ const handleSelectionModeChange = (mode) => {
 
 // 处理从全部邮件中的选择变更
 const handleEmailSelectionChange = (selectedEmails) => {
-  form.targetEmails = [...selectedEmails];
+  // Fix P1-43: 验证从全部邮件中选择的邮箱
+  const validatedEmails = selectedEmails.filter(email => {
+    if (!isValidEmail(email)) {
+      ElMessage.warning(`邮箱格式无效: ${email}`);
+      return false;
+    }
+    return true;
+  });
+  form.targetEmails = [...validatedEmails];
 };
 
 // 选择所有邮箱（从全部邮件）
@@ -520,6 +776,11 @@ const clearAll = () => {
 
 // 邮箱格式验证
 const isValidEmail = (email) => {
+  // Fix P1-35: 添加邮箱长度验证
+  const MAX_EMAIL_LENGTH = 254; // RFC standard
+  if (!email || email.length > MAX_EMAIL_LENGTH) {
+    return false;
+  }
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   return emailRegex.test(email);
 };
@@ -586,11 +847,19 @@ const generateRandomShareName = (shareType, emailCount = 1) => {
 const processBatchEmails = () => {
   if (!batchEmailInput.value.trim()) return;
 
+  const MAX_EMAIL_LENGTH = 254; // RFC standard
   const emails = batchEmailInput.value
     .split('\n')
     .map(email => email.trim())
     .filter(email => email)
-    .filter(email => isValidEmail(email));
+    .filter(email => {
+      // Fix P1-36: 在批量输入时检查邮箱长度
+      if (email.length > MAX_EMAIL_LENGTH) {
+        ElMessage.warning(`邮箱地址过长（最多${MAX_EMAIL_LENGTH}个字符）: ${email}`);
+        return false;
+      }
+      return isValidEmail(email);
+    });
 
   if (emails.length === 0) {
     ElMessage.warning('请输入有效的邮箱地址');
@@ -614,7 +883,20 @@ const processSingleEmail = () => {
 // 添加单个邮箱
 const addSingleEmail = () => {
   const email = singleEmailInput.value.trim();
-  if (!email || !isValidEmail(email)) {
+  const MAX_EMAIL_LENGTH = 254; // RFC standard
+
+  // Fix P1-37: 在添加单个邮箱时检查长度
+  if (!email) {
+    ElMessage.warning('请输入邮箱地址');
+    return;
+  }
+
+  if (email.length > MAX_EMAIL_LENGTH) {
+    ElMessage.warning(`邮箱地址过长（最多${MAX_EMAIL_LENGTH}个字符）`);
+    return;
+  }
+
+  if (!isValidEmail(email)) {
     ElMessage.warning('请输入有效的邮箱地址');
     return;
   }
@@ -683,6 +965,67 @@ const handleShareTypeChange = (type) => {
   });
 };
 
+// 从邮箱列表中提取域名并返回最频繁的域名
+const extractMostFrequentDomain = (emails) => {
+  if (!emails || emails.length === 0) {
+    return null;
+  }
+
+  const domainCounts = {};
+  emails.forEach(email => {
+    const domain = email.split('@')[1];
+    if (domain) {
+      domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+    }
+  });
+
+  // 找到出现次数最多的域名
+  let maxDomain = null;
+  let maxCount = 0;
+  for (const [domain, count] of Object.entries(domainCounts)) {
+    if (count > maxCount) {
+      maxCount = count;
+      maxDomain = domain;
+    }
+  }
+
+  return maxDomain;
+};
+
+// 检测邮箱列表中的所有不同域名
+const detectAllDomains = (emails) => {
+  if (!emails || emails.length === 0) {
+    return [];
+  }
+
+  const domains = new Set();
+  emails.forEach(email => {
+    const domain = email.split('@')[1];
+    if (domain) {
+      domains.add(domain);
+    }
+  });
+
+  return Array.from(domains).sort();
+};
+
+// 获取域名的出现次数统计
+const getDomainStatistics = (emails) => {
+  if (!emails || emails.length === 0) {
+    return {};
+  }
+
+  const domainCounts = {};
+  emails.forEach(email => {
+    const domain = email.split('@')[1];
+    if (domain) {
+      domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+    }
+  });
+
+  return domainCounts;
+};
+
 // 重置表单
 const resetForm = () => {
   form.shareType = 1;
@@ -695,6 +1038,16 @@ const resetForm = () => {
   form.verificationCodeLimitEnabled = true;
   form.otpLimitDaily = 100;
   form.otpLimitEnabled = true;
+  // 新增字段重置
+  form.latestEmailCount = null;
+  form.autoRefreshEnabled = false;
+  form.autoRefreshInterval = 30;
+  // 模板匹配功能重置
+  form.filterMode = 1;
+  form.templateId = '';
+  form.showFullEmail = true;
+  // 域名选择模式重置
+  domainSelectionMode.value = 'auto';
   selectedEmailsFromAll.value = [];
   batchEmailInput.value = '';
   singleEmailInput.value = '';
@@ -713,9 +1066,10 @@ const handleSubmit = async () => {
 
     // 调试日志：打印用户选择的域名
     console.log('=== 创建分享调试信息 ===');
+    console.log('域名选择模式:', domainSelectionMode.value);
     console.log('用户选择的域名:', form.shareDomain);
     console.log('可用域名列表:', availableDomains.value);
-    console.log('表单数据:', form);
+    console.log('表单数据:', JSON.stringify(form, null, 2));
 
     const expireTime = form.expireTime || dayjs().add(7, 'day').toISOString();
     const results = [];
@@ -727,20 +1081,79 @@ const handleSubmit = async () => {
         return;
       }
 
+      // Fix P1-24: 前端邮箱去重，防止重复的邮箱被发送到后端
+      const uniqueEmails = [...new Set(
+        form.targetEmails.map(email => email.trim().toLowerCase())
+      )];
+
+      // Fix P1-31: 检查去重后是否还有邮箱
+      if (uniqueEmails.length === 0) {
+        ElMessage.warning('去重后没有有效的邮箱');
+        return;
+      }
+
+      // 检测邮箱列表中的所有域名
+      const allDomains = detectAllDomains(uniqueEmails);
+      const domainStats = getDomainStatistics(uniqueEmails);
+      const hasMultipleDomains = allDomains.length > 1;
+
+      // 智能域名匹配：根据选择模式确定最终使用的域名
+      let finalDomain = form.shareDomain;
+      if (domainSelectionMode.value === 'auto') {
+        const extractedDomain = extractMostFrequentDomain(uniqueEmails);
+        if (extractedDomain) {
+          // 查找对应的完整域名值（包含协议和端口）
+          const matchedDomain = availableDomains.value.find(d => d.value.includes(extractedDomain));
+          if (matchedDomain) {
+            finalDomain = matchedDomain.value;
+            console.log('自动匹配域名:', extractedDomain, '-> 完整值:', finalDomain);
+
+            // 如果检测到多个域名，显示警告信息
+            if (hasMultipleDomains) {
+              const domainInfo = allDomains.map(d => `${d} (${domainStats[d]}个)`).join('、');
+              ElMessage.warning({
+                message: `检测到多个邮箱域名: ${domainInfo}。系统将使用最频繁的域名 "${extractedDomain}" 作为分享链接域名，其他域名的邮箱也可以正常访问。`,
+                duration: 5000
+              });
+            }
+          }
+        }
+      } else {
+        // 手动选择模式下，如果检测到多个域名，也显示提示
+        if (hasMultipleDomains) {
+          const domainInfo = allDomains.map(d => `${d} (${domainStats[d]}个)`).join('、');
+          ElMessage.info({
+            message: `邮箱列表包含多个域名: ${domainInfo}。所有域名的邮箱都可以访问此分享链接。`,
+            duration: 4000
+          });
+        }
+      }
+
       const shareData = {
-        targetEmail: form.targetEmails[0], // 使用第一个邮箱作为主邮箱（向后兼容）
-        authorizedEmails: form.targetEmails, // 授权邮箱列表
-        shareName: form.shareName || generateRandomShareName(2, form.targetEmails.length),
-        shareDomain: form.shareDomain, // 用户选择的域名
+        targetEmail: uniqueEmails[0], // 使用第一个邮箱作为主邮箱（向后兼容）
+        authorizedEmails: uniqueEmails, // 授权邮箱列表（已去重）
+        shareName: form.shareName || generateRandomShareName(2, uniqueEmails.length), // Fix P1-32: 使用去重后的邮箱数量
+        shareDomain: finalDomain, // 使用智能匹配或手动选择的域名
         keywordFilter: form.keywordFilter,
         expireTime: expireTime,
         shareType: 2,
-        rateLimitPerSecond: form.rateLimitPerSecond,
-        rateLimitPerMinute: form.rateLimitPerMinute,
+        rateLimitPerSecond: form.rateLimitEnabled ? form.rateLimitPerSecond : 0,
+        autoRecoverySeconds: form.autoRecoverySeconds,
         verificationCodeLimit: form.verificationCodeLimit,
         verificationCodeLimitEnabled: form.verificationCodeLimitEnabled,
         otpLimitDaily: form.otpLimitDaily,
-        otpLimitEnabled: form.otpLimitEnabled
+        otpLimitEnabled: form.otpLimitEnabled,
+        // 新增：邮件数量限制和自动刷新功能
+        latestEmailCount: form.latestEmailCount,
+        autoRefreshEnabled: form.autoRefreshEnabled,
+        autoRefreshInterval: form.autoRefreshInterval,
+        // 模板匹配功能
+        filterMode: form.filterMode,
+        templateId: form.templateId,
+        showFullEmail: form.showFullEmail,
+        // 冷却功能配置
+        cooldownEnabled: form.cooldownEnabled,
+        cooldownSeconds: form.cooldownSeconds
       };
 
       try {
@@ -762,13 +1175,29 @@ const handleSubmit = async () => {
           verificationCodeLimit: form.verificationCodeLimit,
           verificationCodeLimitEnabled: form.verificationCodeLimitEnabled,
           otpLimitDaily: form.otpLimitDaily,
-          otpLimitEnabled: form.otpLimitEnabled
+          otpLimitEnabled: form.otpLimitEnabled,
+          // 新增：邮件数量限制和自动刷新功能
+          latestEmailCount: form.latestEmailCount,
+          autoRefreshEnabled: form.autoRefreshEnabled,
+          autoRefreshInterval: form.autoRefreshInterval,
+          // 模板匹配功能
+          filterMode: form.filterMode,
+          templateId: form.templateId,
+          showFullEmail: form.showFullEmail,
+          // 频率限制配置
+          rateLimitPerSecond: form.rateLimitEnabled ? form.rateLimitPerSecond : 0,
+          autoRecoverySeconds: form.autoRecoverySeconds,
+          // 冷却功能配置
+          cooldownEnabled: form.cooldownEnabled,
+          cooldownSeconds: form.cooldownSeconds
         };
 
         try {
+          console.log('发送给后端的数据:', JSON.stringify(shareData, null, 2));
           const result = await createShare(shareData);
           results.push({ email, success: true, result });
         } catch (error) {
+          console.error('创建分享失败:', error);
           results.push({ email, success: false, error: error.message });
         }
       }
@@ -794,6 +1223,104 @@ const handleSubmit = async () => {
   } finally {
     submitting.value = false;
   }
+};
+
+// 随机邮箱生成相关方法
+const generateRandomString = (length) => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+const generateRandomEmails = (domain, count) => {
+  const emails = new Set();
+  const maxAttempts = count * 10; // 防止无限循环
+  let attempts = 0;
+
+  while (emails.size < count && attempts < maxAttempts) {
+    // 随机长度 4-25 个字符
+    const length = Math.floor(Math.random() * (25 - 4 + 1)) + 4;
+    const randomStr = generateRandomString(length);
+    const email = `${randomStr}@${domain}`;
+    emails.add(email);
+    attempts++;
+  }
+
+  return Array.from(emails);
+};
+
+const handleGenerateRandomEmails = () => {
+  if (!randomGeneratorForm.domain) {
+    ElMessage.warning('请选择域名');
+    return;
+  }
+
+  try {
+    const generatedEmails = generateRandomEmails(randomGeneratorForm.domain, randomGeneratorForm.count);
+
+    // 将生成的邮箱添加到批量输入框
+    const currentEmails = batchEmailInput.value.trim() ? batchEmailInput.value.trim().split('\n') : [];
+    const allEmails = [...currentEmails, ...generatedEmails];
+
+    // 去重
+    const uniqueEmails = [...new Set(allEmails.map(e => e.toLowerCase()))];
+
+    batchEmailInput.value = uniqueEmails.join('\n');
+
+    // 处理批量邮箱
+    processBatchEmails();
+
+    ElMessage.success(`成功生成 ${generatedEmails.length} 个随机邮箱`);
+    showRandomGeneratorDialog.value = false;
+  } catch (error) {
+    ElMessage.error('生成随机邮箱失败: ' + error.message);
+  }
+};
+
+const resetRandomGenerator = () => {
+  randomGeneratorForm.domain = '';
+  randomGeneratorForm.count = 10;
+};
+
+// 模板相关方法
+const loadAvailableTemplates = async () => {
+  loadingTemplates.value = true;
+  try {
+    const response = await getAvailableTemplates();
+    const result = response.data || response;
+    availableTemplates.value = result.data || result || [];
+  } catch (error) {
+    console.error('Load templates error:', error);
+    ElMessage.error('加载模板列表失败');
+  } finally {
+    loadingTemplates.value = false;
+  }
+};
+
+// 过滤模式变更处理
+const onFilterModeChange = (mode) => {
+  if (mode === 2) {
+    // 切换到模板匹配模式时，加载可用模板
+    loadAvailableTemplates();
+  } else {
+    // 切换到关键词模式时，清空模板选择
+    form.templateId = '';
+  }
+};
+
+// 模板选择变更处理
+const onTemplateChange = (templateId) => {
+  // 可以在这里添加模板选择后的逻辑
+  console.log('Selected template:', templateId);
+};
+
+// 模板管理更新处理
+const handleTemplateManagementUpdated = () => {
+  // 模板管理对话框中有增删改操作时,重新加载可用模板列表
+  loadAvailableTemplates();
 };
 
 // 处理关闭
@@ -1249,9 +1776,16 @@ html.dark .sort-select :deep(.el-input__wrapper) {
 
 .email-item :deep(.el-checkbox__input) {
   position: absolute;
-  top: 12px;
+  top: 50%;
   right: 12px;
+  transform: translateY(-50%);
   z-index: 1;
+}
+
+.email-item :deep(.el-checkbox__inner) {
+  border-radius: 4px;
+  width: 16px;
+  height: 16px;
 }
 
 .email-item :deep(.el-checkbox__label) {
@@ -1346,5 +1880,76 @@ html.dark .sort-select :deep(.el-input__wrapper) {
   color: #606266;
   font-size: 14px;
   margin-left: 8px;
+}
+
+/* 模板选择器容器样式 */
+.template-selector-container {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.template-select {
+  flex: 1;
+  min-width: 0; /* 允许flex项目收缩 */
+}
+
+.manage-template-btn {
+  flex-shrink: 0; /* 防止按钮被压缩 */
+  white-space: nowrap;
+}
+
+/* 修复所有复选框的对齐问题 */
+:deep(.el-checkbox) {
+  display: flex;
+  align-items: center;
+}
+
+:deep(.el-checkbox__input) {
+  display: flex;
+  align-items: center;
+}
+
+:deep(.el-checkbox__inner) {
+  border-radius: 4px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.el-checkbox__label) {
+  display: flex;
+  align-items: center;
+  line-height: 1.4;
+}
+
+/* 批量输入头部样式 */
+.batch-input-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.batch-input-title {
+  font-weight: 500;
+  color: var(--el-text-color-primary);
+}
+
+/* 随机生成对话框样式 */
+.random-generator-content {
+  padding: 20px 0;
+}
+
+.random-generator-content :deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
+.random-generator-content :deep(.el-form-item__label) {
+  font-weight: 500;
 }
 </style>

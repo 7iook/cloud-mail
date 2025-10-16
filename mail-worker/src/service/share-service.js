@@ -194,7 +194,11 @@ const shareService = {
 			showFullEmail,
 			// 新增：冷却功能配置
 			cooldownEnabled,
-			cooldownSeconds
+			cooldownSeconds,
+			// 新增：邮件数量限制和自动刷新功能
+			latestEmailCount,
+			autoRefreshEnabled,
+			autoRefreshInterval
 		} = params;
 
 		// 生成分享token
@@ -252,7 +256,11 @@ const shareService = {
 			showFullEmail: showFullEmail !== undefined ? showFullEmail : 1,
 			// 冷却功能配置
 			cooldownEnabled: cooldownEnabled !== undefined ? cooldownEnabled : 1,
-			cooldownSeconds: cooldownSeconds !== undefined ? cooldownSeconds : 10
+			cooldownSeconds: cooldownSeconds !== undefined ? cooldownSeconds : 10,
+			// 邮件数量限制和自动刷新功能
+			latestEmailCount: latestEmailCount !== undefined ? latestEmailCount : null,
+			autoRefreshEnabled: autoRefreshEnabled !== undefined ? (autoRefreshEnabled ? 1 : 0) : 0,
+			autoRefreshInterval: autoRefreshInterval !== undefined ? autoRefreshInterval : 30
 		};
 
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();
