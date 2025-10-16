@@ -77,15 +77,18 @@ jobs:
 
           echo "🔒 Setting Worker secrets..."
           WORKER_NAME="cloud-mail"
-          for VAR in DOMAIN ADMIN JWT_SECRET; do
-            if [ -n "${!VAR}" ]; then
-              VAR_LOWER=$(echo "$VAR" | tr '[:upper:]' '[:lower:]')
-              echo ">> Processing secret: '$VAR_LOWER'"
-              (echo "${!VAR}" | npx wrangler secret put "$VAR_LOWER" --name "$WORKER_NAME" -c "$CONFIG_FILE") || true
-            else
-              echo "⚠️ Warning: GitHub Secret '$VAR' is not set. Skipping."
-            fi
-          done
+
+          # Set jwt_secret as a secret (encrypted)
+          if [ -n "$JWT_SECRET" ]; then
+            echo ">> Processing secret: 'jwt_secret'"
+            (echo "$JWT_SECRET" | npx wrangler secret put "jwt_secret" --name "$WORKER_NAME" -c "$CONFIG_FILE") || true
+          else
+            echo "⚠️ Warning: GitHub Secret 'JWT_SECRET' is not set. Skipping."
+          fi
+
+          # Note: domain and admin should be set via Cloudflare Dashboard Variables
+          # They are NOT set here to prevent overwriting production values
+          echo "✅ Note: domain and admin variables should be configured in Cloudflare Dashboard"
 
           echo "🚀 Configuration updated. Starting deployment..."
           npx wrangler deploy -c "$CONFIG_FILE" | grep -v "https://.*\.workers\.dev" || true
