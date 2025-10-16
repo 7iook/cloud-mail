@@ -35,6 +35,41 @@
         <div class="form-tip">留空表示永不过期</div>
       </el-form-item>
 
+      <!-- 需求 4：授权邮箱编辑（仅对 Type 2 分享） -->
+      <el-form-item v-if="formData.shareType === 2" label="授权邮箱" prop="authorizedEmails">
+        <div class="authorized-emails-editor">
+          <div class="email-input-group">
+            <el-input
+              v-model="newAuthorizedEmail"
+              placeholder="输入邮箱地址"
+              @keyup.enter="handleAddAuthorizedEmail"
+              clearable
+            />
+            <el-button
+              type="primary"
+              @click="handleAddAuthorizedEmail"
+              :disabled="!newAuthorizedEmail.trim()"
+            >
+              添加
+            </el-button>
+          </div>
+          <div v-if="formData.authorizedEmails && formData.authorizedEmails.length > 0" class="email-tags">
+            <el-tag
+              v-for="(email, index) in formData.authorizedEmails"
+              :key="index"
+              closable
+              @close="handleRemoveAuthorizedEmail(index)"
+              class="email-tag"
+            >
+              {{ email }}
+            </el-tag>
+          </div>
+          <div v-else class="form-tip">
+            还没有添加授权邮箱，请添加至少一个邮箱
+          </div>
+        </div>
+      </el-form-item>
+
       <!-- 访问次数限制 -->
       <el-form-item label="访问次数限制">
         <div class="limit-control">
@@ -79,7 +114,15 @@
 
       <!-- 频率限制 -->
       <el-form-item label="频率限制">
-        <div class="rate-limit-group">
+        <div class="limit-control">
+          <el-switch
+            v-model="formData.rateLimitEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <span class="unit-text" style="margin-left: 12px;">启用后可设置访问频率限制</span>
+        </div>
+        <div v-if="formData.rateLimitEnabled" class="rate-limit-group" style="margin-top: 12px;">
           <div class="rate-limit-item">
             <label>每秒限制：</label>
             <el-input-number
@@ -92,18 +135,20 @@
             <span class="unit-text">次/秒</span>
           </div>
           <div class="rate-limit-item">
-            <label>每分钟限制：</label>
+            <label>自动恢复时间：</label>
             <el-input-number
-              v-model="formData.rateLimitPerMinute"
-              :min="1"
-              :max="1000"
+              v-model="formData.autoRecoverySeconds"
+              :min="0"
+              :max="3600"
               :step="1"
               style="width: 120px"
             />
-            <span class="unit-text">次/分钟</span>
+            <span class="unit-text">秒（触发限制后需等待的时间）</span>
           </div>
         </div>
-        <div class="form-tip">控制访问频率，防止滥用</div>
+        <div class="form-tip">
+          禁用频率限制后，访问者可以无限制地请求验证码。建议仅在信任环境中禁用。
+        </div>
       </el-form-item>
 
       <!-- 关键词过滤 -->
@@ -117,6 +162,149 @@
           show-word-limit
         />
         <div class="form-tip">只显示包含这些关键词的邮件，留空表示显示所有邮件</div>
+      </el-form-item>
+
+      <!-- 新增：最新邮件数量限制 -->
+      <el-form-item label="最新邮件显示数量">
+        <div class="limit-control">
+          <el-input-number
+            v-model="formData.latestEmailCount"
+            :min="1"
+            :max="100"
+            :step="1"
+            placeholder="留空显示全部"
+            style="width: 200px"
+            clearable
+          />
+          <span class="unit-text">封</span>
+        </div>
+        <div class="form-tip">
+          控制分享链接最多显示多少封最新邮件。留空表示显示全部邮件。
+        </div>
+      </el-form-item>
+
+      <!-- 新增：自动刷新功能 -->
+      <el-form-item label="自动刷新">
+        <div class="limit-control">
+          <el-switch
+            v-model="formData.autoRefreshEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <el-select
+            v-model="formData.autoRefreshInterval"
+            :disabled="!formData.autoRefreshEnabled"
+            style="width: 120px; margin-left: 12px"
+          >
+            <el-option label="30秒" :value="30" />
+            <el-option label="60秒" :value="60" />
+            <el-option label="120秒" :value="120" />
+            <el-option label="300秒" :value="300" />
+          </el-select>
+          <span class="unit-text">间隔</span>
+        </div>
+        <div class="form-tip">
+          启用后，访问者的页面会自动刷新获取最新邮件。建议间隔不少于30秒。
+        </div>
+      </el-form-item>
+
+      <!-- 新增：冷却功能配置 -->
+      <el-form-item label="获取验证码冷却">
+        <div class="limit-control">
+          <el-switch
+            v-model="formData.cooldownEnabled"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <el-input-number
+            v-model="formData.cooldownSeconds"
+            :min="1"
+            :max="300"
+            :step="1"
+            :disabled="!formData.cooldownEnabled"
+            style="width: 120px; margin-left: 12px"
+          />
+          <span class="unit-text">秒</span>
+        </div>
+        <div class="form-tip">
+          控制点击"获取最新验证码"按钮后的冷却时间。禁用后可无限制点击。
+        </div>
+      </el-form-item>
+
+      <!-- 新增：TOKEN 管理 -->
+      <el-form-item label="API Token 管理">
+        <div class="token-management">
+          <!-- Token 显示 -->
+          <div class="token-display">
+            <div class="token-item">
+              <label>Token:</label>
+              <div class="token-value">
+                <el-input
+                  :value="formData.shareToken"
+                  readonly
+                  placeholder="Token 将在这里显示"
+                  style="flex: 1"
+                >
+                  <template #append>
+                    <el-button
+                      @click="copyToClipboard(formData.shareToken, 'Token')"
+                      :disabled="!formData.shareToken"
+                      title="复制 Token (Ctrl+C)"
+                    >
+                      <el-icon><document-copy /></el-icon>
+                    </el-button>
+                  </template>
+                </el-input>
+              </div>
+            </div>
+
+            <div class="token-item">
+              <label>分享链接:</label>
+              <div class="token-value">
+                <div class="share-url-container">
+                  <el-link
+                    v-if="formData.shareUrl"
+                    :href="formData.shareUrl"
+                    target="_blank"
+                    type="primary"
+                    class="share-url-link"
+                    :title="formData.shareUrl"
+                  >
+                    {{ formData.shareUrl }}
+                  </el-link>
+                  <span v-else class="share-url-placeholder">
+                    分享链接将在这里显示
+                  </span>
+                  <el-button
+                    @click="copyToClipboard(formData.shareUrl, '分享链接')"
+                    :disabled="!formData.shareUrl"
+                    title="复制分享链接"
+                    size="small"
+                    class="copy-button"
+                  >
+                    <el-icon><document-copy /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Token 操作按钮 -->
+          <div class="token-actions">
+            <el-button
+              type="warning"
+              @click="handleRefreshToken"
+              :loading="refreshingToken"
+              :disabled="!formData.shareId"
+            >
+              <el-icon><refresh /></el-icon>
+              刷新 Token
+            </el-button>
+            <div class="form-tip">
+              刷新后旧的 Token 将失效，请及时更新使用新的 Token 和链接
+            </div>
+          </div>
+        </div>
       </el-form-item>
     </el-form>
 
@@ -134,11 +322,13 @@
 <script setup>
 import { ref, reactive, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { 
-  updateShareName, 
-  updateShareExpireTime, 
+import { DocumentCopy, Refresh } from '@element-plus/icons-vue'
+import {
+  updateShareName,
+  updateShareExpireTime,
   updateShareLimit,
-  updateShareAdvancedSettings 
+  updateShareAdvancedSettings,
+  refreshShareToken
 } from '@/request/share.js'
 
 // Props
@@ -159,6 +349,7 @@ const emit = defineEmits(['update:modelValue', 'updated'])
 // 响应式数据
 const visible = ref(false)
 const saving = ref(false)
+const refreshingToken = ref(false)
 const formRef = ref()
 
 // 表单数据
@@ -168,12 +359,29 @@ const formData = reactive({
   expireTime: '',
   otpLimitDaily: 100,
   otpLimitEnabled: true,
+  rateLimitEnabled: true, // 频率限制开关，默认启用
   rateLimitPerSecond: 5,
-  rateLimitPerMinute: 60,
+  autoRecoverySeconds: 60,
   keywordFilter: '',
   verificationCodeLimit: 100,
-  verificationCodeLimitEnabled: true
+  verificationCodeLimitEnabled: true,
+  // 新增：邮件数量限制和自动刷新功能
+  latestEmailCount: null,
+  autoRefreshEnabled: false,
+  autoRefreshInterval: 30,
+  // 新增：冷却功能配置
+  cooldownEnabled: true,
+  cooldownSeconds: 10,
+  // 新增：TOKEN 相关字段
+  shareToken: '',
+  shareUrl: '',
+  // 需求 4：授权邮箱
+  shareType: 1,
+  authorizedEmails: []
 })
+
+// 需求 4：新增授权邮箱输入框
+const newAuthorizedEmail = ref('')
 
 // 表单验证规则
 const rules = {
@@ -184,6 +392,9 @@ const rules = {
   otpLimitDaily: [
     { required: true, message: '请输入每日限额', trigger: 'blur' },
     { type: 'number', min: 1, max: 10000, message: '每日限额必须在 1 到 10000 之间', trigger: 'blur' }
+  ],
+  cooldownSeconds: [
+    { type: 'number', min: 1, max: 300, message: '冷却时间必须在 1-300 秒之间', trigger: 'blur' }
   ]
 }
 
@@ -191,6 +402,19 @@ const rules = {
 watch(() => props.modelValue, (newVal) => {
   visible.value = newVal
   if (newVal && props.shareData) {
+    // 解析授权邮箱
+    let authorizedEmails = []
+    if (props.shareData.authorizedEmails) {
+      try {
+        const parsed = typeof props.shareData.authorizedEmails === 'string'
+          ? JSON.parse(props.shareData.authorizedEmails)
+          : props.shareData.authorizedEmails
+        authorizedEmails = Array.isArray(parsed) ? parsed : []
+      } catch (error) {
+        console.error('解析授权邮箱失败:', error)
+      }
+    }
+
     // 填充表单数据
     Object.assign(formData, {
       shareId: props.shareData.shareId,
@@ -198,12 +422,30 @@ watch(() => props.modelValue, (newVal) => {
       expireTime: props.shareData.expireTime || '',
       otpLimitDaily: props.shareData.otpLimitDaily || 100,
       otpLimitEnabled: props.shareData.otpLimitEnabled !== undefined ? props.shareData.otpLimitEnabled === 1 : true,
+      // 修复: 只有当值为0时才认为是禁用状态
+      rateLimitEnabled: props.shareData.rateLimitPerSecond !== 0,
       rateLimitPerSecond: props.shareData.rateLimitPerSecond || 5,
-      rateLimitPerMinute: props.shareData.rateLimitPerMinute || 60,
+      autoRecoverySeconds: props.shareData.autoRecoverySeconds || 60,
       keywordFilter: props.shareData.keywordFilter || '',
       verificationCodeLimit: props.shareData.verificationCodeLimit || 100,
-      verificationCodeLimitEnabled: props.shareData.verificationCodeLimitEnabled !== undefined ? props.shareData.verificationCodeLimitEnabled === 1 : true
+      verificationCodeLimitEnabled: props.shareData.verificationCodeLimitEnabled !== undefined ? props.shareData.verificationCodeLimitEnabled === 1 : true,
+      // 新增字段填充
+      latestEmailCount: props.shareData.latestEmailCount || null,
+      autoRefreshEnabled: props.shareData.autoRefreshEnabled === 1,
+      autoRefreshInterval: props.shareData.autoRefreshInterval || 30,
+      // 冷却配置字段填充
+      cooldownEnabled: props.shareData.cooldownEnabled !== undefined ? props.shareData.cooldownEnabled === 1 : true,
+      cooldownSeconds: props.shareData.cooldownSeconds || 10,
+      // TOKEN 相关字段填充
+      shareToken: props.shareData.shareToken || '',
+      shareUrl: props.shareData.shareUrl || '',
+      // 需求 4：授权邮箱填充
+      shareType: props.shareData.shareType || 1,
+      authorizedEmails: authorizedEmails
     })
+
+    // 清空新邮箱输入框
+    newAuthorizedEmail.value = ''
   }
 })
 
@@ -241,32 +483,50 @@ const handleSave = async () => {
       promises.push(updateShareExpireTime(formData.shareId, formData.expireTime))
     }
     
-    // 更新每日限额和访问限制开关
-    if (formData.otpLimitDaily !== props.shareData.otpLimitDaily ||
-        (formData.otpLimitEnabled ? 1 : 0) !== props.shareData.otpLimitEnabled) {
+    // 更新每日限额（仅当数值发生变化时）
+    if (formData.otpLimitDaily !== props.shareData.otpLimitDaily) {
       promises.push(updateShareLimit(formData.shareId, formData.otpLimitDaily))
     }
 
-    // 更新高级设置（频率限制、关键词过滤、显示数量限制）
+    // 更新高级设置（频率限制、关键词过滤、显示数量限制、邮件数量限制、自动刷新）
     const needsAdvancedUpdate =
-      formData.rateLimitPerSecond !== props.shareData.rateLimitPerSecond ||
-      formData.rateLimitPerMinute !== props.shareData.rateLimitPerMinute ||
+      (formData.rateLimitEnabled ? formData.rateLimitPerSecond : 0) !== props.shareData.rateLimitPerSecond ||
+      formData.autoRecoverySeconds !== props.shareData.autoRecoverySeconds ||
       formData.keywordFilter !== props.shareData.keywordFilter ||
       formData.verificationCodeLimit !== props.shareData.verificationCodeLimit ||
       (formData.verificationCodeLimitEnabled ? 1 : 0) !== props.shareData.verificationCodeLimitEnabled ||
-      (formData.otpLimitEnabled ? 1 : 0) !== props.shareData.otpLimitEnabled
+      (formData.otpLimitEnabled ? 1 : 0) !== props.shareData.otpLimitEnabled ||
+      formData.latestEmailCount !== props.shareData.latestEmailCount ||
+      (formData.autoRefreshEnabled ? 1 : 0) !== props.shareData.autoRefreshEnabled ||
+      formData.autoRefreshInterval !== props.shareData.autoRefreshInterval ||
+      (formData.cooldownEnabled ? 1 : 0) !== props.shareData.cooldownEnabled ||
+      formData.cooldownSeconds !== props.shareData.cooldownSeconds
 
     if (needsAdvancedUpdate) {
       // 如果API不存在，则提示用户
       if (typeof updateShareAdvancedSettings === 'function') {
-        promises.push(updateShareAdvancedSettings(formData.shareId, {
-          rateLimitPerSecond: formData.rateLimitPerSecond,
-          rateLimitPerMinute: formData.rateLimitPerMinute,
+        const advancedSettings = {
+          rateLimitPerSecond: formData.rateLimitEnabled ? parseInt(formData.rateLimitPerSecond) : 0,
+          autoRecoverySeconds: parseInt(formData.autoRecoverySeconds) || 60,
           keywordFilter: formData.keywordFilter,
-          verificationCodeLimit: formData.verificationCodeLimit,
+          verificationCodeLimit: parseInt(formData.verificationCodeLimit) || 100,
           verificationCodeLimitEnabled: formData.verificationCodeLimitEnabled ? 1 : 0,
-          otpLimitEnabled: formData.otpLimitEnabled ? 1 : 0
-        }))
+          otpLimitEnabled: formData.otpLimitEnabled ? 1 : 0,
+          // 新增字段
+          latestEmailCount: formData.latestEmailCount ? parseInt(formData.latestEmailCount) : null,
+          autoRefreshEnabled: formData.autoRefreshEnabled ? 1 : 0,
+          autoRefreshInterval: parseInt(formData.autoRefreshInterval) || 30,
+          // 冷却配置字段
+          cooldownEnabled: formData.cooldownEnabled ? 1 : 0,
+          cooldownSeconds: parseInt(formData.cooldownSeconds) || 10
+        }
+
+        // 需求 4：添加授权邮箱到高级设置
+        if (authorizedEmailsChanged) {
+          advancedSettings.authorizedEmails = formData.authorizedEmails
+        }
+
+        promises.push(updateShareAdvancedSettings(formData.shareId, advancedSettings))
       } else {
         ElMessage.warning('高级设置功能暂未支持修改，请联系管理员')
       }
@@ -284,6 +544,122 @@ const handleSave = async () => {
     ElMessage.error('更新失败: ' + (error.message || '未知错误'))
   } finally {
     saving.value = false
+  }
+}
+
+// 刷新 Token
+const handleRefreshToken = async () => {
+  if (!formData.shareId) {
+    ElMessage.error('分享记录不存在')
+    return
+  }
+
+  try {
+    refreshingToken.value = true
+
+    const response = await refreshShareToken(formData.shareId)
+    // 正确处理API响应结构
+    const result = response.data || response
+
+    // 验证响应数据有效性
+    if (!result.shareToken) {
+      throw new Error('刷新Token失败：返回数据无效')
+    }
+
+    // 更新表单数据中的 Token 信息
+    formData.shareToken = result.shareToken
+    formData.shareUrl = result.shareUrl
+
+    // 同时更新targetEmail确保数据一致性
+    if (result.targetEmail) {
+      formData.targetEmail = result.targetEmail
+    }
+
+    ElMessage.success('Token 刷新成功')
+
+    // 通知父组件更新
+    emit('updated')
+
+  } catch (error) {
+    console.error('刷新 Token 失败:', error)
+    ElMessage.error('刷新 Token 失败: ' + (error.message || '未知错误'))
+  } finally {
+    refreshingToken.value = false
+  }
+}
+
+// 需求 4：添加授权邮箱
+const handleAddAuthorizedEmail = () => {
+  const email = newAuthorizedEmail.value.trim()
+
+  if (!email) {
+    ElMessage.warning('请输入邮箱地址')
+    return
+  }
+
+  // 验证邮箱格式
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    ElMessage.error('请输入有效的邮箱地址')
+    return
+  }
+
+  // 检查邮箱长度
+  if (email.length > 254) {
+    ElMessage.error('邮箱地址过长')
+    return
+  }
+
+  // 检查是否已存在（大小写不敏感）
+  const normalizedEmail = email.toLowerCase()
+  const exists = formData.authorizedEmails.some(
+    e => e.toLowerCase() === normalizedEmail
+  )
+
+  if (exists) {
+    ElMessage.warning('该邮箱已添加')
+    return
+  }
+
+  // 添加邮箱
+  formData.authorizedEmails.push(email)
+  newAuthorizedEmail.value = ''
+  ElMessage.success('邮箱已添加')
+}
+
+// 需求 4：移除授权邮箱
+const handleRemoveAuthorizedEmail = (index) => {
+  formData.authorizedEmails.splice(index, 1)
+  ElMessage.success('邮箱已移除')
+}
+
+// 复制到剪贴板
+const copyToClipboard = async (text, label) => {
+  if (!text) {
+    ElMessage.warning(`${label} 为空，无法复制`)
+    return
+  }
+
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success(`${label} 已复制到剪贴板`)
+  } catch (error) {
+    console.error('复制失败:', error)
+    // 降级方案：使用传统的复制方法
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      ElMessage.success(`${label} 已复制到剪贴板`)
+    } catch (fallbackError) {
+      console.error('降级复制也失败:', fallbackError)
+      ElMessage.error('复制失败，请手动复制')
+    }
   }
 }
 </script>
@@ -327,5 +703,118 @@ const handleSave = async () => {
 
 .dialog-footer {
   text-align: right;
+}
+
+/* TOKEN 管理样式 */
+.token-management {
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 16px;
+  background-color: #fafafa;
+}
+
+.token-display {
+  margin-bottom: 16px;
+}
+
+.token-item {
+  margin-bottom: 12px;
+}
+
+.token-item:last-child {
+  margin-bottom: 0;
+}
+
+.token-item label {
+  display: block;
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.token-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-actions {
+  border-top: 1px solid #e4e7ed;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.token-actions .form-tip {
+  margin-top: 0;
+  color: #f56c6c;
+  font-weight: 500;
+}
+
+/* 分享链接容器样式 */
+.share-url-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background-color: #ffffff;
+  min-height: 32px;
+}
+
+.share-url-link {
+  flex: 1;
+  word-break: break-all;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.share-url-link:hover {
+  text-decoration: underline;
+}
+
+.share-url-placeholder {
+  flex: 1;
+  color: #c0c4cc;
+  font-size: 14px;
+}
+
+.copy-button {
+  flex-shrink: 0;
+}
+
+/* 需求 4：授权邮箱编辑器样式 */
+.authorized-emails-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.email-input-group {
+  display: flex;
+  gap: 8px;
+
+  :deep(.el-input) {
+    flex: 1;
+  }
+
+  .el-button {
+    min-width: 80px;
+  }
+}
+
+.email-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  .email-tag {
+    cursor: pointer;
+    user-select: none;
+  }
 }
 </style>

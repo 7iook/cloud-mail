@@ -1,6 +1,6 @@
 import { share } from '../entity/share';
 import orm from '../entity/orm';
-import { eq, and, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray, like, or, gte, lte, between } from 'drizzle-orm';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
 import cryptoUtils from '../utils/crypto-utils';
@@ -89,6 +89,86 @@ function getBaseUrl(c, userSpecifiedDomain = null) {
 }
 
 const shareService = {
+	// 添加高级筛选条件的辅助方法
+	addAdvancedFilterConditions(conditions, searchParams) {
+		const {
+			createTimeStart,
+			createTimeEnd,
+			expireTimeStart,
+			expireTimeEnd,
+			otpLimitMin,
+			otpLimitMax,
+			verificationCodeLimitMin,
+			verificationCodeLimitMax,
+			shareTypes,
+			otpLimitEnabled,
+			verificationCodeLimitEnabled
+		} = searchParams;
+
+		// 创建时间范围筛选
+		if (createTimeStart && createTimeEnd) {
+			conditions.push(
+				and(
+					gte(share.createTime, createTimeStart + ' 00:00:00'),
+					lte(share.createTime, createTimeEnd + ' 23:59:59')
+				)
+			);
+		} else if (createTimeStart) {
+			conditions.push(gte(share.createTime, createTimeStart + ' 00:00:00'));
+		} else if (createTimeEnd) {
+			conditions.push(lte(share.createTime, createTimeEnd + ' 23:59:59'));
+		}
+
+		// 过期时间范围筛选
+		if (expireTimeStart && expireTimeEnd) {
+			conditions.push(
+				and(
+					gte(share.expireTime, expireTimeStart + ' 00:00:00'),
+					lte(share.expireTime, expireTimeEnd + ' 23:59:59')
+				)
+			);
+		} else if (expireTimeStart) {
+			conditions.push(gte(share.expireTime, expireTimeStart + ' 00:00:00'));
+		} else if (expireTimeEnd) {
+			conditions.push(lte(share.expireTime, expireTimeEnd + ' 23:59:59'));
+		}
+
+		// 访问限制范围筛选
+		if (otpLimitMin !== undefined && otpLimitMax !== undefined) {
+			conditions.push(between(share.otpLimitDaily, parseInt(otpLimitMin), parseInt(otpLimitMax)));
+		} else if (otpLimitMin !== undefined) {
+			conditions.push(gte(share.otpLimitDaily, parseInt(otpLimitMin)));
+		} else if (otpLimitMax !== undefined) {
+			conditions.push(lte(share.otpLimitDaily, parseInt(otpLimitMax)));
+		}
+
+		// 显示限制范围筛选
+		if (verificationCodeLimitMin !== undefined && verificationCodeLimitMax !== undefined) {
+			conditions.push(between(share.verificationCodeLimit, parseInt(verificationCodeLimitMin), parseInt(verificationCodeLimitMax)));
+		} else if (verificationCodeLimitMin !== undefined) {
+			conditions.push(gte(share.verificationCodeLimit, parseInt(verificationCodeLimitMin)));
+		} else if (verificationCodeLimitMax !== undefined) {
+			conditions.push(lte(share.verificationCodeLimit, parseInt(verificationCodeLimitMax)));
+		}
+
+		// 分享类型筛选
+		if (shareTypes) {
+			const typeArray = shareTypes.split(',').map(t => parseInt(t.trim())).filter(t => !isNaN(t));
+			if (typeArray.length > 0) {
+				conditions.push(inArray(share.shareType, typeArray));
+			}
+		}
+
+		// 访问限制启用状态筛选
+		if (otpLimitEnabled !== undefined) {
+			conditions.push(eq(share.otpLimitEnabled, parseInt(otpLimitEnabled)));
+		}
+
+		// 显示限制启用状态筛选
+		if (verificationCodeLimitEnabled !== undefined) {
+			conditions.push(eq(share.verificationCodeLimitEnabled, parseInt(verificationCodeLimitEnabled)));
+		}
+	},
 
 	// 创建分享
 	async create(c, params, userId) {
@@ -99,13 +179,20 @@ const shareService = {
 			keywordFilter,
 			expireTime,
 			rateLimitPerSecond,
-			rateLimitPerMinute,
+			autoRecoverySeconds,
 			shareType,
 			authorizedEmails,
 			verificationCodeLimit,
 			verificationCodeLimitEnabled,
 			otpLimitDaily,
-			otpLimitEnabled
+			otpLimitEnabled,
+			// 新增：模板匹配功能
+			filterMode,
+			templateId,
+			showFullEmail,
+			// 新增：冷却功能配置
+			cooldownEnabled,
+			cooldownSeconds
 		} = params;
 
 		// 生成分享token
@@ -115,11 +202,26 @@ const shareService = {
 		let authorizedEmailsJson = '[]';
 		if (authorizedEmails) {
 			if (typeof authorizedEmails === 'string') {
-				// 如果已经是字符串，直接使用
-				authorizedEmailsJson = authorizedEmails;
+				// Fix P1-14: 如果已经是字符串，验证其有效性
+				try {
+					const parsed = JSON.parse(authorizedEmails);
+					if (!Array.isArray(parsed)) {
+						throw new BizError('授权邮箱列表必须是数组格式', 400);
+					}
+					authorizedEmailsJson = authorizedEmails;
+				} catch (error) {
+					if (error instanceof BizError) throw error;
+					throw new BizError('授权邮箱列表JSON格式无效', 400);
+				}
 			} else if (Array.isArray(authorizedEmails)) {
 				// 如果是数组，转换为 JSON 字符串
-				authorizedEmailsJson = JSON.stringify(authorizedEmails);
+				// Fix P1-23: 添加JSON.stringify错误处理
+				try {
+					authorizedEmailsJson = JSON.stringify(authorizedEmails);
+				} catch (error) {
+					console.error('JSON.stringify authorizedEmails 失败:', error);
+					throw new BizError('授权邮箱列表序列化失败', 500);
+				}
 			}
 		}
 
@@ -131,8 +233,9 @@ const shareService = {
 			keywordFilter: keywordFilter || '验证码|verification|code|otp',
 			expireTime,
 			userId,
-			rateLimitPerSecond: rateLimitPerSecond || 5,
-			rateLimitPerMinute: rateLimitPerMinute || 60,
+			// 修复: 使用 !== undefined 来正确处理0值
+			rateLimitPerSecond: rateLimitPerSecond !== undefined ? rateLimitPerSecond : 5,
+			autoRecoverySeconds: autoRecoverySeconds !== undefined ? autoRecoverySeconds : 60,
 			shareType: shareType || 1,
 			authorizedEmails: authorizedEmailsJson,
 			// 显示数量限制
@@ -140,7 +243,14 @@ const shareService = {
 			verificationCodeLimitEnabled: verificationCodeLimitEnabled !== undefined ? verificationCodeLimitEnabled : 1,
 			// 访问次数限制
 			otpLimitDaily: otpLimitDaily !== undefined ? otpLimitDaily : 100,
-			otpLimitEnabled: otpLimitEnabled !== undefined ? otpLimitEnabled : 1
+			otpLimitEnabled: otpLimitEnabled !== undefined ? otpLimitEnabled : 1,
+			// 模板匹配功能
+			filterMode: filterMode || 1,
+			templateId: templateId || null,
+			showFullEmail: showFullEmail !== undefined ? showFullEmail : 1,
+			// 冷却功能配置
+			cooldownEnabled: cooldownEnabled !== undefined ? cooldownEnabled : 1,
+			cooldownSeconds: cooldownSeconds !== undefined ? cooldownSeconds : 10
 		};
 
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();
@@ -160,6 +270,11 @@ const shareService = {
 
 	// 根据token获取分享信息（添加缓存优化）
 	async getByToken(c, shareToken) {
+		// 修复：验证shareToken是否有效，防止undefined导致的数据库查询错误
+		if (!shareToken || typeof shareToken !== 'string' || !shareToken.trim()) {
+			throw new BizError('分享令牌无效', 400);
+		}
+
 		// 尝试从缓存获取
 		const cacheManager = new CacheManager(c);
 		const cacheKey = `share:${shareToken}`;
@@ -207,8 +322,8 @@ const shareService = {
 		return shareRow;
 	},
 
-	// 获取用户的分享列表（支持状态筛选）
-	async getUserShares(c, userId, page = 1, pageSize = 20, status) {
+	// 获取用户的分享列表（支持状态筛选和搜索）
+	async getUserShares(c, userId, page = 1, pageSize = 20, status, searchParams = {}) {
 		const offset = (page - 1) * pageSize;
 
 		// 构建查询条件
@@ -226,8 +341,42 @@ const shareService = {
 		} else if (status === 'disabled') {
 			// 已禁用状态：isActive=0
 			conditions.push(eq(share.isActive, 0));
+		} else {
+			// 全部状态：只显示isActive=1的记录（过滤掉已删除的分享）
+			conditions.push(eq(share.isActive, 1));
 		}
-		// 如果status为空或其他值，不添加额外筛选条件（返回所有状态）
+
+		// 添加搜索条件
+		const { query, searchType } = searchParams;
+		if (query && query.trim()) {
+			const searchQuery = `%${query.trim()}%`;
+
+			switch (searchType) {
+				case 'shareName':
+					conditions.push(like(share.shareName, searchQuery));
+					break;
+				case 'targetEmail':
+					conditions.push(like(share.targetEmail, searchQuery));
+					break;
+				case 'shareToken':
+					conditions.push(like(share.shareToken, searchQuery));
+					break;
+				case 'all':
+				default:
+					// 搜索所有字段
+					conditions.push(
+						or(
+							like(share.shareName, searchQuery),
+							like(share.targetEmail, searchQuery),
+							like(share.shareToken, searchQuery)
+						)
+					);
+					break;
+			}
+		}
+
+		// 添加高级筛选条件
+		this.addAdvancedFilterConditions(conditions, searchParams);
 
 		const shares = await orm(c).select().from(share)
 			.where(and(...conditions))
@@ -246,8 +395,8 @@ const shareService = {
 		});
 	},
 
-	// 获取分享总数（支持状态筛选）
-	async getUserShareCount(c, userId, status) {
+	// 获取分享总数（支持状态筛选和搜索）
+	async getUserShareCount(c, userId, status, searchParams = {}) {
 		// 构建查询条件
 		const conditions = [eq(share.userId, userId)];
 
@@ -260,7 +409,43 @@ const shareService = {
 			conditions.push(eq(share.status, 'expired'));
 		} else if (status === 'disabled') {
 			conditions.push(eq(share.isActive, 0));
+		} else if (status !== undefined) {
+			// 全部状态（status为空字符串）：只显示isActive=1的记录（过滤掉已删除的分享）
+			conditions.push(eq(share.isActive, 1));
 		}
+		// status为undefined时：不添加任何isActive筛选（用于统计所有记录）
+
+		// 添加搜索条件
+		const { query, searchType } = searchParams;
+		if (query && query.trim()) {
+			const searchQuery = `%${query.trim()}%`;
+
+			switch (searchType) {
+				case 'shareName':
+					conditions.push(like(share.shareName, searchQuery));
+					break;
+				case 'targetEmail':
+					conditions.push(like(share.targetEmail, searchQuery));
+					break;
+				case 'shareToken':
+					conditions.push(like(share.shareToken, searchQuery));
+					break;
+				case 'all':
+				default:
+					// 搜索所有字段
+					conditions.push(
+						or(
+							like(share.shareName, searchQuery),
+							like(share.targetEmail, searchQuery),
+							like(share.shareToken, searchQuery)
+						)
+					);
+					break;
+			}
+		}
+
+		// 添加高级筛选条件
+		this.addAdvancedFilterConditions(conditions, searchParams);
 
 		const result = await orm(c).select({ count: sql`count(*)` }).from(share)
 			.where(and(...conditions))
@@ -271,6 +456,10 @@ const shareService = {
 
 	// 删除分享
 	async delete(c, shareId, userId) {
+		console.log('=== SHARE SERVICE DELETE DEBUG START ===');
+		console.log('Input shareId:', shareId, 'type:', typeof shareId);
+		console.log('Input userId:', userId, 'type:', typeof userId);
+
 		const shareRow = await orm(c).select().from(share)
 			.where(and(
 				eq(share.shareId, shareId),
@@ -278,16 +467,47 @@ const shareService = {
 				eq(share.isActive, 1)
 			))
 			.get();
-			
+
+		console.log('Query result:', shareRow);
+
 		if (!shareRow) {
+			console.error('ERROR: Share not found or permission denied');
+			console.error('Checking if share exists without userId filter...');
+
+			const shareWithoutUserFilter = await orm(c).select().from(share)
+				.where(eq(share.shareId, shareId))
+				.get();
+
+			console.log('Share exists (without user filter):', shareWithoutUserFilter);
+
+			if (shareWithoutUserFilter) {
+				console.error('Share exists but userId mismatch!');
+				console.error('Share userId:', shareWithoutUserFilter.userId, 'type:', typeof shareWithoutUserFilter.userId);
+				console.error('Current userId:', userId, 'type:', typeof userId);
+			}
+
 			throw new BizError('分享不存在或无权限删除', 404);
 		}
-		
+
+		console.log('Permission check passed, proceeding with delete...');
+
 		await orm(c).update(share)
 			.set({ isActive: 0 })
 			.where(eq(share.shareId, shareId))
 			.run();
-			
+
+		// 清除缓存（修复缓存一致性问题）
+		console.log('清除缓存...');
+		try {
+			const cacheManager = new CacheManager(c);
+			await cacheManager.delete(`share:${shareRow.shareToken}`);
+			console.log('缓存清除成功');
+		} catch (cacheError) {
+			console.error('缓存清除失败:', cacheError);
+			// 缓存清除失败不影响主要功能，但记录错误
+		}
+
+		console.log('=== SHARE SERVICE DELETE DEBUG END: SUCCESS ===');
 		return true;
 	},
 
@@ -321,16 +541,40 @@ const shareService = {
 			.where(eq(share.shareId, shareId))
 			.run();
 
-		// 清除缓存
+		// 清除旧Token缓存
 		const cacheManager = new CacheManager(c);
-		await cacheManager.delete(`share:${shareRow.shareToken}`);
+		try {
+			await cacheManager.delete(`share:${shareRow.shareToken}`);
+		} catch (cacheError) {
+			console.error('清除旧Token缓存失败:', cacheError);
+			// 继续执行，不影响主要功能
+		}
 
-		// 返回新的分享信息
-		const baseUrl = getBaseUrl(c);
-		return {
+		// 创建新的分享记录对象（包含新Token）
+		const updatedShareRow = {
 			...shareRow,
+			shareToken: newToken
+		};
+
+		// 将新Token的分享记录添加到缓存中，确保立即可用
+		try {
+			await cacheManager.set(`share:${newToken}`, updatedShareRow, 3600); // 缓存1小时
+		} catch (cacheError) {
+			console.error('设置新Token缓存失败:', cacheError);
+			// 缓存设置失败不影响主要功能，但可能影响性能
+		}
+
+		// 返回新的分享信息（包含所有必要字段）
+		// 重要：使用保存的shareDomain确保刷新后的链接域名与原始链接一致
+		const baseUrl = getBaseUrl(c, shareRow.shareDomain);
+		return {
+			shareId: shareId,
 			shareToken: newToken,
-			shareUrl: `${baseUrl}/share/${newToken}`
+			targetEmail: shareRow.targetEmail,
+			shareName: shareRow.shareName,
+			shareUrl: `${baseUrl}/share/${newToken}`,
+			// 返回完整的分享对象以支持前端更新
+			...updatedShareRow
 		};
 	},
 
@@ -384,6 +628,48 @@ const shareService = {
 					END`
 				};
 				break;
+			case 'updateAdvancedSettings':
+				// 批量更新高级设置
+				const settings = options.settings || {};
+
+				// 验证设置参数（允许0值表示禁用频率限制）
+				if (settings.rateLimitPerSecond !== undefined && (settings.rateLimitPerSecond < 0 || settings.rateLimitPerSecond > 100)) {
+					throw new BizError('每秒限制必须在0-100之间（0表示禁用）', 400);
+				}
+				if (settings.autoRecoverySeconds !== undefined && (settings.autoRecoverySeconds < 0 || settings.autoRecoverySeconds > 3600)) {
+					throw new BizError('自动恢复时间必须在0-3600秒之间（0表示禁用自动恢复）', 400);
+				}
+				if (settings.latestEmailCount !== undefined && settings.latestEmailCount !== null) {
+					const count = parseInt(settings.latestEmailCount);
+					if (isNaN(count) || count < 1 || count > 100) {
+						throw new BizError('最新邮件显示数量必须在 1-100 之间', 400);
+					}
+				}
+				if (settings.autoRefreshEnabled !== undefined) {
+					const enabled = parseInt(settings.autoRefreshEnabled);
+					if (enabled !== 0 && enabled !== 1) {
+						throw new BizError('自动刷新开关参数无效', 400);
+					}
+				}
+				if (settings.autoRefreshInterval !== undefined) {
+					const interval = parseInt(settings.autoRefreshInterval);
+					if (isNaN(interval) || interval < 10 || interval > 3600) {
+						throw new BizError('自动刷新间隔必须在 10-3600 秒之间', 400);
+					}
+				}
+
+				// 构建更新数据
+				updateData = {};
+				Object.keys(settings).forEach(key => {
+					if (settings[key] !== undefined) {
+						updateData[key] = settings[key];
+					}
+				});
+
+				if (Object.keys(updateData).length === 0) {
+					throw new BizError('没有要更新的设置项', 400);
+				}
+				break;
 			default:
 				throw new BizError('不支持的操作类型', 400);
 		}
@@ -397,7 +683,12 @@ const shareService = {
 		// 清除相关缓存
 		const cacheManager = new CacheManager(c);
 		for (const shareRow of shares) {
-			await cacheManager.delete(`share:${shareRow.shareToken}`);
+			try {
+				await cacheManager.delete(`share:${shareRow.shareToken}`);
+			} catch (cacheError) {
+				console.error(`清除分享 ${shareRow.shareId} 缓存失败:`, cacheError);
+				// 继续处理其他分享的缓存清理
+			}
 		}
 
 		return { success: true, affected: shares.length };
@@ -553,48 +844,231 @@ const shareService = {
 
 	// 更新分享高级设置
 	async updateAdvancedSettings(c, shareId, settings) {
-		const { rateLimitPerSecond, rateLimitPerMinute, keywordFilter } = settings;
+		console.log('=== shareService.updateAdvancedSettings 开始 ===');
+		console.log('输入参数:', { shareId, settings });
 
-		// 验证参数
-		if (rateLimitPerSecond !== undefined && (rateLimitPerSecond < 1 || rateLimitPerSecond > 100)) {
-			throw new BizError('每秒限制必须在1-100之间', 400);
-		}
-		if (rateLimitPerMinute !== undefined && (rateLimitPerMinute < 1 || rateLimitPerMinute > 1000)) {
-			throw new BizError('每分钟限制必须在1-1000之间', 400);
-		}
-
-		// 获取分享信息
+		// 🔥 FIX: 获取分享信息用于缓存清除（修复shareRow未定义的错误）
 		const shareRow = await this.getById(c, shareId);
 		if (!shareRow) {
 			throw new BizError('分享不存在', 404);
 		}
+		console.log('获取分享信息成功:', { shareId, shareToken: shareRow.shareToken });
+
+		const {
+			rateLimitPerSecond,
+			autoRecoverySeconds,
+			keywordFilter,
+			verificationCodeLimit,
+			verificationCodeLimitEnabled,
+			otpLimitEnabled,
+			// 新增字段
+			latestEmailCount,
+			autoRefreshEnabled,
+			autoRefreshInterval,
+			// 冷却功能配置
+			cooldownEnabled,
+			cooldownSeconds,
+			// 需求 4：支持修改授权邮箱
+			authorizedEmails
+		} = settings;
+
+		console.log('解构后的参数:', {
+			rateLimitPerSecond,
+			autoRecoverySeconds,
+			keywordFilter,
+			verificationCodeLimit,
+			verificationCodeLimitEnabled,
+			otpLimitEnabled,
+			latestEmailCount,
+			autoRefreshEnabled,
+			autoRefreshInterval,
+			cooldownEnabled,
+			cooldownSeconds
+		});
+
+		// 验证参数（频率限制：0表示禁用，1-100表示启用）
+		console.log('开始参数验证...');
+		if (rateLimitPerSecond !== undefined && rateLimitPerSecond !== null && (rateLimitPerSecond < 0 || rateLimitPerSecond > 100)) {
+			throw new BizError('每秒限制必须在0-100之间（0表示禁用）', 400);
+		}
+		if (autoRecoverySeconds !== undefined && autoRecoverySeconds !== null && (autoRecoverySeconds < 0 || autoRecoverySeconds > 3600)) {
+			throw new BizError('自动恢复时间必须在0-3600秒之间（0表示禁用自动恢复）', 400);
+		}
+		// 新增：邮件数量限制验证
+		if (latestEmailCount !== undefined && latestEmailCount !== null) {
+			const count = parseInt(latestEmailCount);
+			console.log('邮件数量验证:', { latestEmailCount, count, isNaN: isNaN(count) });
+			if (isNaN(count) || count < 1 || count > 100) {
+				throw new BizError('最新邮件显示数量必须在 1-100 之间', 400);
+			}
+		}
+		// 新增：自动刷新参数验证
+		if (autoRefreshEnabled !== undefined) {
+			const enabled = parseInt(autoRefreshEnabled);
+			console.log('自动刷新开关验证:', { autoRefreshEnabled, enabled });
+			if (enabled !== 0 && enabled !== 1) {
+				throw new BizError('自动刷新开关参数无效', 400);
+			}
+		}
+		if (autoRefreshInterval !== undefined) {
+			const interval = parseInt(autoRefreshInterval);
+			console.log('自动刷新间隔验证:', { autoRefreshInterval, interval, isNaN: isNaN(interval) });
+			if (isNaN(interval) || interval < 10 || interval > 3600) {
+				throw new BizError('自动刷新间隔必须在 10-3600 秒之间', 400);
+			}
+		}
+		// 新增：冷却功能参数验证
+		if (cooldownEnabled !== undefined) {
+			const enabled = parseInt(cooldownEnabled);
+			console.log('冷却功能开关验证:', { cooldownEnabled, enabled });
+			if (enabled !== 0 && enabled !== 1) {
+				throw new BizError('冷却功能开关参数无效', 400);
+			}
+		}
+		if (cooldownSeconds !== undefined) {
+			const seconds = parseInt(cooldownSeconds);
+			console.log('冷却时间验证:', { cooldownSeconds, seconds, isNaN: isNaN(seconds) });
+			if (isNaN(seconds) || seconds < 1 || seconds > 300) {
+				throw new BizError('冷却时间必须在 1-300 秒之间', 400);
+			}
+		}
+
+		// 需求 4：验证 authorizedEmails（仅对 Type 2 分享）
+		if (authorizedEmails !== undefined) {
+			if (shareRow.shareType !== 2) {
+				throw new BizError('只有多邮箱分享（Type 2）才能修改授权邮箱列表', 400);
+			}
+
+			// 验证 authorizedEmails 格式
+			let authorizedEmailsArray = [];
+			if (typeof authorizedEmails === 'string') {
+				try {
+					authorizedEmailsArray = JSON.parse(authorizedEmails);
+				} catch (error) {
+					throw new BizError('授权邮箱列表JSON格式无效', 400);
+				}
+			} else if (Array.isArray(authorizedEmails)) {
+				authorizedEmailsArray = authorizedEmails;
+			} else {
+				throw new BizError('授权邮箱列表必须是数组或JSON字符串', 400);
+			}
+
+			// 验证数组不为空
+			if (!Array.isArray(authorizedEmailsArray) || authorizedEmailsArray.length === 0) {
+				throw new BizError('授权邮箱列表不能为空', 400);
+			}
+
+			// 验证每个邮箱
+			const MAX_EMAIL_LENGTH = 254;
+			const normalizedEmailsSet = new Set();
+			for (const email of authorizedEmailsArray) {
+				if (!email || !email.trim()) {
+					throw new BizError('授权邮箱列表中包含空邮箱地址', 400);
+				}
+				if (!verifyUtils.isEmail(email)) {
+					throw new BizError(`无效的邮箱地址: ${email}`, 400);
+				}
+				if (email.length > MAX_EMAIL_LENGTH) {
+					throw new BizError(`邮箱地址过长: ${email}`, 400);
+				}
+
+				// 检查重复邮箱
+				const normalizedEmail = sanitizeUtils.sanitizeEmail(email);
+				if (normalizedEmailsSet.has(normalizedEmail)) {
+					throw new BizError(`授权邮箱列表中包含重复的邮箱: ${email}`, 400);
+				}
+				normalizedEmailsSet.add(normalizedEmail);
+			}
+
+			console.log('授权邮箱验证通过:', { count: authorizedEmailsArray.length });
+		}
+
+		console.log('参数验证通过');
+
+		// 分享信息已在方法开始时获取，无需重复获取
 
 		// 构建更新数据
+		console.log('构建更新数据...');
 		const updateData = {};
 		if (rateLimitPerSecond !== undefined) {
 			updateData.rateLimitPerSecond = rateLimitPerSecond;
 		}
-		if (rateLimitPerMinute !== undefined) {
-			updateData.rateLimitPerMinute = rateLimitPerMinute;
+		if (autoRecoverySeconds !== undefined) {
+			updateData.autoRecoverySeconds = autoRecoverySeconds;
 		}
 		if (keywordFilter !== undefined) {
 			updateData.keywordFilter = keywordFilter;
 		}
+		if (verificationCodeLimit !== undefined) {
+			updateData.verificationCodeLimit = verificationCodeLimit;
+		}
+		if (verificationCodeLimitEnabled !== undefined) {
+			updateData.verificationCodeLimitEnabled = verificationCodeLimitEnabled;
+		}
+		if (otpLimitEnabled !== undefined) {
+			updateData.otpLimitEnabled = otpLimitEnabled;
+		}
+		// 新增字段更新
+		if (latestEmailCount !== undefined) {
+			updateData.latestEmailCount = latestEmailCount;
+		}
+		if (autoRefreshEnabled !== undefined) {
+			updateData.autoRefreshEnabled = autoRefreshEnabled;
+		}
+		if (autoRefreshInterval !== undefined) {
+			updateData.autoRefreshInterval = autoRefreshInterval;
+		}
+		// 冷却功能配置更新
+		if (cooldownEnabled !== undefined) {
+			updateData.cooldownEnabled = cooldownEnabled;
+		}
+		if (cooldownSeconds !== undefined) {
+			updateData.cooldownSeconds = cooldownSeconds;
+		}
+		// 需求 4：授权邮箱更新
+		if (authorizedEmails !== undefined) {
+			let authorizedEmailsArray = [];
+			if (typeof authorizedEmails === 'string') {
+				authorizedEmailsArray = JSON.parse(authorizedEmails);
+			} else if (Array.isArray(authorizedEmails)) {
+				authorizedEmailsArray = authorizedEmails;
+			}
+			updateData.authorizedEmails = JSON.stringify(authorizedEmailsArray);
+		}
+
+		console.log('构建的更新数据:', updateData);
 
 		// 如果没有要更新的数据，直接返回
 		if (Object.keys(updateData).length === 0) {
+			console.log('没有要更新的数据，直接返回');
 			return { success: true };
 		}
 
 		// 更新数据库
-		await orm(c).update(share)
-			.set(updateData)
-			.where(eq(share.shareId, shareId));
+		console.log('开始更新数据库...');
+		try {
+			await orm(c).update(share)
+				.set(updateData)
+				.where(eq(share.shareId, shareId))
+				.run();
+			console.log('数据库更新成功');
+		} catch (dbError) {
+			console.error('数据库更新失败:', dbError);
+			throw dbError;
+		}
 
 		// 清除缓存
-		const cacheManager = new CacheManager(c);
-		await cacheManager.delete(`share:${shareRow.shareToken}`);
+		console.log('清除缓存...');
+		try {
+			const cacheManager = new CacheManager(c);
+			await cacheManager.delete(`share:${shareRow.shareToken}`);
+			console.log('缓存清除成功');
+		} catch (cacheError) {
+			console.error('缓存清除失败:', cacheError);
+			// 缓存清除失败不影响主要功能
+		}
 
+		console.log('=== shareService.updateAdvancedSettings 结束 ===');
 		return { success: true };
 	}
 };
