@@ -6,6 +6,8 @@ import { t } from '../i18n/i18n';
 import cryptoUtils from '../utils/crypto-utils';
 import dayjs from 'dayjs';
 import CacheManager from '../utils/cache-manager';
+import verifyUtils from '../utils/verify-utils';
+import sanitizeUtils from '../utils/sanitize-utils';
 
 // 获取基础URL，支持用户指定域名
 function getBaseUrl(c, userSpecifiedDomain = null) {
@@ -869,7 +871,9 @@ const shareService = {
 			cooldownEnabled,
 			cooldownSeconds,
 			// 需求 4：支持修改授权邮箱
-			authorizedEmails
+			authorizedEmails,
+			// 人机验证功能
+			enableCaptcha
 		} = settings;
 
 		console.log('解构后的参数:', {
@@ -1034,6 +1038,11 @@ const shareService = {
 				authorizedEmailsArray = authorizedEmails;
 			}
 			updateData.authorizedEmails = JSON.stringify(authorizedEmailsArray);
+		}
+
+		// 人机验证功能
+		if (enableCaptcha !== undefined) {
+			updateData.enableCaptcha = enableCaptcha ? 1 : 0;
 		}
 
 		console.log('构建的更新数据:', updateData);
