@@ -504,8 +504,8 @@ const handleSave = async () => {
           console.error('解析原始授权邮箱失败:', error)
         }
       }
-      // 检查邮箱列表是否发生变化
-      authorizedEmailsChanged = JSON.stringify(currentEmails.sort()) !== JSON.stringify(originalEmails.sort())
+      // 检查邮箱列表是否发生变化（使用 [...array] 创建副本，避免修改原数组）
+      authorizedEmailsChanged = JSON.stringify([...currentEmails].sort()) !== JSON.stringify([...originalEmails].sort())
     }
 
     // 更新高级设置（频率限制、关键词过滤、显示数量限制、邮件数量限制、自动刷新）
