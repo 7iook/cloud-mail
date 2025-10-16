@@ -31,8 +31,7 @@ crons = ["0 16 * * *"]
 # Production environment variables
 # ⚠️ WARNING: DO NOT commit real production values to Git!
 # Configure these values in Cloudflare Dashboard > Workers > Settings > Variables
+# NOTE: domain, admin, and jwt_secret are configured in Cloudflare Dashboard
+# and should NOT be hardcoded here to avoid overwriting production settings
 [vars]
 orm_log = false
-domain = ["your-domain.com"]
-admin = "admin@your-domain.com"
-jwt_secret = "your-production-jwt-secret-here-please-change-this"
