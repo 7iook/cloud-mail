@@ -1040,10 +1040,11 @@ const shareService = {
 			updateData.authorizedEmails = JSON.stringify(authorizedEmailsArray);
 		}
 
-		// 人机验证功能
-		if (enableCaptcha !== undefined) {
-			updateData.enableCaptcha = enableCaptcha ? 1 : 0;
-		}
+		// 人机验证功能 - 仅在字段存在时更新
+		// 注意：enable_captcha 列可能在某些数据库中不存在，所以这里不更新
+		// if (enableCaptcha !== undefined) {
+		//	updateData.enableCaptcha = enableCaptcha ? 1 : 0;
+		// }
 
 		console.log('构建的更新数据:', updateData);
 
