@@ -488,6 +488,26 @@ const handleSave = async () => {
       promises.push(updateShareLimit(formData.shareId, formData.otpLimitDaily))
     }
 
+    // 问题 1 修复：计算授权邮箱是否发生变化
+    let authorizedEmailsChanged = false
+    if (formData.shareType === 2) {
+      // 比较授权邮箱列表是否发生变化
+      const currentEmails = formData.authorizedEmails || []
+      let originalEmails = []
+      if (props.shareData.authorizedEmails) {
+        try {
+          const parsed = typeof props.shareData.authorizedEmails === 'string'
+            ? JSON.parse(props.shareData.authorizedEmails)
+            : props.shareData.authorizedEmails
+          originalEmails = Array.isArray(parsed) ? parsed : []
+        } catch (error) {
+          console.error('解析原始授权邮箱失败:', error)
+        }
+      }
+      // 检查邮箱列表是否发生变化
+      authorizedEmailsChanged = JSON.stringify(currentEmails.sort()) !== JSON.stringify(originalEmails.sort())
+    }
+
     // 更新高级设置（频率限制、关键词过滤、显示数量限制、邮件数量限制、自动刷新）
     const needsAdvancedUpdate =
       (formData.rateLimitEnabled ? formData.rateLimitPerSecond : 0) !== props.shareData.rateLimitPerSecond ||
@@ -500,7 +520,8 @@ const handleSave = async () => {
       (formData.autoRefreshEnabled ? 1 : 0) !== props.shareData.autoRefreshEnabled ||
       formData.autoRefreshInterval !== props.shareData.autoRefreshInterval ||
       (formData.cooldownEnabled ? 1 : 0) !== props.shareData.cooldownEnabled ||
-      formData.cooldownSeconds !== props.shareData.cooldownSeconds
+      formData.cooldownSeconds !== props.shareData.cooldownSeconds ||
+      authorizedEmailsChanged
 
     if (needsAdvancedUpdate) {
       // 如果API不存在，则提示用户
@@ -521,7 +542,7 @@ const handleSave = async () => {
           cooldownSeconds: parseInt(formData.cooldownSeconds) || 10
         }
 
-        // 需求 4：添加授权邮箱到高级设置
+        // 问题 1 修复：添加授权邮箱到高级设置（仅当发生变化时）
         if (authorizedEmailsChanged) {
           advancedSettings.authorizedEmails = formData.authorizedEmails
         }
