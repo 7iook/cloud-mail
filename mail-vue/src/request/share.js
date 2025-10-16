@@ -7,12 +7,12 @@ export function createShare(data) {
 
 // 获取分享信息
 export function getShareInfo(shareToken) {
-    return http.get(`/share/info/${shareToken}`);
+    return http.get(`/share/info/${shareToken}`, { sharePageRequest: true });
 }
 
 // 获取分享邮件列表
 export function getShareEmails(shareToken, params) {
-    return http.get(`/share/emails/${shareToken}`, { params });
+    return http.get(`/share/emails/${shareToken}`, { params, sharePageRequest: true });
 }
 
 // 获取分享列表
@@ -46,8 +46,30 @@ export function getShareLogs(params) {
     if (shareId) {
         return http.get(`/share/logs/${shareId}`, { params: queryParams });
     } else {
-        // 如果没有指定shareId，返回空结果
-        return Promise.resolve({ data: { list: [], total: 0 } });
+        // 如果没有指定shareId，查询全局访问日志
+        return http.get('/share/globalStats', { params: queryParams }).then(response => {
+            // 添加详细的调试日志
+            console.log('全局统计API原始响应:', response);
+            console.log('response.data:', response.data);
+            console.log('response.data.accessLogs:', response.data?.accessLogs);
+
+            // 将全局统计API的响应格式转换为访问日志格式
+            // 检查两种可能的数据结构：response.data.accessLogs 或 response.accessLogs
+            const data = response.data || response;
+            if (data && data.accessLogs) {
+                console.log('找到accessLogs，数据长度:', data.accessLogs.length);
+                return {
+                    data: {
+                        list: data.accessLogs,
+                        total: data.total || data.accessLogs.length,
+                        page: data.page || 1,
+                        pageSize: data.pageSize || 20
+                    }
+                };
+            }
+            console.log('accessLogs不存在，返回空数据');
+            return { data: { list: [], total: 0 } };
+        });
     }
 }
 
@@ -96,4 +118,14 @@ export function updateShareExpireTime(shareId, expireTime) {
 // 更新分享高级设置（频率限制和关键词过滤）
 export function updateShareAdvancedSettings(shareId, settings) {
     return http.patch(`/share/${shareId}/advanced-settings`, settings);
+}
+
+// 获取全局分享统计（所有分享记录的汇总）
+export function getGlobalShareStats(params) {
+    return http.get('/share/globalStats', { params });
+}
+
+// 获取访问详情（验证码和邮件列表）
+export function getAccessDetail(logId) {
+    return http.get(`/share/access-detail/${logId}`);
 }
