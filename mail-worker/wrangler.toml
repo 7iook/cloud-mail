@@ -1,7 +1,7 @@
 name = "cloud-mail"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
-keep_vars = true
+keep_vars = false
 
 # 使用 Dashboard 绑定优先模式
 # KV 和 D1 绑定将从 Cloudflare Dashboard 中读取，不会被 wrangler.toml 覆盖
