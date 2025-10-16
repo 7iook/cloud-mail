@@ -15,9 +15,10 @@ const exclude = [
 	'/setting/websiteConfig',
 	'/webhooks',
 	'/init',
+	'/migrate',
 	'/public/genToken',
 	'/public/emailList',
-	'/share/access',
+	'/share/access/',
 	'/share/emails'
 ];
 
@@ -99,8 +100,19 @@ app.use('*', async (c, next) => {
 	}
 
 	// 处理分享token直接访问（如 /share/wp4Qug766zM2gRBaNu6vg25w7ZwZx8hk）
+	// 但是要排除API路径，如 /share/globalStats, /share/stats, /share/access-detail 等
+	const shareCondition = path.startsWith('/share/') && path.length > 7 &&
+		c.req.method !== 'DELETE' && // 🔥 FIX: 排除DELETE方法，删除操作需要JWT认证
+		c.req.method !== 'PATCH' && // 🔥 FIX: 排除PATCH方法，更新操作需要JWT认证
+		!path.includes('/list') && !path.includes('/create') && !path.includes('/logs') &&
+		!path.includes('/stats') && !path.includes('/batch') && !path.includes('/refresh-token') &&
+		!path.includes('/update-limit') && !path.includes('/update-display-limit') &&
+		!path.includes('/name') && !path.includes('/expire') && !path.includes('/status') &&
+		!path.includes('/advanced-settings') && // 排除高级设置API
+		// 🔥 FIX: 移除了 !path.includes('globalStats') - globalStats API 需要认证
+		!path.includes('/access-detail'); // 排除访问详情API，需要认证
 
-	if (path.startsWith('/share/') && path.length > 7 && !path.includes('/list') && !path.includes('/create') && !path.includes('/logs') && !path.includes('/stats') && !path.includes('/batch') && !path.includes('/refresh-token') && !path.includes('/update-limit') && !path.includes('/update-display-limit') && !path.includes('/name') && !path.includes('/expire') && !path.includes('/status')) {
+	if (shareCondition) {
 		return await next();
 	}
 
@@ -124,7 +136,6 @@ app.use('*', async (c, next) => {
 					return await next();
 				}
 			} catch (error) {
-				console.error('JWT verification failed, trying legacy:', error);
 				// JWT verification failed, try legacy verification as fallback
 			}
 		}
