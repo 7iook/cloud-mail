@@ -25,6 +25,11 @@ const init = {
 		await this.v2_1DB(c); // MVP: 分享管理功能增强
 		await this.v2_2DB(c); // 添加显示数量限制和访问次数限制的开关控制
 		await this.v2_3DB(c); // 添加分享域名字段支持
+		await this.v2_4DB(c); // 添加邮件已读状态字段
+		await this.v2_5DB(c); // 添加邮件读取次数字段
+		await this.v2_6DB(c); // 添加冷却功能配置字段
+		await this.v2_7DB(c); // 替换频率限制字段：移除 rate_limit_per_minute，添加 auto_recovery_seconds
+		await this.v2_8DB(c); // 添加人机验证功能字段
 		await settingService.refresh(c);
 		return c.text(t('initSuccess'));
 	},
@@ -126,6 +131,99 @@ const init = {
 		} catch (e) {
 			console.warn(`跳过分享域名字段添加，原因：${e.message}`);
 		}
+	},
+
+	async v2_4DB(c) {
+		// 添加邮件已读状态字段
+		try {
+			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN is_read INTEGER DEFAULT 0 NOT NULL;`).run();
+			console.log('邮件已读状态字段添加成功');
+		} catch (e) {
+			console.warn(`跳过邮件已读状态字段添加，原因：${e.message}`);
+		}
+	},
+
+	async v2_5DB(c) {
+		// 添加邮件读取次数字段
+		try {
+			await c.env.db.prepare(`ALTER TABLE email ADD COLUMN read_count INTEGER DEFAULT 0 NOT NULL;`).run();
+			console.log('邮件读取次数字段添加成功');
+		} catch (e) {
+			console.warn(`跳过邮件读取次数字段添加，原因：${e.message}`);
+		}
+	},
+
+	async v2_6DB(c) {
+		// 添加冷却功能配置字段
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE share ADD COLUMN cooldown_enabled INTEGER DEFAULT 1 NOT NULL CHECK(cooldown_enabled IN (0, 1));`,
+			`ALTER TABLE share ADD COLUMN cooldown_seconds INTEGER DEFAULT 10 NOT NULL CHECK(cooldown_seconds >= 1 AND cooldown_seconds <= 300);`,
+			`CREATE INDEX IF NOT EXISTS idx_share_cooldown_config ON share(cooldown_enabled, cooldown_seconds);`
+		];
+
+		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (e) {
+				console.warn(`跳过冷却配置字段添加，原因：${e.message}`);
+			}
+		});
+
+		await Promise.all(promises);
+		console.log('冷却功能配置字段添加完成');
+	},
+
+	async v2_7DB(c) {
+		// 替换频率限制字段：移除 rate_limit_per_minute，添加 auto_recovery_seconds
+		console.log('=== v2_7DB Migration Started ===');
+
+		// 首先尝试删除旧字段（如果存在）
+		try {
+			await c.env.db.prepare(`ALTER TABLE share DROP COLUMN rate_limit_per_minute;`).run();
+			console.log('✅ 成功删除 rate_limit_per_minute 列');
+		} catch (e) {
+			console.log(`⚠️ rate_limit_per_minute 列不存在或删除失败：${e.message}`);
+		}
+
+		// 添加新字段
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE share ADD COLUMN auto_recovery_seconds INTEGER DEFAULT 60 NOT NULL CHECK(auto_recovery_seconds >= 0 AND auto_recovery_seconds <= 3600);`,
+			`CREATE INDEX IF NOT EXISTS idx_share_auto_recovery ON share(auto_recovery_seconds);`
+		];
+
+		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
+			try {
+				await c.env.db.prepare(sql).run();
+				console.log(`✅ 执行SQL成功: ${sql.substring(0, 50)}...`);
+			} catch (e) {
+				console.warn(`⚠️ 跳过SQL执行，原因：${e.message}`);
+			}
+		});
+
+		await Promise.all(promises);
+		console.log('=== v2_7DB Migration Completed ===');
+	},
+
+	async v2_8DB(c) {
+		// 添加人机验证功能字段
+		console.log('=== v2_8DB Migration Started ===');
+
+		const ADD_COLUMN_SQL_LIST = [
+			`ALTER TABLE share ADD COLUMN enable_captcha INTEGER DEFAULT 0 NOT NULL CHECK(enable_captcha IN (0, 1));`,
+			`CREATE INDEX IF NOT EXISTS idx_share_enable_captcha ON share(enable_captcha);`
+		];
+
+		const promises = ADD_COLUMN_SQL_LIST.map(async (sql) => {
+			try {
+				await c.env.db.prepare(sql).run();
+				console.log(`✅ 执行SQL成功: ${sql.substring(0, 50)}...`);
+			} catch (e) {
+				console.warn(`⚠️ 跳过SQL执行，原因：${e.message}`);
+			}
+		});
+
+		await Promise.all(promises);
+		console.log('=== v2_8DB Migration Completed ===');
 	},
 
 	async v1_7DB(c) {
@@ -456,7 +554,20 @@ const init = {
       )
     `).run();
 
-		const { roleCount } = await c.env.db.prepare(`SELECT COUNT(*) as roleCount FROM role`).first();
+		// 创建管理员角色（role_id = 0）
+		const { adminRoleCount } = await c.env.db.prepare(`SELECT COUNT(*) as adminRoleCount FROM role WHERE role_id = 0`).first();
+		if (adminRoleCount === 0) {
+			await c.env.db.prepare(`
+        INSERT INTO role (
+          role_id, name, key, create_time, sort, description, user_id, is_default, send_count, send_type, account_count
+        ) VALUES (
+          0, 'admin', 'admin', '0000-00-00 00:00:00', 0, '系统管理员', 0, 0, 0, 'count', 0
+        )
+      `).run();
+		}
+
+		// 创建普通用户角色（role_id = 1）
+		const { roleCount } = await c.env.db.prepare(`SELECT COUNT(*) as roleCount FROM role WHERE role_id = 1`).first();
 		if (roleCount === 0) {
 			await c.env.db.prepare(`
         INSERT INTO role (
@@ -660,7 +771,7 @@ const init = {
 				user_id INTEGER NOT NULL,
 				is_active INTEGER DEFAULT 1 NOT NULL,
 				rate_limit_per_second INTEGER DEFAULT 5 NOT NULL,
-				rate_limit_per_minute INTEGER DEFAULT 60 NOT NULL
+				auto_recovery_seconds INTEGER DEFAULT 60 NOT NULL
 			)
 		`).run();
 
@@ -681,10 +792,76 @@ const init = {
 				error_message TEXT DEFAULT '',
 				access_time TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
 				response_time INTEGER DEFAULT 0,
-				email_count INTEGER DEFAULT 0
+				email_count INTEGER DEFAULT 0,
+				email_ids TEXT DEFAULT '[]'
 			)
 		`).run();
 
+	},
+
+	// 执行数据库迁移 - 添加email_ids字段
+	async migrateAddEmailIds(c) {
+		try {
+			// 检查字段是否已存在
+			const tableInfo = await c.env.db.prepare(`PRAGMA table_info(share_access_log)`).all();
+			const hasEmailIds = tableInfo.results.some(column => column.name === 'email_ids');
+
+			if (!hasEmailIds) {
+				// 添加email_ids字段
+				await c.env.db.prepare(`ALTER TABLE share_access_log ADD COLUMN email_ids TEXT DEFAULT '[]'`).run();
+
+				// 创建索引
+				await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_share_access_log_id ON share_access_log(log_id)`).run();
+				await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_share_access_log_share_id ON share_access_log(share_id)`).run();
+
+				return { success: true, message: 'email_ids字段添加成功' };
+			} else {
+				return { success: true, message: 'email_ids字段已存在，无需迁移' };
+			}
+		} catch (error) {
+			console.error('迁移失败:', error);
+			return { success: false, message: '迁移失败: ' + error.message };
+		}
+	},
+
+	// 执行数据库迁移 - 添加冷却配置字段
+	async migrateCooldownConfig(c) {
+		try {
+			// 检查字段是否已存在
+			const tableInfo = await c.env.db.prepare(`PRAGMA table_info(share)`).all();
+			const hasCooldownEnabled = tableInfo.results.some(column => column.name === 'cooldown_enabled');
+			const hasCooldownSeconds = tableInfo.results.some(column => column.name === 'cooldown_seconds');
+
+			let addedFields = [];
+
+			if (!hasCooldownEnabled) {
+				// 添加cooldown_enabled字段
+				await c.env.db.prepare(`ALTER TABLE share ADD COLUMN cooldown_enabled INTEGER DEFAULT 1 NOT NULL CHECK(cooldown_enabled IN (0, 1))`).run();
+				addedFields.push('cooldown_enabled');
+			}
+
+			if (!hasCooldownSeconds) {
+				// 添加cooldown_seconds字段
+				await c.env.db.prepare(`ALTER TABLE share ADD COLUMN cooldown_seconds INTEGER DEFAULT 10 NOT NULL CHECK(cooldown_seconds >= 1 AND cooldown_seconds <= 300)`).run();
+				addedFields.push('cooldown_seconds');
+			}
+
+			if (addedFields.length > 0) {
+				// 创建索引
+				await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_share_cooldown_config ON share(cooldown_enabled, cooldown_seconds)`).run();
+				
+				return { 
+					success: true, 
+					message: `冷却配置字段添加成功: ${addedFields.join(', ')}`,
+					addedFields: addedFields
+				};
+			} else {
+				return { success: true, message: '冷却配置字段已存在，无需迁移' };
+			}
+		} catch (error) {
+			console.error('冷却配置迁移失败:', error);
+			return { success: false, message: '迁移失败: ' + error.message };
+		}
 	}
 };
 export default init;
