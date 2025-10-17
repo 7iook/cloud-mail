@@ -70,25 +70,19 @@ jobs:
           sed -i "s|\${KV_NAMESPACE_ID}|${KV_NAMESPACE_ID}|g" "$CONFIG_FILE"
           sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
 
+          # Replace environment variable placeholders
+          # DOMAIN should be a JSON array string, e.g., '["example.com"]'
+          sed -i "s|\${DOMAIN}|${DOMAIN}|g" "$CONFIG_FILE"
+          sed -i "s|\${ADMIN}|${ADMIN}|g" "$CONFIG_FILE"
+          sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
+
           echo "🔍 Debug: Checking configuration after replacement..."
           echo "R2_BUCKET_NAME value: '$R2_BUCKET_NAME'"
           echo "R2 bucket configuration in $CONFIG_FILE:"
           grep -A 2 -B 2 "bucket_name" "$CONFIG_FILE" || true
 
-          echo "🔒 Setting Worker secrets..."
-          WORKER_NAME="cloud-mail"
-
-          # Set jwt_secret as a secret (encrypted)
-          if [ -n "$JWT_SECRET" ]; then
-            echo ">> Processing secret: 'jwt_secret'"
-            (echo "$JWT_SECRET" | npx wrangler secret put "jwt_secret" --name "$WORKER_NAME" -c "$CONFIG_FILE") || true
-          else
-            echo "⚠️ Warning: GitHub Secret 'JWT_SECRET' is not set. Skipping."
-          fi
-
-          # Note: domain and admin should be set via Cloudflare Dashboard Variables
-          # They are NOT set here to prevent overwriting production values
-          echo "✅ Note: domain and admin variables should be configured in Cloudflare Dashboard"
+          echo "🔍 Debug: Checking environment variables in $CONFIG_FILE:"
+          grep -A 1 "domain\|admin\|jwt_secret" "$CONFIG_FILE" | head -10 || true
 
           echo "🚀 Configuration updated. Starting deployment..."
           npx wrangler deploy -c "$CONFIG_FILE" | grep -v "https://.*\.workers\.dev" || true

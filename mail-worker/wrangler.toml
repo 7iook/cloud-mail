@@ -51,9 +51,10 @@ crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
 
 [vars]
 orm_log = false
-domain = ["example.com"]				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
-admin = "admin@example.com"				#管理员的邮箱	示例: admin@example.com
-jwt_secret = "your-jwt-secret-here"			#jwt令牌的密钥,随便填一串字符串
+# NOTE: domain, admin, and jwt_secret should be configured via Cloudflare Dashboard
+# or set via GitHub Actions during deployment. They are NOT hardcoded here to prevent
+# accidental exposure of production values and to allow Dashboard configuration to persist.
+# For local development, use wrangler-dev.toml instead.
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

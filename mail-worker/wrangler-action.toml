@@ -1,7 +1,7 @@
 name = "cloud-mail"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
-keep_vars = true
+keep_vars = false
 
 [observability]
 enabled = true
@@ -30,9 +30,11 @@ crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
 
 [vars]
 orm_log = false
-# NOTE: domain, admin, and jwt_secret are set via GitHub Actions secrets
-# They are NOT hardcoded here to prevent accidental exposure of production values
-# The GitHub Actions workflow will set these values from GitHub Secrets
+domain = "${DOMAIN}"
+admin = "${ADMIN}"
+jwt_secret = "${JWT_SECRET}"
+# NOTE: These placeholders are replaced by GitHub Actions during deployment
+# The GitHub Actions workflow will substitute these values from GitHub Secrets
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
