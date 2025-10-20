@@ -461,7 +461,9 @@ app.get('/share/info/:shareToken', shareRateLimitMiddleware, async (c) => {
 			latestEmailCount: shareRecord.latestEmailCount,
 			// 新增：冷却配置
 			cooldownEnabled: shareRecord.cooldownEnabled !== undefined ? shareRecord.cooldownEnabled : 1,
-			cooldownSeconds: shareRecord.cooldownSeconds || 10
+			cooldownSeconds: shareRecord.cooldownSeconds || 10,
+			// 新增：公告弹窗功能
+			announcementContent: shareRecord.announcementContent || null
 		}));
 
 	} catch (error) {
