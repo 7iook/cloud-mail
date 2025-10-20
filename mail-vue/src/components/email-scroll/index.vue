@@ -13,7 +13,7 @@
         <slot name="first"></slot>
         <Icon class="icon reload" icon="ion:reload" width="18" height="18" @click="refresh"/>
         <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16"
-              v-if="getSelectedMailsIds().length > 0"
+              v-if="allowDelete && getSelectedMailsIds().length > 0"
               @click="handleDelete"/>
       </div>
 
@@ -117,6 +117,13 @@
                 </div>
               </div>
               <div class="email-right" :style="showUserInfo ? 'align-self: start;':''">
+                <div class="read-count-badge" v-if="item.readCount !== undefined">
+                  <el-tooltip effect="dark" :content="`已查看 ${item.readCount} 次`" placement="top">
+                    <el-badge :value="item.readCount" :max="99" :hidden="item.readCount === 0">
+                      <Icon icon="mdi:eye-outline" :color="item.readCount > 0 ? '#409EFF' : '#909399'" width="18" height="18"/>
+                    </el-badge>
+                  </el-tooltip>
+                </div>
                 <span class="email-time">{{ fromNow(item.createTime) }}</span>
               </div>
             </div>
@@ -226,6 +233,10 @@ const props = defineProps({
     type: Boolean,
     default: true
   },
+  allowDelete: {
+    type: Boolean,
+    default: true
+  },
   type: {
     type: String,
     default: ''
@@ -276,6 +287,7 @@ const queryParam = reactive({
 });
 
 defineExpose({
+  refresh,
   refreshList,
   deleteEmail,
   addItem,
@@ -977,8 +989,22 @@ function loadData() {
     display: flex;
     padding-left: 15px;
     align-items: center;
+    gap: 12px;
     @media (max-width: 1366px) {
       display: none;
+    }
+  }
+
+  .read-count-badge {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    
+    :deep(.el-badge__content) {
+      font-size: 11px;
+      height: 16px;
+      line-height: 16px;
+      padding: 0 5px;
     }
   }
 
