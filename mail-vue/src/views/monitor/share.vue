@@ -79,25 +79,6 @@
       <!-- 此区域已禁用渲染，防止域名信息泄露 -->
     </div>
 
-    <!-- 公告弹窗 -->
-    <el-dialog
-      v-model="showAnnouncementDialog"
-      title="公告"
-      width="500px"
-      :close-on-click-modal="false"
-      @close="handleAnnouncementClose"
-      class="announcement-dialog"
-    >
-      <div class="announcement-content">
-        {{ shareInfo?.announcementContent }}
-      </div>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="handleAnnouncementClose">关闭</el-button>
-        </div>
-      </template>
-    </el-dialog>
-
     <!-- 邮件列表 - 直接复用全部邮件页面的实现 -->
     <div v-else class="emails-container">
       <!-- 白名单验证输入框 (仅类型2分享显示) -->
@@ -165,6 +146,25 @@
         @closed="closePreview"
       />
     </div>
+
+    <!-- 公告弹窗 -->
+    <el-dialog
+      v-model="showAnnouncementDialog"
+      title="公告"
+      width="500px"
+      :close-on-click-modal="false"
+      @close="handleAnnouncementClose"
+      class="announcement-dialog"
+    >
+      <div class="announcement-content">
+        {{ shareInfo?.announcementContent }}
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="handleAnnouncementClose">关闭</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
