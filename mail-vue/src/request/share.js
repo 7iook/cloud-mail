@@ -48,22 +48,19 @@ export function getShareLogs(params) {
     } else {
         // 如果没有指定shareId，查询全局访问日志
         return http.get('/share/globalStats', { params: queryParams }).then(response => {
-            // 添加详细的调试日志
-            console.log('全局统计API原始响应:', response);
-            console.log('response.data:', response.data);
-            console.log('response.data.accessLogs:', response.data?.accessLogs);
+            // axios拦截器已经解包了data.data，所以response直接就是数据对象
+            console.log('全局统计API响应:', response);
+            console.log('response.accessLogs:', response?.accessLogs);
 
             // 将全局统计API的响应格式转换为访问日志格式
-            // 检查两种可能的数据结构：response.data.accessLogs 或 response.accessLogs
-            const data = response.data || response;
-            if (data && data.accessLogs) {
-                console.log('找到accessLogs，数据长度:', data.accessLogs.length);
+            if (response && response.accessLogs) {
+                console.log('找到accessLogs，数据长度:', response.accessLogs.length);
                 return {
                     data: {
-                        list: data.accessLogs,
-                        total: data.total || data.accessLogs.length,
-                        page: data.page || 1,
-                        pageSize: data.pageSize || 20
+                        list: response.accessLogs,
+                        total: response.total || response.accessLogs.length,
+                        page: response.page || 1,
+                        pageSize: response.pageSize || 20
                     }
                 };
             }
