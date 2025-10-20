@@ -62,7 +62,9 @@ app.post('/share/create', async (c) => {
 			cooldownEnabled,
 			cooldownSeconds,
 			// 新增参数：人机验证功能
-			enableCaptcha
+			enableCaptcha,
+			// 新增参数：公告弹窗功能
+			announcementContent
 		} = requestBody;
 		const userId = userContext.getUserId(c);
 
@@ -345,7 +347,9 @@ app.post('/share/create', async (c) => {
 			cooldownEnabled: cooldownEnabled !== undefined ? (cooldownEnabled ? 1 : 0) : 1, // 默认启用冷却
 			cooldownSeconds: cooldownSeconds !== undefined ? parseInt(cooldownSeconds) : 10, // 默认10秒
 			// 新增：人机验证功能
-			enableCaptcha: enableCaptcha !== undefined ? (enableCaptcha ? 1 : 0) : 0 // 默认禁用
+			enableCaptcha: enableCaptcha !== undefined ? (enableCaptcha ? 1 : 0) : 0, // 默认禁用
+			// 新增：公告弹窗功能
+			announcementContent: announcementContent || null // 公告内容，NULL表示没有公告
 		};
 
 		const shareRecord = await shareService.create(c, shareData, userId);
@@ -1266,6 +1270,45 @@ app.patch('/share/:shareId/advanced-settings', async (c) => {
 			return c.json(result.fail(error.message), error.code);
 		}
 		return c.json(result.fail('更新高级设置失败'), 500);
+	}
+});
+
+// 更新分享公告内容
+app.patch('/share/:shareId/announcement', async (c) => {
+	try {
+		const user = c.get('user');
+		if (!user) {
+			return c.json(result.fail('用户未认证'), 401);
+		}
+
+		const userId = user.userId;
+		const shareId = parseInt(c.req.param('shareId'));
+		const { announcementContent } = await c.req.json();
+
+		if (!shareId || isNaN(shareId)) {
+			throw new BizError('参数错误：shareId不能为空', 400);
+		}
+
+		// 验证公告内容长度
+		if (announcementContent !== null && announcementContent !== undefined) {
+			if (typeof announcementContent !== 'string') {
+				throw new BizError('参数错误：announcementContent必须是字符串或null', 400);
+			}
+			if (announcementContent.length > 5000) {
+				throw new BizError('公告内容不能超过5000字符', 400);
+			}
+		}
+
+		const updateResult = await shareService.updateAdvancedSettings(c, shareId, { announcementContent });
+
+		return c.json(result.ok(updateResult));
+
+	} catch (error) {
+		console.error('Update share announcement error:', error);
+		if (error instanceof BizError) {
+			return c.json(result.fail(error.message), error.code || 400);
+		}
+		return c.json(result.fail('更新公告内容失败'), 500);
 	}
 });
 

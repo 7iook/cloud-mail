@@ -198,7 +198,9 @@ const shareService = {
 			// 新增：邮件数量限制和自动刷新功能
 			latestEmailCount,
 			autoRefreshEnabled,
-			autoRefreshInterval
+			autoRefreshInterval,
+			// 新增：公告弹窗功能
+			announcementContent
 		} = params;
 
 		// 生成分享token
@@ -260,7 +262,9 @@ const shareService = {
 			// 邮件数量限制和自动刷新功能
 			latestEmailCount: latestEmailCount !== undefined ? latestEmailCount : null,
 			autoRefreshEnabled: autoRefreshEnabled !== undefined ? (autoRefreshEnabled ? 1 : 0) : 0,
-			autoRefreshInterval: autoRefreshInterval !== undefined ? autoRefreshInterval : 30
+			autoRefreshInterval: autoRefreshInterval !== undefined ? autoRefreshInterval : 30,
+			// 公告弹窗功能
+			announcementContent: announcementContent || null
 		};
 
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();
@@ -881,7 +885,9 @@ const shareService = {
 			// 需求 4：支持修改授权邮箱
 			authorizedEmails,
 			// 人机验证功能
-			enableCaptcha
+			enableCaptcha,
+			// 公告弹窗功能
+			announcementContent
 		} = settings;
 
 		console.log('解构后的参数:', {
@@ -1053,6 +1059,15 @@ const shareService = {
 		// if (enableCaptcha !== undefined) {
 		//	updateData.enableCaptcha = enableCaptcha ? 1 : 0;
 		// }
+
+		// 公告弹窗功能
+		if (announcementContent !== undefined) {
+			// 验证公告内容长度（最多5000字符）
+			if (announcementContent !== null && announcementContent.length > 5000) {
+				throw new BizError('公告内容不能超过5000字符', 400);
+			}
+			updateData.announcementContent = announcementContent || null;
+		}
 
 		console.log('构建的更新数据:', updateData);
 
