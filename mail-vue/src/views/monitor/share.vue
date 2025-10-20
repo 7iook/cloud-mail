@@ -246,6 +246,7 @@ const {
 // 公告弹窗相关状态
 const showAnnouncementDialog = ref(false)
 const announcementShown = ref(false) // 标记是否已显示过公告
+const announcementVersionInfo = ref(null) // 存储公告版本信息 {version, shownAt}
 
 // 获取别名类型文本
 const getAliasTypeText = (aliasType) => {
@@ -348,15 +349,44 @@ const loadShareInfo = async () => {
     rateLimitError.value = null
     rateLimitRetryAfter.value = 0
 
-    // 显示公告弹窗（如果有公告内容且未显示过）
-    if (info.announcementContent && !announcementShown.value) {
-      nextTick(() => {
-        showAnnouncementDialog.value = true
-        announcementShown.value = true
-        // 保存到localStorage，防止同一设备重复显示
-        const announcementKey = `announcement_shown_${shareToken}`
-        localStorage.setItem(announcementKey, 'true')
-      })
+    // 显示公告弹窗（支持版本控制，当公告内容更新时重新显示）
+    if (info.announcementContent && info.announcementVersion) {
+      const announcementKey = `announcement_version_${shareToken}`
+      const storedVersionInfo = localStorage.getItem(announcementKey)
+      let shouldShowAnnouncement = false
+
+      if (storedVersionInfo) {
+        try {
+          const versionInfo = JSON.parse(storedVersionInfo)
+          // 如果版本不同，说明公告内容已更新，需要重新显示
+          if (versionInfo.version !== info.announcementVersion) {
+            shouldShowAnnouncement = true
+          }
+        } catch (e) {
+          // 如果解析失败，显示公告
+          shouldShowAnnouncement = true
+        }
+      } else {
+        // 首次访问，显示公告
+        shouldShowAnnouncement = true
+      }
+
+      if (shouldShowAnnouncement) {
+        nextTick(() => {
+          showAnnouncementDialog.value = true
+          announcementShown.value = true
+          // 保存版本信息到localStorage
+          const versionInfo = {
+            version: info.announcementVersion,
+            shownAt: new Date().toISOString()
+          }
+          localStorage.setItem(announcementKey, JSON.stringify(versionInfo))
+        })
+      }
+    } else if (!info.announcementContent) {
+      // 如果公告内容为空，清除localStorage中的记录
+      const announcementKey = `announcement_version_${shareToken}`
+      localStorage.removeItem(announcementKey)
     }
 
     loading.value = false

@@ -1060,13 +1060,22 @@ const shareService = {
 		//	updateData.enableCaptcha = enableCaptcha ? 1 : 0;
 		// }
 
-		// 公告弹窗功能
+		// 公告弹窗功能（支持版本控制）
 		if (announcementContent !== undefined) {
 			// 验证公告内容长度（最多5000字符）
 			if (announcementContent !== null && announcementContent.length > 5000) {
 				throw new BizError('公告内容不能超过5000字符', 400);
 			}
 			updateData.announcementContent = announcementContent || null;
+
+			// 当公告内容更新时，自动更新版本号（使用当前时间戳）
+			// 这样前端可以通过比较版本号来判断是否需要重新显示公告
+			if (announcementContent !== null) {
+				updateData.announcementVersion = Math.floor(Date.now() / 1000);
+			} else {
+				// 如果公告内容被清空，也清空版本号
+				updateData.announcementVersion = null;
+			}
 		}
 
 		console.log('构建的更新数据:', updateData);
