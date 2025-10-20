@@ -101,6 +101,34 @@ http.interceptors.response.use((res) => {
     },
     (error) => {
 
+        // 处理 HTTP 401 未授权错误
+        if (error.response && error.response.status === 401) {
+            // 检查是否是分享页面的请求
+            if (error.config && error.config.sharePageRequest) {
+                // 分享页面的401错误，显示友好提示，不跳转登录页面
+                ElMessage({
+                    message: '分享链接已失效或权限不足',
+                    type: 'warning',
+                    plain: true,
+                    grouping: true,
+                    repeatNum: -4,
+                })
+                return Promise.reject(error)
+            }
+
+            // 非分享页面的401错误，清除token并重定向到登录页
+            ElMessage({
+                message: '登录已过期，请重新登录',
+                type: 'error',
+                plain: true,
+                grouping: true,
+                repeatNum: -4,
+            })
+            safeStorage.removeItem('token')
+            router.push('/login')
+            return Promise.reject(error)
+        }
+
         // 处理 HTTP 429 频率限制错误
         if (error.response && error.response.status === 429) {
             // 检查是否是分享页面的请求
