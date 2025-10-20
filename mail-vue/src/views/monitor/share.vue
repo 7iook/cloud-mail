@@ -79,6 +79,25 @@
       <!-- 此区域已禁用渲染，防止域名信息泄露 -->
     </div>
 
+    <!-- 公告弹窗 -->
+    <el-dialog
+      v-model="showAnnouncementDialog"
+      title="公告"
+      width="500px"
+      :close-on-click-modal="false"
+      @close="handleAnnouncementClose"
+      class="announcement-dialog"
+    >
+      <div class="announcement-content">
+        {{ shareInfo?.announcementContent }}
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="handleAnnouncementClose">关闭</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
     <!-- 邮件列表 - 直接复用全部邮件页面的实现 -->
     <div v-else class="emails-container">
       <!-- 白名单验证输入框 (仅类型2分享显示) -->
@@ -224,6 +243,10 @@ const {
   closePreview
 } = useSpacePreview()
 
+// 公告弹窗相关状态
+const showAnnouncementDialog = ref(false)
+const announcementShown = ref(false) // 标记是否已显示过公告
+
 // 获取别名类型文本
 const getAliasTypeText = (aliasType) => {
   const typeMap = {
@@ -324,6 +347,17 @@ const loadShareInfo = async () => {
     // 清除频率限制错误
     rateLimitError.value = null
     rateLimitRetryAfter.value = 0
+
+    // 显示公告弹窗（如果有公告内容且未显示过）
+    if (info.announcementContent && !announcementShown.value) {
+      nextTick(() => {
+        showAnnouncementDialog.value = true
+        announcementShown.value = true
+        // 保存到localStorage，防止同一设备重复显示
+        const announcementKey = `announcement_shown_${shareToken}`
+        localStorage.setItem(announcementKey, 'true')
+      })
+    }
 
     loading.value = false
   } catch (err) {
@@ -685,11 +719,23 @@ const handleCaptchaVerify = async () => {
   }
 }
 
+// 处理公告弹窗关闭
+const handleAnnouncementClose = () => {
+  showAnnouncementDialog.value = false
+}
+
 // 初始化
 onMounted(async () => {
   emailStore.emailScroll = scroll
   // 从 localStorage 加载分屏布局设置
   emailStore.loadSplitLayoutFromStorage()
+
+  // 检查是否已显示过公告
+  const announcementKey = `announcement_shown_${shareToken}`
+  if (localStorage.getItem(announcementKey)) {
+    announcementShown.value = true
+  }
+
   await loadShareInfo()
 })
 
@@ -1085,6 +1131,29 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 公告弹窗样式 */
+.announcement-dialog {
+  :deep(.el-dialog__header) {
+    border-bottom: 1px solid #ebeef5;
+  }
+}
+
+.announcement-content {
+  padding: 20px;
+  line-height: 1.6;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .new-emails-badge {

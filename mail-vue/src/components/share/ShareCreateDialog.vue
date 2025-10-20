@@ -508,6 +508,21 @@
           启用Cloudflare Turnstile人机验证，防止恶意访问。当访问频率超过限制时，访问者需要完成验证才能继续访问。
         </div>
       </el-form-item>
+
+      <!-- 新增：公告弹窗功能 -->
+      <el-form-item label="公告内容" prop="announcementContent">
+        <el-input
+          v-model="form.announcementContent"
+          type="textarea"
+          placeholder="输入公告内容（可选），访问者打开分享链接时会看到此公告。留空表示不显示公告。"
+          maxlength="5000"
+          show-word-limit
+          :rows="4"
+        />
+        <div class="form-tip">
+          公告内容最多5000字符。访问者可以关闭公告，同一设备不会再次显示。
+        </div>
+      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -672,7 +687,9 @@ const form = reactive({
   cooldownEnabled: true, // 冷却功能开关，默认启用
   cooldownSeconds: 10, // 冷却时间（秒），默认10秒
   // 新增：人机验证功能
-  enableCaptcha: false // 人机验证开关，默认禁用
+  enableCaptcha: false, // 人机验证开关，默认禁用
+  // 新增：公告弹窗功能
+  announcementContent: '' // 公告内容，空字符串表示不显示公告
 });
 
 // 表单验证规则
@@ -1121,6 +1138,8 @@ const resetForm = () => {
   selectedEmailsFromAll.value = [];
   batchEmailInput.value = '';
   singleEmailInput.value = '';
+  // 公告弹窗功能重置
+  form.announcementContent = '';
 
   nextTick(() => {
     formRef.value?.clearValidate();
@@ -1234,7 +1253,9 @@ const handleSubmit = async () => {
         showFullEmail: form.showFullEmail,
         // 冷却功能配置
         cooldownEnabled: form.cooldownEnabled,
-        cooldownSeconds: form.cooldownSeconds
+        cooldownSeconds: form.cooldownSeconds,
+        // 公告弹窗功能
+        announcementContent: form.announcementContent || null
       };
 
       try {
@@ -1270,7 +1291,9 @@ const handleSubmit = async () => {
           autoRecoverySeconds: form.autoRecoverySeconds,
           // 冷却功能配置
           cooldownEnabled: form.cooldownEnabled,
-          cooldownSeconds: form.cooldownSeconds
+          cooldownSeconds: form.cooldownSeconds,
+          // 公告弹窗功能
+          announcementContent: form.announcementContent || null
         };
 
         try {

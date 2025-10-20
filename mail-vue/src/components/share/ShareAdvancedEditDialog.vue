@@ -265,6 +265,21 @@
         </div>
       </el-form-item>
 
+      <!-- 新增：公告弹窗功能 -->
+      <el-form-item label="公告内容" prop="announcementContent">
+        <el-input
+          v-model="formData.announcementContent"
+          type="textarea"
+          placeholder="输入公告内容（可选），访问者打开分享链接时会看到此公告。留空表示不显示公告。"
+          maxlength="5000"
+          show-word-limit
+          :rows="4"
+        />
+        <div class="form-tip">
+          公告内容最多5000字符。访问者可以关闭公告，同一设备不会再次显示。
+        </div>
+      </el-form-item>
+
       <!-- 新增：TOKEN 管理 -->
       <el-form-item label="API Token 管理">
         <div class="token-management">
@@ -412,6 +427,8 @@ const formData = reactive({
   cooldownSeconds: 10,
   // 新增：人机验证功能
   enableCaptcha: false,
+  // 新增：公告弹窗功能
+  announcementContent: '',
   // 新增：TOKEN 相关字段
   shareToken: '',
   shareUrl: '',
@@ -620,6 +637,7 @@ const handleSave = async () => {
       (formData.cooldownEnabled ? 1 : 0) !== props.shareData.cooldownEnabled ||
       formData.cooldownSeconds !== props.shareData.cooldownSeconds ||
       (formData.enableCaptcha ? 1 : 0) !== props.shareData.enableCaptcha ||
+      formData.announcementContent !== (props.shareData.announcementContent || '') ||
       authorizedEmailsChanged
 
     if (needsAdvancedUpdate) {
@@ -640,7 +658,9 @@ const handleSave = async () => {
           cooldownEnabled: formData.cooldownEnabled ? 1 : 0,
           cooldownSeconds: parseInt(formData.cooldownSeconds) || 10,
           // 人机验证字段
-          enableCaptcha: formData.enableCaptcha ? 1 : 0
+          enableCaptcha: formData.enableCaptcha ? 1 : 0,
+          // 公告弹窗功能
+          announcementContent: formData.announcementContent || null
         }
 
         // 问题 1 修复：添加授权邮箱到高级设置（仅当发生变化时）
