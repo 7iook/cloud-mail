@@ -439,16 +439,35 @@
             v-model="form.autoRefreshInterval"
             :disabled="!form.autoRefreshEnabled"
             style="width: 120px; margin-left: 12px"
+            @change="handleAutoRefreshIntervalChange"
           >
+            <el-option label="5秒" :value="5" />
+            <el-option label="10秒" :value="10" />
+            <el-option label="19秒" :value="19" />
             <el-option label="30秒" :value="30" />
             <el-option label="60秒" :value="60" />
             <el-option label="120秒" :value="120" />
             <el-option label="300秒" :value="300" />
+            <el-option label="自定义" :value="0" />
           </el-select>
           <span class="unit-text">间隔</span>
+          <!-- 自定义输入框 -->
+          <el-input
+            v-if="form.autoRefreshInterval === 0 && form.autoRefreshEnabled"
+            v-model.number="customAutoRefreshInterval"
+            type="number"
+            placeholder="输入秒数(1-3600)"
+            style="width: 120px; margin-left: 12px"
+            :min="1"
+            :max="3600"
+            @input="validateCustomAutoRefreshInterval"
+          />
         </div>
         <div class="form-tip">
-          启用后，访问者的页面会自动刷新获取最新邮件。建议间隔不少于30秒。
+          启用后，访问者的页面会自动刷新获取最新邮件。自定义间隔范围：1-3600秒。
+        </div>
+        <div v-if="autoRefreshIntervalError" class="form-error">
+          {{ autoRefreshIntervalError }}
         </div>
       </el-form-item>
 
@@ -619,6 +638,10 @@ const randomGeneratorForm = reactive({
 
 // 域名选择模式
 const domainSelectionMode = ref('auto'); // 'auto' 或 'manual'
+
+// 自动刷新相关
+const customAutoRefreshInterval = ref(null);
+const autoRefreshIntervalError = ref('');
 
 // 表单数据
 const form = reactive({
@@ -1026,6 +1049,51 @@ const getDomainStatistics = (emails) => {
   return domainCounts;
 };
 
+// 处理自动刷新间隔变更
+const handleAutoRefreshIntervalChange = () => {
+  autoRefreshIntervalError.value = '';
+  if (form.autoRefreshInterval === 0) {
+    // 选择自定义，清空错误信息
+    customAutoRefreshInterval.value = null;
+  }
+};
+
+// 验证自定义自动刷新间隔
+const validateCustomAutoRefreshInterval = () => {
+  autoRefreshIntervalError.value = '';
+
+  if (customAutoRefreshInterval.value === null || customAutoRefreshInterval.value === '') {
+    autoRefreshIntervalError.value = '请输入刷新间隔';
+    return false;
+  }
+
+  const value = parseInt(customAutoRefreshInterval.value);
+
+  if (isNaN(value)) {
+    autoRefreshIntervalError.value = '请输入有效的数字';
+    return false;
+  }
+
+  if (value < 1 || value > 3600) {
+    autoRefreshIntervalError.value = '刷新间隔必须在1-3600秒之间';
+    return false;
+  }
+
+  return true;
+};
+
+// 获取最终的自动刷新间隔
+const getFinalAutoRefreshInterval = () => {
+  if (form.autoRefreshInterval === 0) {
+    // 自定义模式
+    if (!validateCustomAutoRefreshInterval()) {
+      throw new Error(autoRefreshIntervalError.value);
+    }
+    return parseInt(customAutoRefreshInterval.value);
+  }
+  return form.autoRefreshInterval;
+};
+
 // 重置表单
 const resetForm = () => {
   form.shareType = 1;
@@ -1042,6 +1110,8 @@ const resetForm = () => {
   form.latestEmailCount = null;
   form.autoRefreshEnabled = false;
   form.autoRefreshInterval = 30;
+  customAutoRefreshInterval.value = null;
+  autoRefreshIntervalError.value = '';
   // 模板匹配功能重置
   form.filterMode = 1;
   form.templateId = '';
@@ -1073,6 +1143,17 @@ const handleSubmit = async () => {
 
     const expireTime = form.expireTime || dayjs().add(7, 'day').toISOString();
     const results = [];
+
+    // 获取最终的自动刷新间隔（支持自定义）
+    let finalAutoRefreshInterval = form.autoRefreshInterval;
+    if (form.autoRefreshEnabled && form.autoRefreshInterval === 0) {
+      try {
+        finalAutoRefreshInterval = getFinalAutoRefreshInterval();
+      } catch (error) {
+        ElMessage.error(error.message);
+        return;
+      }
+    }
 
     if (form.shareType === 2) {
       // 类型2：多邮箱验证分享，创建一个包含授权邮箱列表的分享
@@ -1146,7 +1227,7 @@ const handleSubmit = async () => {
         // 新增：邮件数量限制和自动刷新功能
         latestEmailCount: form.latestEmailCount,
         autoRefreshEnabled: form.autoRefreshEnabled,
-        autoRefreshInterval: form.autoRefreshInterval,
+        autoRefreshInterval: finalAutoRefreshInterval,
         // 模板匹配功能
         filterMode: form.filterMode,
         templateId: form.templateId,
@@ -1179,7 +1260,7 @@ const handleSubmit = async () => {
           // 新增：邮件数量限制和自动刷新功能
           latestEmailCount: form.latestEmailCount,
           autoRefreshEnabled: form.autoRefreshEnabled,
-          autoRefreshInterval: form.autoRefreshInterval,
+          autoRefreshInterval: finalAutoRefreshInterval,
           // 模板匹配功能
           filterMode: form.filterMode,
           templateId: form.templateId,

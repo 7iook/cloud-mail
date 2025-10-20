@@ -6,7 +6,7 @@
         <h2>📨 验证码邮件分享</h2>
         <div class="config-info" v-if="monitorConfig">
           <span class="email-address">{{ monitorConfig.emailAddress }}</span>
-          <el-tag size="small" type="info">{{ getAliasTypeText(monitorConfig.aliasType) }}</el-tag>
+          <el-tag size="small" type="info">{{ getShareTypeText(shareInfo?.shareType) }}</el-tag>
         </div>
       </div>
       <div class="header-right">
@@ -34,6 +34,42 @@
     <div v-if="loading" class="loading-container">
       <div v-loading="true" element-loading-text="加载中...">
         <div style="height: 200px;"></div>
+      </div>
+    </div>
+
+    <!-- 人机验证提示 -->
+    <div v-if="captchaRequired" class="captcha-container">
+      <div class="captcha-box">
+        <Icon icon="material-symbols:verified-user" class="captcha-icon" />
+        <div class="captcha-content">
+          <h3>安全验证</h3>
+          <p>为了保护您的账户安全，请完成人机验证</p>
+          <div class="turnstile-widget">
+            <div id="cf-turnstile"></div>
+          </div>
+          <el-button
+            type="primary"
+            @click="handleCaptchaVerify"
+            :loading="captchaVerifying"
+            :disabled="!captchaToken"
+          >
+            验证并继续
+          </el-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 频率限制错误提示 -->
+    <div v-else-if="rateLimitError" class="rate-limit-error-container">
+      <div class="rate-limit-error">
+        <Icon icon="material-symbols:schedule" class="error-icon" />
+        <div class="error-content">
+          <h3>访问过于频繁</h3>
+          <p>{{ rateLimitError }}</p>
+          <p class="retry-countdown" v-if="rateLimitRetryAfter > 0">
+            将在 <strong>{{ rateLimitRetryAfter }}</strong> 秒后自动重试...
+          </p>
+        </div>
       </div>
     </div>
 
@@ -84,6 +120,7 @@
         <!-- 邮件列表 -->
         <template #list>
           <emailScroll
+            v-if="shareInfo"
             ref="scroll"
             :getEmailList="getEmailList"
             :time-sort="0"
@@ -163,10 +200,20 @@ const autoRefreshPaused = ref(false)
 const newEmailsCount = ref(0)
 let autoRefreshTimer = null
 
+// 新增：人机验证相关状态
+const captchaRequired = ref(false)
+const captchaToken = ref('')
+const captchaVerifying = ref(false)
+
 // 按钮冷却机制
 const cooldownTime = ref(0)
 const isCooldown = computed(() => cooldownTime.value > 0)
 let cooldownTimer = null
+
+// 频率限制状态
+const rateLimitError = ref(null)
+const rateLimitRetryAfter = ref(0)
+let rateLimitRetryTimer = null
 
 // SpacePreview功能
 const {
@@ -186,6 +233,15 @@ const getAliasTypeText = (aliasType) => {
     'wildcard': '通配符匹配'
   }
   return typeMap[aliasType] || '未知类型'
+}
+
+// Fix P2-50: 获取分享类型文本
+const getShareTypeText = (shareType) => {
+  const typeMap = {
+    1: '单邮箱分享',
+    2: '邮箱输入分享'
+  }
+  return typeMap[shareType] || '未知类型'
 }
 
 // 处理邮件选择 - 分享页面专用逻辑，不跳转到后台
@@ -265,9 +321,47 @@ const loadShareInfo = async () => {
       }
     }
 
+    // 清除频率限制错误
+    rateLimitError.value = null
+    rateLimitRetryAfter.value = 0
+
     loading.value = false
   } catch (err) {
     console.error('加载分享信息失败:', err)
+
+    // 处理 HTTP 403 需要人机验证错误
+    if ((err.status === 403 || err.code === 403) && err.headers?.['x-captcha-required'] === 'true') {
+      console.log('检测到需要人机验证')
+      captchaRequired.value = true
+      loading.value = false
+
+      // 加载Turnstile脚本
+      nextTick(() => {
+        loadTurnstileScript()
+      })
+      return
+    }
+
+    // 处理 HTTP 429 频率限制错误
+    if (err.status === 429 || err.code === 429) {
+      const retryAfter = err.retryAfter || 60
+      rateLimitError.value = `访问过于频繁，请在 ${retryAfter} 秒后重试`
+      rateLimitRetryAfter.value = retryAfter
+
+      // 启动倒计时
+      if (rateLimitRetryTimer) clearInterval(rateLimitRetryTimer)
+      rateLimitRetryTimer = setInterval(() => {
+        rateLimitRetryAfter.value--
+        if (rateLimitRetryAfter.value <= 0) {
+          clearInterval(rateLimitRetryTimer)
+          // 自动重试
+          loadShareInfo()
+        }
+      }, 1000)
+
+      loading.value = false
+      return
+    }
 
     // 🔒 安全策略：404错误不渲染任何内容
     // 禁用/无效的分享链接应该由后端直接返回404，前端不应该渲染
@@ -436,21 +530,26 @@ const startAutoRefresh = () => {
           const hasNewEmails = response.emails.some(email => email.emailId > currentLatestId)
 
           if (hasNewEmails) {
-            // 更新邮件列表
-            response.emails.forEach(email => {
-              if (email.emailId > currentLatestId) {
-                scroll.value.addItem(email)
-                newEmailsCount.value++
-              }
-            })
+            // Fix P1-49: 检查scroll.value是否有addItem方法，防止emailScroll组件未渲染时出错
+            if (scroll.value && typeof scroll.value.addItem === 'function') {
+              // 更新邮件列表
+              response.emails.forEach(email => {
+                if (email.emailId > currentLatestId) {
+                  scroll.value.addItem(email)
+                  newEmailsCount.value++
+                }
+              })
 
-            // 显示新邮件通知
-            if (newEmailsCount.value > 0) {
-              ElMessage.success(`收到 ${newEmailsCount.value} 封新邮件`)
-              // 3秒后重置计数
-              setTimeout(() => {
-                newEmailsCount.value = 0
-              }, 3000)
+              // 显示新邮件通知
+              if (newEmailsCount.value > 0) {
+                ElMessage.success(`收到 ${newEmailsCount.value} 封新邮件`)
+                // 3秒后重置计数
+                setTimeout(() => {
+                  newEmailsCount.value = 0
+                }, 3000)
+              }
+            } else {
+              console.warn('emailScroll组件未正确初始化，无法添加新邮件')
             }
           }
         }
@@ -495,6 +594,97 @@ const stopAutoRefresh = () => {
 // 🔒 安全策略：移除重试、返回首页、复制链接等功能
 // 这些功能会暴露系统信息，禁用的分享链接不应该提供任何交互
 
+// 加载Turnstile脚本
+const loadTurnstileScript = () => {
+  if (window.turnstile) {
+    // 脚本已加载，直接渲染
+    window.turnstile.render('#cf-turnstile', {
+      sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+      theme: 'light',
+      callback: handleTurnstileCallback,
+      'error-callback': handleTurnstileError
+    })
+  } else {
+    // 加载Turnstile脚本
+    const script = document.createElement('script')
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+    script.async = true
+    script.defer = true
+    script.onload = () => {
+      window.turnstile.render('#cf-turnstile', {
+        sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+        theme: 'light',
+        callback: handleTurnstileCallback,
+        'error-callback': handleTurnstileError
+      })
+    }
+    document.head.appendChild(script)
+  }
+}
+
+// Turnstile验证成功回调
+const handleTurnstileCallback = (token) => {
+  console.log('Turnstile验证成功，token:', token)
+  captchaToken.value = token
+}
+
+// Turnstile验证失败回调
+const handleTurnstileError = () => {
+  console.error('Turnstile验证失败')
+  ElMessage.error('人机验证失败，请重试')
+}
+
+// 处理人机验证
+const handleCaptchaVerify = async () => {
+  if (!captchaToken.value) {
+    ElMessage.error('请先完成人机验证')
+    return
+  }
+
+  try {
+    captchaVerifying.value = true
+
+    // 调用后端验证端点
+    const response = await fetch('/api/share/verify-captcha', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        token: captchaToken.value,
+        shareToken: shareToken
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('验证失败')
+    }
+
+    const data = await response.json()
+    if (data.code === 0 || data.success) {
+      ElMessage.success('验证成功，正在加载...')
+      captchaRequired.value = false
+      captchaToken.value = ''
+
+      // 重新加载分享信息
+      await loadShareInfo()
+    } else {
+      throw new Error(data.message || '验证失败')
+    }
+  } catch (error) {
+    console.error('验证错误:', error)
+    ElMessage.error('验证失败: ' + error.message)
+
+    // 重置Turnstile
+    if (window.turnstile) {
+      window.turnstile.reset()
+    }
+    captchaToken.value = ''
+  } finally {
+    captchaVerifying.value = false
+  }
+}
+
 // 初始化
 onMounted(async () => {
   emailStore.emailScroll = scroll
@@ -519,18 +709,18 @@ onUnmounted(() => {
 <style scoped>
 .share-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #ffffff;
   position: relative;
 }
 
 .page-header {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  background: #ffffff;
+  backdrop-filter: none;
+  border-bottom: 2px solid #ff9800;
   padding: 24px 20px;
   position: relative;
   z-index: 10;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -548,10 +738,7 @@ onUnmounted(() => {
   margin: 0;
   font-size: 28px;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #333333;
 }
 
 .config-info {
@@ -756,6 +943,107 @@ onUnmounted(() => {
   max-width: 500px;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* 人机验证容器 */
+.captcha-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 40px 20px;
+}
+
+.captcha-box {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  max-width: 500px;
+  text-align: center;
+}
+
+.captcha-icon {
+  font-size: 48px;
+  color: #409eff;
+  margin-bottom: 20px;
+}
+
+.captcha-content h3 {
+  margin: 0 0 12px 0;
+  color: #303133;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.captcha-content p {
+  margin: 0 0 24px 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.turnstile-widget {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+}
+
+/* 频率限制错误容器 */
+.rate-limit-error-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 24px;
+}
+
+.rate-limit-error {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 32px;
+  background: var(--el-bg-color);
+  border: 2px solid var(--el-color-warning);
+  border-radius: 12px;
+  max-width: 500px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+
+  .error-icon {
+    font-size: 48px;
+    color: var(--el-color-warning);
+    flex-shrink: 0;
+  }
+
+  .error-content {
+    flex: 1;
+
+    h3 {
+      margin: 0 0 8px 0;
+      color: var(--el-text-color-primary);
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    p {
+      margin: 0 0 8px 0;
+      color: var(--el-text-color-regular);
+      font-size: 14px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    .retry-countdown {
+      color: var(--el-color-warning);
+      font-weight: 500;
+
+      strong {
+        color: var(--el-color-warning);
+        font-size: 16px;
+      }
+    }
+  }
 }
 
 /* 自动刷新状态样式 */

@@ -195,16 +195,35 @@
             v-model="formData.autoRefreshInterval"
             :disabled="!formData.autoRefreshEnabled"
             style="width: 120px; margin-left: 12px"
+            @change="handleAutoRefreshIntervalChange"
           >
+            <el-option label="5秒" :value="5" />
+            <el-option label="10秒" :value="10" />
+            <el-option label="19秒" :value="19" />
             <el-option label="30秒" :value="30" />
             <el-option label="60秒" :value="60" />
             <el-option label="120秒" :value="120" />
             <el-option label="300秒" :value="300" />
+            <el-option label="自定义" :value="0" />
           </el-select>
           <span class="unit-text">间隔</span>
+          <!-- 自定义输入框 -->
+          <el-input
+            v-if="formData.autoRefreshInterval === 0 && formData.autoRefreshEnabled"
+            v-model.number="customAutoRefreshInterval"
+            type="number"
+            placeholder="输入秒数(1-3600)"
+            style="width: 120px; margin-left: 12px"
+            :min="1"
+            :max="3600"
+            @input="validateCustomAutoRefreshInterval"
+          />
         </div>
         <div class="form-tip">
-          启用后，访问者的页面会自动刷新获取最新邮件。建议间隔不少于30秒。
+          启用后，访问者的页面会自动刷新获取最新邮件。自定义间隔范围：1-3600秒。
+        </div>
+        <div v-if="autoRefreshIntervalError" class="form-error">
+          {{ autoRefreshIntervalError }}
         </div>
       </el-form-item>
 
@@ -228,6 +247,21 @@
         </div>
         <div class="form-tip">
           控制点击"获取最新验证码"按钮后的冷却时间。禁用后可无限制点击。
+        </div>
+      </el-form-item>
+
+      <!-- 新增：人机验证功能 -->
+      <el-form-item label="人机验证">
+        <div class="limit-control">
+          <el-switch
+            v-model="formData.enableCaptcha"
+            active-text="启用"
+            inactive-text="禁用"
+          />
+          <span class="unit-text" style="margin-left: 12px;">启用后触发频率限制时需要进行人机验证</span>
+        </div>
+        <div class="form-tip">
+          启用Cloudflare Turnstile人机验证，防止恶意访问。当访问频率超过限制时，访问者需要完成验证才能继续访问。
         </div>
       </el-form-item>
 
@@ -352,6 +386,10 @@ const saving = ref(false)
 const refreshingToken = ref(false)
 const formRef = ref()
 
+// 自动刷新相关
+const customAutoRefreshInterval = ref(null)
+const autoRefreshIntervalError = ref('')
+
 // 表单数据
 const formData = reactive({
   shareId: '',
@@ -372,6 +410,8 @@ const formData = reactive({
   // 新增：冷却功能配置
   cooldownEnabled: true,
   cooldownSeconds: 10,
+  // 新增：人机验证功能
+  enableCaptcha: false,
   // 新增：TOKEN 相关字段
   shareToken: '',
   shareUrl: '',
@@ -436,6 +476,8 @@ watch(() => props.modelValue, (newVal) => {
       // 冷却配置字段填充
       cooldownEnabled: props.shareData.cooldownEnabled !== undefined ? props.shareData.cooldownEnabled === 1 : true,
       cooldownSeconds: props.shareData.cooldownSeconds || 10,
+      // 人机验证字段填充
+      enableCaptcha: props.shareData.enableCaptcha !== undefined ? props.shareData.enableCaptcha === 1 : false,
       // TOKEN 相关字段填充
       shareToken: props.shareData.shareToken || '',
       shareUrl: props.shareData.shareUrl || '',
@@ -453,6 +495,51 @@ watch(visible, (newVal) => {
   emit('update:modelValue', newVal)
 })
 
+// 处理自动刷新间隔变更
+const handleAutoRefreshIntervalChange = () => {
+  autoRefreshIntervalError.value = ''
+  if (formData.autoRefreshInterval === 0) {
+    // 选择自定义，清空错误信息
+    customAutoRefreshInterval.value = null
+  }
+}
+
+// 验证自定义自动刷新间隔
+const validateCustomAutoRefreshInterval = () => {
+  autoRefreshIntervalError.value = ''
+
+  if (customAutoRefreshInterval.value === null || customAutoRefreshInterval.value === '') {
+    autoRefreshIntervalError.value = '请输入刷新间隔'
+    return false
+  }
+
+  const value = parseInt(customAutoRefreshInterval.value)
+
+  if (isNaN(value)) {
+    autoRefreshIntervalError.value = '请输入有效的数字'
+    return false
+  }
+
+  if (value < 1 || value > 3600) {
+    autoRefreshIntervalError.value = '刷新间隔必须在1-3600秒之间'
+    return false
+  }
+
+  return true
+}
+
+// 获取最终的自动刷新间隔
+const getFinalAutoRefreshInterval = () => {
+  if (formData.autoRefreshInterval === 0) {
+    // 自定义模式
+    if (!validateCustomAutoRefreshInterval()) {
+      throw new Error(autoRefreshIntervalError.value)
+    }
+    return parseInt(customAutoRefreshInterval.value)
+  }
+  return formData.autoRefreshInterval
+}
+
 // 关闭对话框
 const handleClose = () => {
   visible.value = false
@@ -467,9 +554,20 @@ const handleSave = async () => {
   try {
     // 表单验证
     await formRef.value.validate()
-    
+
+    // 获取最终的自动刷新间隔（支持自定义）
+    let finalAutoRefreshInterval = formData.autoRefreshInterval
+    if (formData.autoRefreshEnabled && formData.autoRefreshInterval === 0) {
+      try {
+        finalAutoRefreshInterval = getFinalAutoRefreshInterval()
+      } catch (error) {
+        ElMessage.error(error.message)
+        return
+      }
+    }
+
     saving.value = true
-    
+
     // 分别调用不同的API更新各项设置
     const promises = []
     
@@ -518,9 +616,10 @@ const handleSave = async () => {
       (formData.otpLimitEnabled ? 1 : 0) !== props.shareData.otpLimitEnabled ||
       formData.latestEmailCount !== props.shareData.latestEmailCount ||
       (formData.autoRefreshEnabled ? 1 : 0) !== props.shareData.autoRefreshEnabled ||
-      formData.autoRefreshInterval !== props.shareData.autoRefreshInterval ||
+      finalAutoRefreshInterval !== props.shareData.autoRefreshInterval ||
       (formData.cooldownEnabled ? 1 : 0) !== props.shareData.cooldownEnabled ||
       formData.cooldownSeconds !== props.shareData.cooldownSeconds ||
+      (formData.enableCaptcha ? 1 : 0) !== props.shareData.enableCaptcha ||
       authorizedEmailsChanged
 
     if (needsAdvancedUpdate) {
@@ -536,10 +635,12 @@ const handleSave = async () => {
           // 新增字段
           latestEmailCount: formData.latestEmailCount ? parseInt(formData.latestEmailCount) : null,
           autoRefreshEnabled: formData.autoRefreshEnabled ? 1 : 0,
-          autoRefreshInterval: parseInt(formData.autoRefreshInterval) || 30,
+          autoRefreshInterval: finalAutoRefreshInterval,
           // 冷却配置字段
           cooldownEnabled: formData.cooldownEnabled ? 1 : 0,
-          cooldownSeconds: parseInt(formData.cooldownSeconds) || 10
+          cooldownSeconds: parseInt(formData.cooldownSeconds) || 10,
+          // 人机验证字段
+          enableCaptcha: formData.enableCaptcha ? 1 : 0
         }
 
         // 问题 1 修复：添加授权邮箱到高级设置（仅当发生变化时）
