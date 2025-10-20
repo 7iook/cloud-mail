@@ -25,3 +25,15 @@ mail-vue/node_modules
 mail-vue/dist
 .wrangler
 .venv
+
+# Environment and secrets files (never commit these)
+.dev.vars
+.dev.vars.*.local
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# But DO commit example files for documentation
+!.dev.vars.example
+!.env.example

@@ -4,28 +4,26 @@ compatibility_date = "2025-06-04"
 keep_vars = true
 
 # IMPORTANT: D1 and KV Bindings Configuration
-# Bindings are configured via Cloudflare Dashboard to prevent reset during deployment
+# Production bindings are defined in [env.production] section below
+# This ensures bindings persist across deployments and prevents reset issues
 #
-# To configure bindings:
-# 1. Login to Cloudflare Dashboard
-# 2. Go to Workers & Pages > cloud-mail Worker
-# 3. Go to Settings > Bindings
-# 4. Create or update the following bindings:
-#    - D1 Database: binding name "db", database "cloud-mail"
-#    - Workers KV: binding name "kv"
-#
-# NOTE: Bindings defined in Dashboard will persist across deployments
-# Do NOT hardcode empty IDs in wrangler.toml as it will cause deployment failures
+# For local development, bindings are configured via wrangler dev with local simulation
+# For production deployment, use: wrangler deploy --env production
 
-# Uncomment and fill in the IDs below ONLY if you want to manage bindings via wrangler.toml
-# [[d1_databases]]
-# binding = "db"
-# database_name = "cloud-mail"
-# database_id = "YOUR_D1_DATABASE_ID"  # Get from Dashboard
+# Production environment configuration
+[env.production]
+name = "cloud-mail"
 
-# [[kv_namespaces]]
-# binding = "kv"
-# id = "YOUR_KV_NAMESPACE_ID"  # Get from Dashboard
+# D1 Database binding for production
+[[env.production.d1_databases]]
+binding = "db"
+database_name = "email"
+database_id = "c8949d04-233c-4fc1-8792-89703a408842"
+
+# Workers KV binding for production
+[[env.production.kv_namespaces]]
+binding = "kv"
+id = "23ab4c58dc4a4f269a34cd3b76e46968"
 
 [observability]
 enabled = true
@@ -62,10 +60,25 @@ crons = ["0 16 * * *"]  # Scheduled task runs daily at 12 PM
 
 [vars]
 orm_log = false
-# NOTE: domain, admin, and jwt_secret should be configured via Cloudflare Dashboard
-# or set via GitHub Actions during deployment. They are NOT hardcoded here to prevent
-# accidental exposure of production values and to allow Dashboard configuration to persist.
-# For local development, use wrangler-dev.toml instead.
+
+# SECURITY NOTE: Application Secrets Configuration
+# ================================================
+# Sensitive configuration (domain, admin, jwt_secret) should be managed as secrets, not vars.
+#
+# For Production:
+#   1. Set secrets via Cloudflare Dashboard or use: npx wrangler secret put SECRET_NAME --env production
+#   2. Secrets are encrypted and never exposed in code or logs
+#   3. Secrets persist across deployments
+#
+# For Local Development:
+#   1. Copy mail-worker/.dev.vars.example to mail-worker/.dev.vars
+#   2. Fill in your local development values
+#   3. .dev.vars is automatically loaded by wrangler dev and ignored by git
+#
+# For GitHub Actions CI/CD:
+#   1. Set secrets in GitHub repository Settings > Secrets and variables > Actions
+#   2. Reference them in workflows as: ${{ secrets.SECRET_NAME }}
+#   3. Use: npx wrangler secret put SECRET_NAME --env production <<< "${{ secrets.SECRET_NAME }}"
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

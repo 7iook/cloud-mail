@@ -1,0 +1,14 @@
+# Local Development Environment Variables
+# Copy this file to .dev.vars and fill in your local development values
+# .dev.vars is ignored by git and should never be committed
+
+# Application Configuration
+DOMAIN=["localhost:3001"]
+ADMIN=admin@example.com
+JWT_SECRET=your-local-jwt-secret-key-here
+
+# Optional: For local testing with real Cloudflare resources
+# Uncomment and set these if you want to use remote bindings during local development
+# CLOUDFLARE_API_TOKEN=your-api-token
+# CLOUDFLARE_ACCOUNT_ID=your-account-id
+
