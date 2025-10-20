@@ -51,31 +51,41 @@ const requirePerms = [
 	'/regKey/list',
 	'/regKey/delete',
 	'/regKey/clearNotUse',
-	'/share/create',
-	'/regKey/history'
+	'/role/setDefault',
+	'/allEmail/list',
+	'/allEmail/delete',
+	'/setting/setBackground',
+	'/setting/set',
+	'/setting/query',
+	'/user/delete',
+	'/user/setPwd',
+	'/user/setStatus',
+	'/user/setType',
+	'/user/list',
+	'/user/resetSendCount',
+	'/user/add',
+	'/regKey/add',
+	'/regKey/list',
+	'/regKey/delete',
+	'/regKey/clearNotUse'
 ];
 
 const premKey = {
-	'email:delete': ['/email/delete'],
 	'email:send': ['/email/send'],
-	'account:add': ['/account/add'],
-	'account:query': ['/account/list'],
+	'email:delete': ['/email/delete'],
+	'account:list': ['/account/list'],
 	'account:delete': ['/account/delete'],
+	'account:add': ['/account/add'],
 	'my:delete': ['/my/delete'],
 	'role:add': ['/role/add'],
-	'role:set': ['/role/set','/role/setDefault'],
-	'role:query': ['/role/list', '/role/tree'],
+	'role:list': ['/role/list'],
 	'role:delete': ['/role/delete'],
-	'user:query': ['/user/list'],
-	'user:add': ['/user/add'],
-	'user:reset-send': ['/user/resetSendCount'],
-	'user:set-pwd': ['/user/setPwd'],
-	'user:set-status': ['/user/setStatus'],
-	'user:set-type': ['/user/setType'],
-	'user:delete': ['/user/delete'],
-	'all-email:query': ['/allEmail/list'],
-	'all-email:delete': ['/allEmail/delete','/allEmail/batchDelete'],
-	'setting:query': ['/setting/query'],
+	'role:tree': ['/role/tree'],
+	'role:set': ['/role/set'],
+	'role:setDefault': ['/role/setDefault'],
+	'allEmail:list': ['/allEmail/list'],
+	'allEmail:delete': ['/allEmail/delete'],
+	'setting:setBackground': ['/setting/setBackground'],
 	'setting:set': ['/setting/set', '/setting/setBackground'],
 	'analysis:query': ['/analysis/echarts'],
 	'reg-key:add': ['/regKey/add'],
@@ -100,17 +110,17 @@ app.use('*', async (c, next) => {
 	}
 
 	// 处理分享token直接访问（如 /share/wp4Qug766zM2gRBaNu6vg25w7ZwZx8hk）
-	// 但是要排除API路径，如 /share/globalStats, /share/stats, /share/access-detail 等
-	const shareCondition = path.startsWith('/share/') && path.length > 7 &&
-		c.req.method !== 'DELETE' && // 🔥 FIX: 排除DELETE方法，删除操作需要JWT认证
-		c.req.method !== 'PATCH' && // 🔥 FIX: 排除PATCH方法，更新操作需要JWT认证
-		!path.includes('/list') && !path.includes('/create') && !path.includes('/logs') &&
-		!path.includes('/stats') && !path.includes('/batch') && !path.includes('/refresh-token') &&
-		!path.includes('/update-limit') && !path.includes('/update-display-limit') &&
-		!path.includes('/name') && !path.includes('/expire') && !path.includes('/status') &&
-		!path.includes('/advanced-settings') && // 排除高级设置API
-		// 🔥 FIX: 移除了 !path.includes('globalStats') - globalStats API 需要认证
-		!path.includes('/access-detail'); // 排除访问详情API，需要认证
+	// 分享token的格式：32个字母数字字符
+	// 使用正则表达式精确匹配，避免使用多个 !path.includes() 检查
+	const shareTokenPattern = /^\/share\/[a-zA-Z0-9]{32}$/;
+	const isDirectShareAccess = shareTokenPattern.test(path);
+	
+	// 分享token直接访问需要满足以下条件：
+	// 1. 路径匹配分享token格式（32字符）
+	// 2. 不是DELETE或PATCH方法（这些操作需要JWT认证）
+	const shareCondition = isDirectShareAccess && 
+		c.req.method !== 'DELETE' && 
+		c.req.method !== 'PATCH';
 
 	if (shareCondition) {
 		return await next();
