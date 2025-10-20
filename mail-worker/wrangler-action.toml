@@ -1,7 +1,7 @@
 name = "cloud-mail"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
-keep_vars = false
+keep_vars = true
 
 [observability]
 enabled = true
@@ -9,24 +9,24 @@ enabled = true
 [[d1_databases]]
 binding = "db"
 database_name = "cloud-mail" # 数据库的名称
-database_id = "${D1_DATABASE_ID}" # 使用占位符引用环境变量
+database_id = "${D1_DATABASE_ID}" # 使用占位符引用环境变�?
 
 [[kv_namespaces]]
 binding = "kv"
-id = "${KV_NAMESPACE_ID}" # 使用占位符引用环境变量
+id = "${KV_NAMESPACE_ID}" # 使用占位符引用环境变�?
 
 [[r2_buckets]]
 binding = "r2"
-bucket_name = "${R2_BUCKET_NAME}" # 使用占位符引用环境变量
+bucket_name = "${R2_BUCKET_NAME}" # 使用占位符引用环境变�?
 
 [assets]
 binding = "assets"		#静态资源绑定名默认不可修改
-directory = "./dist"	#前端vue项目打包的静态资源存放位置,默认dist
+directory = "./dist"	#前端vue项目打包的静态资源存放位�?默认dist
 not_found_handling = "single-page-application"
 run_worker_first = true
 
 [triggers]
-crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
+crons = ["0 16 * * *"]	#定时任务每天晚上12点执�?
 
 [vars]
 orm_log = false

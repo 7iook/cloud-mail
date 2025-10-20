@@ -1,52 +1,52 @@
 name = "cloud-mail"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
-keep_vars = false
+keep_vars = true
 
 # 使用 Dashboard 绑定优先模式
-# KV 和 D1 绑定将从 Cloudflare Dashboard 中读取，不会被 wrangler.toml 覆盖
+# KV �?D1 绑定将从 Cloudflare Dashboard 中读取，不会�?wrangler.toml 覆盖
 
 [observability]
 enabled = true
 
 #[[d1_databases]]
 #binding = "db"			#d1数据库绑定名默认不可修改
-#database_name = ""		#d1数据库名字
+#database_name = ""		#d1数据库名�?
 #database_id = ""		#d1数据库id
 
 #[[kv_namespaces]]
-#binding = "kv"			#kv绑定名默认不可修改
+#binding = "kv"			#kv绑定名默认不可修�?
 #id = ""					#kv数据库id
 
-# Rate Limiting 配置（仅限制恶意用户）
-# 取消注释以下配置以启用频率限制
+# Rate Limiting 配置（仅限制恶意用户�?
+# 取消注释以下配置以启用频率限�?
 #[[ratelimits]]
 #name = "STRICT_RATE_LIMITER"
 #namespace_id = "1001"
-#simple = { limit = 5, period = 1 }  # 1秒内最多5次
+#simple = { limit = 5, period = 1 }  # 1秒内最�?�?
 
 #[[ratelimits]]
 #name = "MODERATE_RATE_LIMITER"
 #namespace_id = "1002"
-#simple = { limit = 20, period = 10 }  # 10秒内最多20次
+#simple = { limit = 20, period = 10 }  # 10秒内最�?0�?
 
 #[[ratelimits]]
 #name = "LOOSE_RATE_LIMITER"
 #namespace_id = "1003"
-#simple = { limit = 60, period = 60 }  # 60秒内最多60次
+#simple = { limit = 60, period = 60 }  # 60秒内最�?0�?
 
 #[[r2_buckets]]
-#binding = "r2"			#r2对象存储绑定名默认不可修改
+#binding = "r2"			#r2对象存储绑定名默认不可修�?
 #bucket_name = ""		#r2对象存储桶的名字
 
 [assets]
 binding = "assets"		#静态资源绑定名默认不可修改
-directory = "./dist"	#前端vue项目打包的静态资源存放位置,默认dist
+directory = "./dist"	#前端vue项目打包的静态资源存放位�?默认dist
 not_found_handling = "single-page-application"
 run_worker_first = true
 
 [triggers]
-crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
+crons = ["0 16 * * *"]	#定时任务每天晚上12点执�?
 
 
 [vars]
