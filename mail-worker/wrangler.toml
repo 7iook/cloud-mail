@@ -4,13 +4,24 @@ compatibility_date = "2025-06-04"
 keep_vars = true
 
 # IMPORTANT: D1 and KV Bindings Configuration
-# Production bindings are defined in [env.production] section below
-# This ensures bindings persist across deployments and prevents reset issues
+# Bindings are defined in both default and [env.production] sections
+# This ensures bindings work for all deployment methods
 #
 # For local development, bindings are configured via wrangler dev with local simulation
 # For production deployment, use: wrangler deploy --env production
 
-# Production environment configuration
+# Default D1 Database binding (for auto-deployment systems)
+[[d1_databases]]
+binding = "db"
+database_name = "email"
+database_id = "c8949d04-233c-4fc1-8792-89703a408842"
+
+# Default Workers KV binding (for auto-deployment systems)
+[[kv_namespaces]]
+binding = "kv"
+id = "23ab4c58dc4a4f269a34cd3b76e46968"
+
+# Production environment configuration (for explicit --env production deployments)
 [env.production]
 name = "cloud-mail"
 
