@@ -3,51 +3,59 @@ main = "src/index.js"
 compatibility_date = "2025-06-04"
 keep_vars = true
 
-# 使用 Dashboard 绑定优先模式
-# KV �?D1 绑定将从 Cloudflare Dashboard 中读取，不会�?wrangler.toml 覆盖
+# IMPORTANT: D1 and KV Bindings Configuration
+# To prevent bindings from being reset during deployment, D1 and KV bindings MUST be defined in wrangler.toml
+# How to get database_id and id:
+# 1. Login to Cloudflare Dashboard
+# 2. Go to Workers & Pages > Your Worker
+# 3. Go to Settings > Bindings
+# 4. View the ID for each binding
+# 5. Fill in the IDs below
+# 
+# NOTE: If IDs are empty, create bindings in Dashboard first, then get the IDs
+# This ensures bindings are not reset during deployment
+
+[[d1_databases]]
+binding = "db"
+database_name = "cloud-mail"
+database_id = ""  # Get from Dashboard
+
+[[kv_namespaces]]
+binding = "kv"
+id = ""  # Get from Dashboard
 
 [observability]
 enabled = true
 
-#[[d1_databases]]
-#binding = "db"			#d1数据库绑定名默认不可修改
-#database_name = ""		#d1数据库名�?
-#database_id = ""		#d1数据库id
-
-#[[kv_namespaces]]
-#binding = "kv"			#kv绑定名默认不可修�?
-#id = ""					#kv数据库id
-
-# Rate Limiting 配置（仅限制恶意用户�?
-# 取消注释以下配置以启用频率限�?
+# Rate Limiting Configuration (only limits malicious users)
+# Uncomment the following configuration to enable rate limiting
 #[[ratelimits]]
 #name = "STRICT_RATE_LIMITER"
 #namespace_id = "1001"
-#simple = { limit = 5, period = 1 }  # 1秒内最�?�?
+#simple = { limit = 5, period = 1 }  # Max 5 requests per 1 second
 
 #[[ratelimits]]
 #name = "MODERATE_RATE_LIMITER"
 #namespace_id = "1002"
-#simple = { limit = 20, period = 10 }  # 10秒内最�?0�?
+#simple = { limit = 20, period = 10 }  # Max 20 requests per 10 seconds
 
 #[[ratelimits]]
 #name = "LOOSE_RATE_LIMITER"
 #namespace_id = "1003"
-#simple = { limit = 60, period = 60 }  # 60秒内最�?0�?
+#simple = { limit = 60, period = 60 }  # Max 60 requests per 60 seconds
 
 #[[r2_buckets]]
-#binding = "r2"			#r2对象存储绑定名默认不可修�?
-#bucket_name = ""		#r2对象存储桶的名字
+#binding = "r2"  # R2 object storage binding name (cannot be modified by default)
+#bucket_name = ""  # R2 bucket name
 
 [assets]
-binding = "assets"		#静态资源绑定名默认不可修改
-directory = "./dist"	#前端vue项目打包的静态资源存放位�?默认dist
+binding = "assets"  # Static resource binding name (cannot be modified by default)
+directory = "./dist"  # Frontend Vue project build output directory (default: dist)
 not_found_handling = "single-page-application"
 run_worker_first = true
 
 [triggers]
-crons = ["0 16 * * *"]	#定时任务每天晚上12点执�?
-
+crons = ["0 16 * * *"]  # Scheduled task runs daily at 12 PM
 
 [vars]
 orm_log = false
