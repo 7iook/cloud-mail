@@ -4,25 +4,28 @@ compatibility_date = "2025-06-04"
 keep_vars = true
 
 # IMPORTANT: D1 and KV Bindings Configuration
-# To prevent bindings from being reset during deployment, D1 and KV bindings MUST be defined in wrangler.toml
-# How to get database_id and id:
+# Bindings are configured via Cloudflare Dashboard to prevent reset during deployment
+#
+# To configure bindings:
 # 1. Login to Cloudflare Dashboard
-# 2. Go to Workers & Pages > Your Worker
+# 2. Go to Workers & Pages > cloud-mail Worker
 # 3. Go to Settings > Bindings
-# 4. View the ID for each binding
-# 5. Fill in the IDs below
-# 
-# NOTE: If IDs are empty, create bindings in Dashboard first, then get the IDs
-# This ensures bindings are not reset during deployment
+# 4. Create or update the following bindings:
+#    - D1 Database: binding name "db", database "cloud-mail"
+#    - Workers KV: binding name "kv"
+#
+# NOTE: Bindings defined in Dashboard will persist across deployments
+# Do NOT hardcode empty IDs in wrangler.toml as it will cause deployment failures
 
-[[d1_databases]]
-binding = "db"
-database_name = "cloud-mail"
-database_id = ""  # Get from Dashboard
+# Uncomment and fill in the IDs below ONLY if you want to manage bindings via wrangler.toml
+# [[d1_databases]]
+# binding = "db"
+# database_name = "cloud-mail"
+# database_id = "YOUR_D1_DATABASE_ID"  # Get from Dashboard
 
-[[kv_namespaces]]
-binding = "kv"
-id = ""  # Get from Dashboard
+# [[kv_namespaces]]
+# binding = "kv"
+# id = "YOUR_KV_NAMESPACE_ID"  # Get from Dashboard
 
 [observability]
 enabled = true
