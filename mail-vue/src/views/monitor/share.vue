@@ -1001,11 +1001,13 @@ onUnmounted(() => {
       margin-bottom: 16px;
 
       .carousel {
+        height: 250px;
+
         .carousel-item {
-          min-height: 200px;
+          height: 100%;
 
           img {
-            max-height: 300px;
+            max-height: 250px;
           }
 
           .image-caption {
@@ -1414,18 +1416,30 @@ onUnmounted(() => {
       border-radius: 8px;
       overflow: hidden;
       background: #f5f7fa;
+      height: 400px;
+
+      :deep(.el-carousel__container) {
+        height: 100%;
+      }
+
+      :deep(.el-carousel__item) {
+        height: 100%;
+      }
 
       .carousel-item {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        min-height: 300px;
+        height: 100%;
         background: #f5f7fa;
+        padding: 20px;
 
         img {
           max-width: 100%;
-          max-height: 400px;
+          max-height: 350px;
+          width: auto;
+          height: auto;
           object-fit: contain;
           border-radius: 4px;
         }
@@ -1436,6 +1450,7 @@ onUnmounted(() => {
           color: #606266;
           text-align: center;
           padding: 0 12px;
+          word-break: break-word;
         }
       }
     }
