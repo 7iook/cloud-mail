@@ -101,7 +101,6 @@ const shareAccessLogService = {
 					extractedCodes = [];
 				}
 			} catch (error) {
-				console.error('Failed to parse extractedCodes:', log.extractedCodes, error);
 				extractedCodes = [];
 			}
 
@@ -111,7 +110,6 @@ const shareAccessLogService = {
 					emailIds = [];
 				}
 			} catch (error) {
-				console.error('Failed to parse emailIds:', log.emailIds, error);
 				emailIds = [];
 			}
 
@@ -133,14 +131,9 @@ const shareAccessLogService = {
 	// 获取访问统计数据
 	async getAccessStats(c, params) {
 		console.error('=== getAccessStats called ===');
-		console.error('Params:', params);
-
 		try {
 			const { shareId, shareToken, days = 7 } = params;
 			const startDate = dayjs().subtract(days, 'day').format('YYYY-MM-DD HH:mm:ss');
-
-			console.error('Parsed params:', { shareId, shareToken, days, startDate });
-
 			// 构建时间条件
 			let whereConditions = [];
 			whereConditions.push(gte(shareAccessLog.accessTime, startDate));
@@ -151,14 +144,8 @@ const shareAccessLogService = {
 			if (shareToken) {
 				whereConditions.push(eq(shareAccessLog.shareToken, shareToken));
 			}
-
-			console.error('Where conditions count:', whereConditions.length);
-
 			// 构建基础条件（使用安全的条件组合方式）
 			const baseCondition = whereConditions.length > 0 ? and(...whereConditions) : undefined;
-
-			console.error('Base condition:', baseCondition ? 'defined' : 'undefined');
-
 			// 总访问次数
 			console.error('Querying total access...');
 			let totalAccessQuery = orm(c).select({ count: sql`count(*)` }).from(shareAccessLog);
@@ -166,8 +153,6 @@ const shareAccessLogService = {
 				totalAccessQuery = totalAccessQuery.where(baseCondition);
 			}
 			const totalAccess = await totalAccessQuery.get();
-			console.error('Step 3a: totalAccess result:', totalAccess);
-			console.error('Total access result:', totalAccess);
 
 		// 成功访问次数
 		console.error('Querying success access...');
@@ -181,8 +166,6 @@ const shareAccessLogService = {
 			successAccessQuery = successAccessQuery.where(and(...successConditions));
 		}
 		const successAccess = await successAccessQuery.get();
-		console.error('Success access result:', successAccess);
-
 		// 失败访问次数
 		console.error('Querying failed access...');
 		let failedAccessQuery = orm(c).select({ count: sql`count(*)` }).from(shareAccessLog);
@@ -195,8 +178,6 @@ const shareAccessLogService = {
 			failedAccessQuery = failedAccessQuery.where(and(...failedConditions));
 		}
 		const failedAccess = await failedAccessQuery.get();
-		console.error('Failed access result:', failedAccess);
-
 		// 被拒绝访问次数
 		console.error('Querying rejected access...');
 		let rejectedAccessQuery = orm(c).select({ count: sql`count(*)` }).from(shareAccessLog);
@@ -209,8 +190,6 @@ const shareAccessLogService = {
 			rejectedAccessQuery = rejectedAccessQuery.where(and(...rejectedConditions));
 		}
 		const rejectedAccess = await rejectedAccessQuery.get();
-		console.error('Rejected access result:', rejectedAccess);
-
 		// 独立IP数量
 		console.error('Querying unique IPs...');
 		let uniqueIpsQuery = orm(c).select({
@@ -220,8 +199,6 @@ const shareAccessLogService = {
 			uniqueIpsQuery = uniqueIpsQuery.where(baseCondition);
 		}
 		const uniqueIps = await uniqueIpsQuery.get();
-		console.error('Unique IPs result:', uniqueIps);
-
 		// 平均响应时间
 		console.error('Querying avg response time...');
 		let avgResponseTimeQuery = orm(c).select({
@@ -236,8 +213,6 @@ const shareAccessLogService = {
 			avgResponseTimeQuery = avgResponseTimeQuery.where(and(...avgConditions));
 		}
 		const avgResponseTime = await avgResponseTimeQuery.get();
-		console.error('Avg response time result:', avgResponseTime);
-
 			const result = {
 				totalAccess: totalAccess.count,
 				successAccess: successAccess.count,
@@ -253,9 +228,8 @@ const shareAccessLogService = {
 			return result;
 		} catch (error) {
 			console.error('=== getAccessStats error ===');
-			console.error('Error message:', error.message);
-			console.error('Error stack:', error.stack);
-			console.error('Error object:', error);
+
+
 			throw error;
 		}
 	},
@@ -263,8 +237,6 @@ const shareAccessLogService = {
 	// 获取全局统计（所有分享记录的汇总）- 简化版本
 	async getGlobalStats(c, params) {
 		console.error('=== getGlobalStats called (simplified version) ===');
-		console.error('Params:', params);
-
 		try {
 			const {
 				userId,
@@ -279,9 +251,6 @@ const shareAccessLogService = {
 			const days = parseInt(daysParam);
 			const page = parseInt(pageParam);
 			const pageSize = parseInt(pageSizeParam);
-
-			console.error('Parsed params:', { userId, isAdmin, days, page, pageSize });
-
 			// 构建时间条件
 			let timeCondition = null;
 			if (startDate) {
@@ -290,9 +259,6 @@ const shareAccessLogService = {
 				const cutoffDate = dayjs().subtract(days, 'day').format('YYYY-MM-DD HH:mm:ss');
 				timeCondition = gte(shareAccessLog.accessTime, cutoffDate);
 			}
-
-			console.error('Time condition built:', timeCondition ? 'has condition' : 'no condition');
-
 			// 1. 基础统计 - 简化查询
 			console.error('Step 1: Starting basic statistics...');
 
@@ -302,8 +268,6 @@ const shareAccessLogService = {
 				totalAccessQuery = totalAccessQuery.where(timeCondition);
 			}
 			const totalAccess = await totalAccessQuery.get();
-			console.error('Total access result:', totalAccess);
-
 		// 成功访问次数
 		let successAccessQuery = orm(c).select({ count: sql`count(*)` }).from(shareAccessLog);
 		const successConditions = [];
@@ -315,8 +279,6 @@ const shareAccessLogService = {
 			successAccessQuery = successAccessQuery.where(and(...successConditions));
 		}
 		const successAccess = await successAccessQuery.get();
-		console.error('Success access result:', successAccess);
-
 		// 失败访问次数
 		let failedAccessQuery = orm(c).select({ count: sql`count(*)` }).from(shareAccessLog);
 		const failedConditions = [];
@@ -328,8 +290,6 @@ const shareAccessLogService = {
 			failedAccessQuery = failedAccessQuery.where(and(...failedConditions));
 		}
 		const failedAccess = await failedAccessQuery.get();
-		console.error('Failed access result:', failedAccess);
-
 		// 拒绝访问次数
 		let rejectedAccessQuery = orm(c).select({ count: sql`count(*)` }).from(shareAccessLog);
 		const rejectedConditions = [];
@@ -341,24 +301,18 @@ const shareAccessLogService = {
 			rejectedAccessQuery = rejectedAccessQuery.where(and(...rejectedConditions));
 		}
 		const rejectedAccess = await rejectedAccessQuery.get();
-		console.error('Rejected access result:', rejectedAccess);
-
 		// 唯一IP数量
 		let uniqueIpsQuery = orm(c).select({ count: sql`count(distinct ${shareAccessLog.accessIp})` }).from(shareAccessLog);
 		if (timeCondition) {
 			uniqueIpsQuery = uniqueIpsQuery.where(timeCondition);
 		}
 		const uniqueIps = await uniqueIpsQuery.get();
-		console.error('Unique IPs result:', uniqueIps);
-
 		// 总分享数量
 		let totalSharesQuery = orm(c).select({ count: sql`count(distinct ${shareAccessLog.shareId})` }).from(shareAccessLog);
 		if (timeCondition) {
 			totalSharesQuery = totalSharesQuery.where(timeCondition);
 		}
 		const totalShares = await totalSharesQuery.get();
-		console.error('Total shares result:', totalShares);
-
 		// 2. 获取访问日志总数（用于分页）
 		console.error('Step 2a: Getting total logs count...');
 		let totalLogsQuery = orm(c).select({ count: sql`count(*)` }).from(shareAccessLog);
@@ -367,8 +321,6 @@ const shareAccessLogService = {
 		}
 		const totalLogsResult = await totalLogsQuery.get();
 		const totalLogsCount = totalLogsResult.count;
-		console.error('Total logs count:', totalLogsCount);
-
 		// 2b. 获取访问日志（分页）
 		console.error('Step 2b: Getting access logs...');
 		const offset = (page - 1) * pageSize;
@@ -394,8 +346,6 @@ const shareAccessLogService = {
 			.limit(pageSize)
 			.offset(offset)
 			.all();
-		console.error('Access logs result count:', logs.length);
-
 		// 3. 处理访问日志数据
 		const logsWithParsedCodes = logs.map(log => {
 			// 安全解析JSON字段
@@ -403,7 +353,6 @@ const shareAccessLogService = {
 			try {
 				extractedCodes = JSON.parse(log.extractedCodes || '[]');
 			} catch (error) {
-				console.error('Failed to parse extractedCodes:', log.extractedCodes, error);
 				extractedCodes = [];
 			}
 
@@ -446,9 +395,8 @@ const shareAccessLogService = {
 		};
 	} catch (error) {
 		console.error('=== getGlobalStats ERROR ===');
-		console.error('Error message:', error.message);
-		console.error('Error stack:', error.stack);
-		console.error('Error details:', error);
+
+
 		throw error;
 	}
 },

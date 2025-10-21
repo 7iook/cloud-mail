@@ -47,12 +47,9 @@ function getBaseUrl(c, userSpecifiedDomain = null) {
 		};
 
 		const protocol = getProtocol();
-		console.log(`[ShareService] Detected protocol: ${protocol}`);
-
 		// 优先使用用户指定的域名
 		if (userSpecifiedDomain && userSpecifiedDomain.trim()) {
 			const domain = userSpecifiedDomain.trim();
-			console.log(`[ShareService] Using user specified domain: ${domain}`);
 			// 如果用户域名已包含协议，直接使用；否则添加检测到的协议
 			if (domain.startsWith('http://') || domain.startsWith('https://')) {
 				return domain.replace(/\/$/, ''); // 移除末尾斜杠
@@ -66,7 +63,6 @@ function getBaseUrl(c, userSpecifiedDomain = null) {
 		if (domains && Array.isArray(domains) && domains.length > 0) {
 			const domain = domains[0].trim();
 			if (domain) {
-				console.log(`[ShareService] Using configured domain: ${domain}`);
 				return `${protocol}://${domain}`;
 			}
 		}
@@ -76,7 +72,6 @@ function getBaseUrl(c, userSpecifiedDomain = null) {
 			const urlParts = c.req.url.split('/');
 			if (urlParts.length >= 3) {
 				const baseUrl = urlParts.slice(0, 3).join('/');
-				console.log(`[ShareService] Using request URL as base: ${baseUrl}`);
 				return baseUrl;
 			}
 		}
@@ -85,7 +80,6 @@ function getBaseUrl(c, userSpecifiedDomain = null) {
 		console.error('[ShareService] Failed to determine base URL, using default');
 		return `${protocol}://localhost`;
 	} catch (error) {
-		console.error('[ShareService] Error in getBaseUrl:', error);
 		return 'http://localhost';
 	}
 }
@@ -227,7 +221,6 @@ const shareService = {
 				try {
 					authorizedEmailsJson = JSON.stringify(authorizedEmails);
 				} catch (error) {
-					console.error('JSON.stringify authorizedEmails 失败:', error);
 					throw new BizError('授权邮箱列表序列化失败', 500);
 				}
 			}
@@ -270,11 +263,8 @@ const shareService = {
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();
 
 		// 生成分享URL，优先使用用户指定的域名
-		console.log('=== 生成分享URL调试信息 ===');
-		console.log('传入的shareDomain:', shareDomain);
+
 		const baseUrl = getBaseUrl(c, shareDomain);
-		console.log('生成的baseUrl:', baseUrl);
-		console.log('最终分享URL:', `${baseUrl}/share/${shareToken}`);
 
 		return {
 			...shareRow,
@@ -470,9 +460,7 @@ const shareService = {
 
 	// 删除分享
 	async delete(c, shareId, userId) {
-		console.log('=== SHARE SERVICE DELETE DEBUG START ===');
-		console.log('Input shareId:', shareId, 'type:', typeof shareId);
-		console.log('Input userId:', userId, 'type:', typeof userId);
+
 
 		const shareRow = await orm(c).select().from(share)
 			.where(and(
@@ -481,9 +469,6 @@ const shareService = {
 				eq(share.isActive, 1)
 			))
 			.get();
-
-		console.log('Query result:', shareRow);
-
 		if (!shareRow) {
 			console.error('ERROR: Share not found or permission denied');
 			console.error('Checking if share exists without userId filter...');
@@ -496,32 +481,23 @@ const shareService = {
 
 			if (shareWithoutUserFilter) {
 				console.error('Share exists but userId mismatch!');
-				console.error('Share userId:', shareWithoutUserFilter.userId, 'type:', typeof shareWithoutUserFilter.userId);
-				console.error('Current userId:', userId, 'type:', typeof userId);
+
 			}
 
 			throw new BizError('分享不存在或无权限删除', 404);
 		}
-
-		console.log('Permission check passed, proceeding with delete...');
-
 		await orm(c).update(share)
 			.set({ isActive: 0 })
 			.where(eq(share.shareId, shareId))
 			.run();
 
 		// 清除缓存（修复缓存一致性问题）
-		console.log('清除缓存...');
 		try {
 			const cacheManager = new CacheManager(c);
 			await cacheManager.delete(`share:${shareRow.shareToken}`);
-			console.log('缓存清除成功');
 		} catch (cacheError) {
-			console.error('缓存清除失败:', cacheError);
 			// 缓存清除失败不影响主要功能，但记录错误
 		}
-
-		console.log('=== SHARE SERVICE DELETE DEBUG END: SUCCESS ===');
 		return true;
 	},
 
@@ -560,7 +536,6 @@ const shareService = {
 		try {
 			await cacheManager.delete(`share:${shareRow.shareToken}`);
 		} catch (cacheError) {
-			console.error('清除旧Token缓存失败:', cacheError);
 			// 继续执行，不影响主要功能
 		}
 
@@ -574,7 +549,6 @@ const shareService = {
 		try {
 			await cacheManager.set(`share:${newToken}`, updatedShareRow, 3600); // 缓存1小时
 		} catch (cacheError) {
-			console.error('设置新Token缓存失败:', cacheError);
 			// 缓存设置失败不影响主要功能，但可能影响性能
 		}
 
@@ -858,16 +832,12 @@ const shareService = {
 
 	// 更新分享高级设置
 	async updateAdvancedSettings(c, shareId, settings) {
-		console.log('=== shareService.updateAdvancedSettings 开始 ===');
-		console.log('输入参数:', { shareId, settings });
 
 		// 🔥 FIX: 获取分享信息用于缓存清除（修复shareRow未定义的错误）
 		const shareRow = await this.getById(c, shareId);
 		if (!shareRow) {
 			throw new BizError('分享不存在', 404);
 		}
-		console.log('获取分享信息成功:', { shareId, shareToken: shareRow.shareToken });
-
 		const {
 			rateLimitPerSecond,
 			autoRecoverySeconds,
@@ -895,23 +865,7 @@ const shareService = {
 			// 域名选择字段
 			shareDomain
 		} = settings;
-
-		console.log('解构后的参数:', {
-			rateLimitPerSecond,
-			autoRecoverySeconds,
-			keywordFilter,
-			verificationCodeLimit,
-			verificationCodeLimitEnabled,
-			otpLimitEnabled,
-			latestEmailCount,
-			autoRefreshEnabled,
-			autoRefreshInterval,
-			cooldownEnabled,
-			cooldownSeconds
-		});
-
 		// 验证参数（频率限制：0表示禁用，1-100表示启用）
-		console.log('开始参数验证...');
 		if (rateLimitPerSecond !== undefined && rateLimitPerSecond !== null && (rateLimitPerSecond < 0 || rateLimitPerSecond > 100)) {
 			throw new BizError('每秒限制必须在0-100之间（0表示禁用）', 400);
 		}
@@ -929,7 +883,6 @@ const shareService = {
 		// 新增：自动刷新参数验证
 		if (autoRefreshEnabled !== undefined) {
 			const enabled = parseInt(autoRefreshEnabled);
-			console.log('自动刷新开关验证:', { autoRefreshEnabled, enabled });
 			if (enabled !== 0 && enabled !== 1) {
 				throw new BizError('自动刷新开关参数无效', 400);
 			}
@@ -944,7 +897,6 @@ const shareService = {
 		// 新增：冷却功能参数验证
 		if (cooldownEnabled !== undefined) {
 			const enabled = parseInt(cooldownEnabled);
-			console.log('冷却功能开关验证:', { cooldownEnabled, enabled });
 			if (enabled !== 0 && enabled !== 1) {
 				throw new BizError('冷却功能开关参数无效', 400);
 			}
@@ -1003,16 +955,10 @@ const shareService = {
 				}
 				normalizedEmailsSet.add(normalizedEmail);
 			}
-
-			console.log('授权邮箱验证通过:', { count: authorizedEmailsArray.length });
 		}
-
-		console.log('参数验证通过');
-
 		// 分享信息已在方法开始时获取，无需重复获取
 
 		// 构建更新数据
-		console.log('构建更新数据...');
 		const updateData = {};
 		if (rateLimitPerSecond !== undefined) {
 			updateData.rateLimitPerSecond = rateLimitPerSecond;
@@ -1174,40 +1120,28 @@ const shareService = {
 		if (shareDomain !== undefined) {
 			updateData.shareDomain = shareDomain || null;
 		}
-
-		console.log('构建的更新数据:', updateData);
-
 		// 如果没有要更新的数据，直接返回
 		if (Object.keys(updateData).length === 0) {
-			console.log('没有要更新的数据，直接返回');
 			return { success: true };
 		}
 
 		// 更新数据库
-		console.log('开始更新数据库...');
 		try {
 			await orm(c).update(share)
 				.set(updateData)
 				.where(eq(share.shareId, shareId))
 				.run();
-			console.log('数据库更新成功');
 		} catch (dbError) {
-			console.error('数据库更新失败:', dbError);
 			throw dbError;
 		}
 
 		// 清除缓存
-		console.log('清除缓存...');
 		try {
 			const cacheManager = new CacheManager(c);
 			await cacheManager.delete(`share:${shareRow.shareToken}`);
-			console.log('缓存清除成功');
 		} catch (cacheError) {
-			console.error('缓存清除失败:', cacheError);
 			// 缓存清除失败不影响主要功能
 		}
-
-		console.log('=== shareService.updateAdvancedSettings 结束 ===');
 		return { success: true };
 	}
 };

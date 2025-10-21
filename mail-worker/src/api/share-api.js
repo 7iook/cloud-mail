@@ -27,8 +27,6 @@ import shareCaptchaService from '../service/share-captcha-service';
 app.post('/share/create', async (c) => {
 	try {
 		const requestBody = await c.req.json();
-		console.log('=== 后端接收分享创建请求 ===');
-		console.log('完整请求体:', requestBody);
 
 		const {
 			// 支持新旧两种参数格式
@@ -86,16 +84,6 @@ app.post('/share/create', async (c) => {
 				finalShareType = parseInt(shareType) || 1;
 			}
 		}
-
-		console.log('处理后的参数:', { 
-			finalTargetEmail, 
-			finalShareDomain, 
-			shareType: finalShareType, 
-			filterMode, 
-			templateId, 
-			showFullEmail 
-		});
-
 		// Fix P0-5: 清理用户输入，防止 XSS 攻击
 		const cleanedTargetEmail = sanitizeUtils.sanitizeEmail(finalTargetEmail);
 		const cleanedShareName = sanitizeUtils.sanitizeInput(shareName, 200);
@@ -300,7 +288,6 @@ app.post('/share/create', async (c) => {
 			// 如果邮箱不存在，普通用户可以创建分享（邮箱将作为转发地址使用）
 		} else {
 			// 管理员权限：可以分享任何邮箱，包括系统中的其他邮箱
-			console.log(`管理员 ${currentUser.email} 为邮箱 ${cleanedTargetEmail} 创建分享`);
 		}
 
 		// Fix P0-5: 使用清理后的输入创建分享记录
@@ -357,7 +344,6 @@ app.post('/share/create', async (c) => {
 		return c.json(result.ok(shareRecord));
 
 	} catch (error) {
-		console.error('Create share error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -432,7 +418,6 @@ app.get('/share/list', async (c) => {
 		}));
 
 	} catch (error) {
-		console.error('Get share list error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -468,7 +453,6 @@ app.get('/share/info/:shareToken', shareRateLimitMiddleware, async (c) => {
 		}));
 
 	} catch (error) {
-		console.error('Share access error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -536,7 +520,6 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 					throw new BizError('授权邮箱列表格式错误', 500);
 				}
 			} catch (error) {
-				console.error('解析授权邮箱列表失败:', error);
 				errorMessage = '分享配置错误，请联系管理员';
 				accessResult = 'failed';
 
@@ -626,9 +609,7 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 			// Type 1 分享：如果邮箱账户不存在，使用分享创建者的userId自动创建
 			try {
 				targetAccount = await accountService.add(c, { email: effectiveTargetEmail }, shareRecord.userId);
-				console.log(`为分享访问自动创建邮箱账户: ${effectiveTargetEmail}`);
 			} catch (error) {
-				console.error('访问分享时自动创建邮箱账户失败:', error);
 				errorMessage = '邮箱账户创建失败';
 				accessResult = 'failed';
 				throw new BizError(errorMessage, 500);
@@ -690,8 +671,6 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 				}
 				return null;
 			}).filter(email => email !== null);
-
-			console.log('模板匹配完成，匹配邮件数:', filteredEmails.length);
 		} else {
 			// 关键词过滤模式（原有逻辑）
 			const userKeywords = shareRecord.keywordFilter || '验证码|verification|code|otp';
@@ -839,8 +818,6 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 		}));
 
 	} catch (error) {
-		console.error('Get verification emails error:', error);
-
 		// 记录失败的访问日志
 		try {
 			const responseTime = Date.now() - startTime;
@@ -869,7 +846,6 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 				emailCount: emailCount
 			});
 		} catch (logError) {
-			console.error('Failed to record access log:', logError);
 		}
 
 		if (error instanceof BizError) {
@@ -882,36 +858,23 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 // 删除分享
 app.delete('/share/:shareId', async (c) => {
 	try {
-		console.log('=== DELETE SHARE API DEBUG START ===');
-
 		// 检查用户上下文
 		const user = c.get('user');
-		console.log('User context:', user);
-
 		if (!user) {
 			console.error('ERROR: User context is undefined!');
 			return c.json(result.fail('用户未认证'), 401);
 		}
 
 		const userId = user.userId;
-		console.log('User ID:', userId);
-
 		const shareId = parseInt(c.req.param('shareId'));
-		console.log('Share ID:', shareId);
-
 		await shareService.delete(c, shareId, userId);
-
-		console.log('=== DELETE SHARE API DEBUG END: SUCCESS ===');
 		return c.json(result.ok());
 
 	} catch (error) {
 		console.error('=== DELETE SHARE API DEBUG END: ERROR ===');
-		console.error('Error type:', error.constructor.name);
-		console.error('Error message:', error.message);
-		console.error('Error stack:', error.stack);
+
 
 		if (error instanceof BizError) {
-			console.error('BizError code:', error.code);
 			return c.json(result.fail(error.message), error.code || 400);
 		}
 		return c.json(result.fail('删除分享失败: ' + error.message), 500);
@@ -942,7 +905,6 @@ app.get('/share/logs/:shareId', async (c) => {
 		return c.json(result.ok(logData));
 
 	} catch (error) {
-		console.error('Get share logs error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -952,26 +914,18 @@ app.get('/share/logs/:shareId', async (c) => {
 
 // 获取分享访问统计
 app.get('/share/stats/:shareId', async (c) => {
-	console.log('=== SHARE STATS API CALLED ===');
 	try {
 		const userId = userContext.getUserId(c);
 		const shareId = parseInt(c.req.param('shareId'));
 		const { days = 7 } = c.req.query();
-
-		console.log(`=== Get share stats for shareId: ${shareId}, userId: ${userId} ===`);
-
 		// 验证分享是否属于当前用户（允许查询禁用的分享）
 		const shareRecord = await orm(c).select().from(share)
 			.where(eq(share.shareId, shareId))
 			.get();
-
-		console.error('Share record found:', shareRecord ? 'Yes' : 'No');
 		if (shareRecord) {
-			console.error('Share record userId:', shareRecord.userId, 'Current userId:', userId);
 		}
 
 		if (!shareRecord || shareRecord.userId !== userId) {
-			console.error('Permission denied: shareRecord exists:', !!shareRecord, 'userId match:', shareRecord?.userId === userId);
 			throw new BizError('无权限查看此分享的统计数据', 403);
 		}
 
@@ -986,9 +940,8 @@ app.get('/share/stats/:shareId', async (c) => {
 
 	} catch (error) {
 		console.error('=== Get share stats error ===');
-		console.error('Error message:', error.message);
-		console.error('Error stack:', error.stack);
-		console.error('Error object:', error);
+
+
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1020,10 +973,8 @@ app.get('/share/globalStats', async (c) => {
 		const isAdmin = user && (user.email === c.env.admin || user.role === 'admin');
 
 		console.error('=== Get global stats started ===');
-		console.error('User ID:', userId);
-		console.error('User Email:', user?.email);
-		console.error('Is Admin:', isAdmin);
-		console.error('Params:', params);
+
+
 
 		// 获取全局统计数据
 		// 管理员可以看到所有用户的访问日志，普通用户只能看到自己的
@@ -1038,8 +989,7 @@ app.get('/share/globalStats', async (c) => {
 
 	} catch (error) {
 		console.error('=== Get global share stats error ===');
-		console.error('Error message:', error.message);
-		console.error('Error stack:', error.stack);
+
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1050,19 +1000,13 @@ app.get('/share/globalStats', async (c) => {
 // 刷新分享Token
 app.post('/share/:shareId/refresh-token', async (c) => {
 	try {
-		console.log('=== Refresh token started ===');
 		const userId = userContext.getUserId(c);
 		const shareId = parseInt(c.req.param('shareId'));
-		console.log('User ID:', userId, 'Share ID:', shareId);
-
 		const refreshResult = await shareService.refreshToken(c, shareId, userId);
-		console.log('Refresh result:', refreshResult);
-
 		return c.json(result.ok(refreshResult));
 
 	} catch (error) {
-		console.error('Refresh share token error:', error);
-		console.error('Error stack:', error.stack);
+
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1073,10 +1017,7 @@ app.post('/share/:shareId/refresh-token', async (c) => {
 // 批量操作分享
 app.post('/share/batch', async (c) => {
 	try {
-		console.log('=== Batch operation started ===');
 		const userId = userContext.getUserId(c);
-		console.log('User ID:', userId);
-		
 		const requestBody = await c.req.json();
 		console.log('Request body:', JSON.stringify(requestBody));
 		
@@ -1085,16 +1026,11 @@ app.post('/share/batch', async (c) => {
 		if (!action || !shareIds || !Array.isArray(shareIds) || shareIds.length === 0) {
 			throw new BizError('参数错误：需要提供action和shareIds', 400);
 		}
-
-		console.log('Calling batchOperate with:', { action, shareIds, userId, options });
 		const operationResult = await shareService.batchOperate(c, action, shareIds, userId, options);
-		console.log('Operation result:', operationResult);
-
 		return c.json(result.ok(operationResult));
 
 	} catch (error) {
-		console.error('Batch operate shares error:', error);
-		console.error('Error stack:', error.stack);
+
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1127,7 +1063,6 @@ app.post('/share/:shareId/update-limit', async (c) => {
 		return c.json(result.ok(updateResult));
 
 	} catch (error) {
-		console.error('Update share limit error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1158,7 +1093,6 @@ app.post('/share/:shareId/update-display-limit', async (c) => {
 		return c.json(result.ok(updateResult));
 
 	} catch (error) {
-		console.error('Update share display limit error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1187,7 +1121,6 @@ app.patch('/share/:shareId/name', async (c) => {
 		return c.json(result.ok(updateResult));
 
 	} catch (error) {
-		console.error('Update share name error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1216,7 +1149,6 @@ app.patch('/share/:shareId/expire', async (c) => {
 		return c.json(result.ok(updateResult));
 
 	} catch (error) {
-		console.error('Update share expire time error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1227,10 +1159,7 @@ app.patch('/share/:shareId/expire', async (c) => {
 // 更新分享高级设置
 app.patch('/share/:shareId/advanced-settings', async (c) => {
 	try {
-		console.log('=== 高级设置API调试开始 ===');
-
 		const user = c.get('user');
-		console.log('用户信息:', user);
 		if (!user) {
 			return c.json(result.fail('用户未认证'), 401);
 		}
@@ -1238,17 +1167,12 @@ app.patch('/share/:shareId/advanced-settings', async (c) => {
 		const userId = user.userId;
 		const shareId = parseInt(c.req.param('shareId'));
 		const settings = await c.req.json();
-
-		console.log('请求参数:', { shareId, userId, settings });
-
 		if (!shareId || isNaN(shareId)) {
 			throw new BizError('参数错误：shareId不能为空', 400);
 		}
 
 		// 验证权限（使用与内联编辑相同的简单权限检查）
-		console.log('开始验证权限...');
 		const shareRow = await shareService.getById(c, shareId);
-		console.log('分享信息:', shareRow);
 		if (!shareRow) {
 			throw new BizError('分享不存在', 404);
 		}
@@ -1257,18 +1181,12 @@ app.patch('/share/:shareId/advanced-settings', async (c) => {
 		if (shareRow.userId !== userId) {
 			throw new BizError('无权限操作此分享', 403);
 		}
-		console.log('权限检查通过:', { shareUserId: shareRow.userId, currentUserId: userId });
-
 		// 更新高级设置
-		console.log('开始更新高级设置...');
 		const updateResult = await shareService.updateAdvancedSettings(c, shareId, settings);
-		console.log('更新结果:', updateResult);
 
-		console.log('=== 高级设置API调试结束 ===');
 		return c.json(result.ok(updateResult));
 	} catch (error) {
-		console.error('更新高级设置失败:', error);
-		console.error('错误堆栈:', error.stack);
+
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code);
 		}
@@ -1307,7 +1225,6 @@ app.patch('/share/:shareId/announcement', async (c) => {
 		return c.json(result.ok(updateResult));
 
 	} catch (error) {
-		console.error('Update share announcement error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1336,7 +1253,6 @@ app.patch('/share/:shareId/status', async (c) => {
 		return c.json(result.ok(updateResult));
 
 	} catch (error) {
-		console.error('Update share status error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1357,7 +1273,6 @@ app.get('/email-template/list', async (c) => {
 		const templates = await emailTemplateService.getUserTemplates(c, userId, parseInt(page), parseInt(pageSize));
 		return c.json(result.ok(templates));
 	} catch (error) {
-		console.error('Get templates error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1372,7 +1287,6 @@ app.get('/email-template/available', async (c) => {
 		const templates = await emailTemplateService.getAvailableTemplates(c, userId);
 		return c.json(result.ok(templates));
 	} catch (error) {
-		console.error('Get available templates error:', error);
 		return c.json(result.fail('获取可用模板失败'), 500);
 	}
 });
@@ -1384,7 +1298,6 @@ app.post('/email-template/initialize-presets', async (c) => {
 		const initResult = await emailTemplateService.initializePresetTemplates(c, userId);
 		return c.json(result.ok(initResult));
 	} catch (error) {
-		console.error('Initialize preset templates error:', error);
 		return c.json(result.fail('初始化预设模板失败'), 500);
 	}
 });
@@ -1401,7 +1314,6 @@ app.get('/email-template/:templateId', async (c) => {
 		
 		return c.json(result.ok(template));
 	} catch (error) {
-		console.error('Get template error:', error);
 		return c.json(result.fail('获取模板详情失败'), 500);
 	}
 });
@@ -1420,7 +1332,6 @@ app.post('/email-template/create', async (c) => {
 		const template = await emailTemplateService.create(c, params, userId);
 		return c.json(result.ok(template));
 	} catch (error) {
-		console.error('Create template error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1438,7 +1349,6 @@ app.put('/email-template/:templateId', async (c) => {
 		await emailTemplateService.update(c, templateId, params, userId);
 		return c.json(result.ok({ success: true }));
 	} catch (error) {
-		console.error('Update template error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1455,7 +1365,6 @@ app.delete('/email-template/:templateId', async (c) => {
 		await emailTemplateService.delete(c, templateId, userId);
 		return c.json(result.ok({ success: true }));
 	} catch (error) {
-		console.error('Delete template error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1476,7 +1385,6 @@ app.post('/email-template/:templateId/test', async (c) => {
 		const testResult = await emailTemplateService.testTemplate(c, templateId, testEmail);
 		return c.json(result.ok(testResult));
 	} catch (error) {
-		console.error('Test template error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1493,7 +1401,6 @@ app.post('/email-template/:templateId/toggle-active', async (c) => {
 		const toggleResult = await emailTemplateService.toggleActive(c, templateId, userId);
 		return c.json(result.ok(toggleResult));
 	} catch (error) {
-		console.error('Toggle template active error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1517,7 +1424,6 @@ app.post('/email-template/batch-update-active', async (c) => {
 		const batchResult = await emailTemplateService.batchUpdateActive(c, templateIds, isActive, userId);
 		return c.json(result.ok(batchResult));
 	} catch (error) {
-		console.error('Batch update template active error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
@@ -1713,7 +1619,6 @@ app.post('/share/verify-captcha', async (c) => {
 		return c.json(result.ok({ success: true, message: '人机验证成功' }));
 
 	} catch (error) {
-		console.error('Captcha verification error:', error);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
