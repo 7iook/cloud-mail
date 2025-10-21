@@ -61,6 +61,7 @@ app.post('/share/create', async (c) => {
 			cooldownSeconds,
 			// 新增参数：人机验证功能
 			enableCaptcha,
+			captchaToken,
 			// 新增参数：公告弹窗功能
 			announcementContent
 		} = requestBody;
@@ -302,6 +303,12 @@ app.post('/share/create', async (c) => {
 			normalizedAuthorizedEmails = authorizedEmails.map(email =>
 				sanitizeUtils.sanitizeEmail(email)
 			);
+		}
+
+		// 验证 Turnstile token（如果启用了人机验证）
+		if (enableCaptcha && captchaToken) {
+			const clientIp = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
+			await shareCaptchaService.verifyCaptchaToken(c, captchaToken, clientIp, 'create');
 		}
 
 		// 创建分享记录到数据库

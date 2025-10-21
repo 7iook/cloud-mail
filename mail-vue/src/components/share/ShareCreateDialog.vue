@@ -1575,7 +1575,9 @@ const handleSubmit = async () => {
         cooldownEnabled: form.cooldownEnabled,
         cooldownSeconds: form.cooldownSeconds,
         // 公告弹窗功能（支持图片）
-        announcementContent: buildAnnouncementContent()
+        announcementContent: buildAnnouncementContent(),
+        // 人机验证 token
+        captchaToken: form.enableCaptcha ? captchaToken.value : undefined
       };
 
       try {
@@ -1613,7 +1615,9 @@ const handleSubmit = async () => {
           cooldownEnabled: form.cooldownEnabled,
           cooldownSeconds: form.cooldownSeconds,
           // 公告弹窗功能（支持图片）
-          announcementContent: buildAnnouncementContent()
+          announcementContent: buildAnnouncementContent(),
+          // 人机验证 token
+          captchaToken: form.enableCaptcha ? captchaToken.value : undefined
         };
 
         try {
