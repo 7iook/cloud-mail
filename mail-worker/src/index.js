@@ -38,15 +38,17 @@ export default {
 				} catch (error) {
 					console.log(`=== SHARE TOKEN INVALID: ${shareToken}, Error: ${error.message} ===`);
 
-					// Token无效，返回纯文本404响应（激进式安全策略）
+					// 🔒 安全策略：禁用/无效的分享链接直接返回404
 					// 完全不渲染任何HTML内容，防止域名和系统信息泄露
+					// 无论是禁用、过期还是不存在，都统一返回404
 					return new Response('Not Found', {
 						status: 404,
 						headers: {
 							'Content-Type': 'text/plain; charset=utf-8',
 							'Cache-Control': 'no-store, no-cache, must-revalidate',
 							'Pragma': 'no-cache',
-							'Expires': '0'
+							'Expires': '0',
+							'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet'
 						}
 					});
 				}

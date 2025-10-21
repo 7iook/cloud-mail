@@ -135,8 +135,21 @@ function isImage(filename) {
 }
 
 function formateReceive(recipient) {
-  recipient = JSON.parse(recipient)
-  return recipient.map(item => item.address).join(', ')
+  // 处理分享页面邮件数据中可能缺失的 recipient 字段
+  if (!recipient) {
+    return '未知收件人'
+  }
+
+  try {
+    const parsed = JSON.parse(recipient)
+    if (Array.isArray(parsed)) {
+      return parsed.map(item => item.address || item.email || item).join(', ')
+    }
+    return recipient
+  } catch (error) {
+    // 如果不是JSON格式，直接返回原值
+    return recipient
+  }
 }
 
 function changeStar() {

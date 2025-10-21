@@ -887,7 +887,13 @@ const shareService = {
 			// 人机验证功能
 			enableCaptcha,
 			// 公告弹窗功能
-			announcementContent
+			announcementContent,
+			// 过滤模式和模板字段
+			filterMode,
+			templateId,
+			showFullEmail,
+			// 域名选择字段
+			shareDomain
 		} = settings;
 
 		console.log('解构后的参数:', {
@@ -1060,13 +1066,84 @@ const shareService = {
 		//	updateData.enableCaptcha = enableCaptcha ? 1 : 0;
 		// }
 
-		// 公告弹窗功能（支持版本控制）
+		// 公告弹窗功能（支持版本控制和图片）
 		if (announcementContent !== undefined) {
-			// 验证公告内容长度（最多5000字符）
-			if (announcementContent !== null && announcementContent.length > 5000) {
-				throw new BizError('公告内容不能超过5000字符', 400);
+			// 验证和处理公告内容
+			if (announcementContent !== null) {
+				// 支持两种格式：纯文本字符串 或 JSON对象
+				let processedContent = announcementContent;
+
+				if (typeof announcementContent === 'string') {
+					// 如果是字符串，检查是否是JSON格式
+					if (announcementContent.startsWith('{')) {
+						try {
+							const parsed = JSON.parse(announcementContent);
+							// 验证JSON结构
+							if (parsed.type === 'rich') {
+								// 验证图片数组
+								if (parsed.images && Array.isArray(parsed.images)) {
+									// 计算总大小
+									let totalSize = 0;
+									parsed.images.forEach(img => {
+										if (img.base64) {
+											// Base64大小估算：(字符串长度 * 3) / 4
+											totalSize += Math.ceil(img.base64.length * 3 / 4);
+										}
+									});
+									// 验证总大小不超过5MB
+									if (totalSize > 5 * 1024 * 1024) {
+										throw new BizError('公告图片总大小不能超过5MB', 400);
+									}
+									// 验证图片数量不超过10张
+									if (parsed.images.length > 10) {
+										throw new BizError('公告图片数量不能超过10张', 400);
+									}
+								}
+								processedContent = JSON.stringify(parsed);
+							} else {
+								throw new BizError('公告JSON格式无效', 400);
+							}
+						} catch (error) {
+							if (error instanceof BizError) throw error;
+							// 如果不是有效的JSON，当作纯文本处理
+							if (announcementContent.length > 5000) {
+								throw new BizError('公告内容不能超过5000字符', 400);
+							}
+						}
+					} else {
+						// 纯文本格式
+						if (announcementContent.length > 5000) {
+							throw new BizError('公告内容不能超过5000字符', 400);
+						}
+					}
+				} else if (typeof announcementContent === 'object') {
+					// 如果是对象，转换为JSON字符串
+					if (announcementContent.type === 'rich') {
+						// 验证图片数组
+						if (announcementContent.images && Array.isArray(announcementContent.images)) {
+							let totalSize = 0;
+							announcementContent.images.forEach(img => {
+								if (img.base64) {
+									totalSize += Math.ceil(img.base64.length * 3 / 4);
+								}
+							});
+							if (totalSize > 5 * 1024 * 1024) {
+								throw new BizError('公告图片总大小不能超过5MB', 400);
+							}
+							if (announcementContent.images.length > 10) {
+								throw new BizError('公告图片数量不能超过10张', 400);
+							}
+						}
+						processedContent = JSON.stringify(announcementContent);
+					} else {
+						throw new BizError('公告JSON格式无效', 400);
+					}
+				}
+
+				updateData.announcementContent = processedContent;
+			} else {
+				updateData.announcementContent = null;
 			}
-			updateData.announcementContent = announcementContent || null;
 
 			// 当公告内容更新时，自动更新版本号（使用当前时间戳）
 			// 这样前端可以通过比较版本号来判断是否需要重新显示公告
@@ -1076,6 +1153,26 @@ const shareService = {
 				// 如果公告内容被清空，也清空版本号
 				updateData.announcementVersion = null;
 			}
+		}
+
+		// 过滤模式和模板字段更新
+		if (filterMode !== undefined) {
+			// 验证过滤模式（1: 关键词过滤, 2: 模板匹配）
+			if (filterMode !== 1 && filterMode !== 2) {
+				throw new BizError('过滤模式必须为1（关键词过滤）或2（模板匹配）', 400);
+			}
+			updateData.filterMode = filterMode;
+		}
+		if (templateId !== undefined) {
+			updateData.templateId = templateId || null;
+		}
+		if (showFullEmail !== undefined) {
+			updateData.showFullEmail = showFullEmail;
+		}
+
+		// 域名选择字段更新
+		if (shareDomain !== undefined) {
+			updateData.shareDomain = shareDomain || null;
 		}
 
 		console.log('构建的更新数据:', updateData);

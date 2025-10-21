@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import safeStorage from '@/utils/safeStorage.js'
 
 export const useEmailStore = defineStore('email', {
     state: () => ({
@@ -60,21 +61,16 @@ export const useEmailStore = defineStore('email', {
             this.saveSplitLayoutToStorage()
         },
 
-        // 保存分屏布局到 localStorage
-        saveSplitLayoutToStorage() {
-            localStorage.setItem('emailSplitLayout', JSON.stringify(this.splitLayout))
+        // 保存分屏布局到安全存储
+        async saveSplitLayoutToStorage() {
+            await safeStorage.setJSON('emailSplitLayout', this.splitLayout)
         },
 
-        // 从 localStorage 加载分屏布局
+        // 从安全存储加载分屏布局
         loadSplitLayoutFromStorage() {
-            const saved = localStorage.getItem('emailSplitLayout')
+            const saved = safeStorage.getJSON('emailSplitLayout')
             if (saved) {
-                try {
-                    const parsed = JSON.parse(saved)
-                    this.splitLayout = { ...this.splitLayout, ...parsed }
-                } catch (error) {
-                    console.warn('Failed to parse split layout from localStorage:', error)
-                }
+                this.splitLayout = { ...this.splitLayout, ...saved }
             }
         }
     },

@@ -23,9 +23,9 @@ export function isCloudflareWorkers(c) {
  * 检测是否在 Node.js 环境
  */
 export function isNodeJS() {
-	return typeof process !== 'undefined' && 
-	       process.versions && 
-	       process.versions.node;
+	return !!(typeof process !== 'undefined' &&
+	       process.versions &&
+	       process.versions.node);
 }
 
 /**

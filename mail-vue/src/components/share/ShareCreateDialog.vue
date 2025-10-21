@@ -509,18 +509,122 @@
         </div>
       </el-form-item>
 
-      <!-- 新增：公告弹窗功能 -->
+      <!-- 新增：公告弹窗功能（支持图片） -->
       <el-form-item label="公告内容" prop="announcementContent">
-        <el-input
-          v-model="form.announcementContent"
-          type="textarea"
-          placeholder="输入公告内容（可选），访问者打开分享链接时会看到此公告。留空表示不显示公告。"
-          maxlength="5000"
-          show-word-limit
-          :rows="4"
-        />
-        <div class="form-tip">
-          公告内容最多5000字符。访问者可以关闭公告，同一设备不会再次显示。
+        <div class="announcement-editor">
+          <!-- 标题和预览按钮 -->
+          <div class="announcement-header">
+            <div class="announcement-section" style="flex: 1">
+              <label class="section-label">公告标题（可选）</label>
+              <el-input
+                v-model="announcementData.title"
+                placeholder="输入公告标题"
+                maxlength="100"
+                show-word-limit
+              />
+            </div>
+            <el-button
+              type="primary"
+              @click="showAnnouncementPreview = true"
+              style="align-self: flex-end; margin-bottom: 0"
+            >
+              预览公告
+            </el-button>
+          </div>
+
+          <!-- 文本内容 -->
+          <div class="announcement-section">
+            <label class="section-label">公告文本（支持粘贴图片）</label>
+            <el-input
+              v-model="announcementData.content"
+              type="textarea"
+              placeholder="输入公告内容（可选）或粘贴图片"
+              maxlength="5000"
+              show-word-limit
+              :rows="3"
+              @paste="handlePaste"
+            />
+          </div>
+
+          <!-- 图片上传 -->
+          <div class="announcement-section">
+            <label class="section-label">公告图片（可选，最多10张）</label>
+
+            <!-- 上传区域 -->
+            <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop">
+              <div class="upload-content">
+                <el-icon class="upload-icon"><upload-filled /></el-icon>
+                <div class="upload-text">
+                  <div>拖拽图片到此处或</div>
+                  <el-button link type="primary" @click="$refs.fileInput.click()">
+                    点击选择文件
+                  </el-button>
+                </div>
+                <div class="upload-hint">支持 PNG、JPG、GIF、WebP 格式，单张≤500KB，总大小≤5MB</div>
+              </div>
+              <input
+                ref="fileInput"
+                type="file"
+                multiple
+                accept="image/*"
+                style="display: none"
+                @change="handleFileSelect"
+              />
+            </div>
+
+            <!-- 图片列表 -->
+            <div v-if="announcementData.images && announcementData.images.length > 0" class="images-list">
+              <div
+                v-for="(image, index) in announcementData.images"
+                :key="index"
+                class="image-item"
+              >
+                <div class="image-preview">
+                  <img :src="image.base64" :alt="`Image ${index + 1}`" />
+                </div>
+                <div class="image-info">
+                  <el-input
+                    v-model="image.caption"
+                    placeholder="图片说明（可选）"
+                    maxlength="100"
+                    show-word-limit
+                  />
+                </div>
+                <div class="image-actions">
+                  <el-button
+                    v-if="index > 0"
+                    link
+                    type="primary"
+                    @click="moveImageUp(index)"
+                    title="向上移动"
+                  >
+                    <el-icon><arrow-up /></el-icon>
+                  </el-button>
+                  <el-button
+                    v-if="index < announcementData.images.length - 1"
+                    link
+                    type="primary"
+                    @click="moveImageDown(index)"
+                    title="向下移动"
+                  >
+                    <el-icon><arrow-down /></el-icon>
+                  </el-button>
+                  <el-button
+                    link
+                    type="danger"
+                    @click="removeImage(index)"
+                    title="删除"
+                  >
+                    <el-icon><delete /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-tip">
+              支持拖拽上传、点击选择或粘贴图片。图片会自动压缩。访问者可以关闭公告，同一设备不会再次显示。
+            </div>
+          </div>
         </div>
       </el-form-item>
     </el-form>
@@ -534,6 +638,47 @@
       </div>
     </template>
   </el-dialog>
+
+  <!-- 公告预览抽屉 -->
+  <el-drawer
+    v-model="showAnnouncementPreview"
+    title="公告预览"
+    direction="rtl"
+    size="500px"
+    class="announcement-preview-drawer"
+  >
+    <div class="preview-content">
+      <!-- 预览标题 -->
+      <div v-if="announcementData.title" class="preview-title">
+        {{ announcementData.title }}
+      </div>
+
+      <!-- 预览图片轮播 -->
+      <div v-if="announcementData.images && announcementData.images.length > 0" class="preview-images-carousel">
+        <el-carousel :autoplay="false" class="carousel">
+          <el-carousel-item v-for="(image, index) in announcementData.images" :key="index">
+            <div class="carousel-item">
+              <img :src="image.base64" :alt="`Image ${index + 1}`" />
+              <div v-if="image.caption" class="image-caption">{{ image.caption }}</div>
+            </div>
+          </el-carousel-item>
+        </el-carousel>
+        <div class="carousel-info">
+          {{ previewImageIndex + 1 }} / {{ announcementData.images.length }}
+        </div>
+      </div>
+
+      <!-- 预览文本内容 -->
+      <div v-if="announcementData.content" class="preview-text">
+        {{ announcementData.content }}
+      </div>
+
+      <!-- 空状态提示 -->
+      <div v-if="!announcementData.title && !announcementData.content && (!announcementData.images || announcementData.images.length === 0)" class="preview-empty">
+        <el-empty description="暂无公告内容" />
+      </div>
+    </div>
+  </el-drawer>
 
   <!-- 邮箱白名单管理对话框 -->
   <ShareWhitelistDialog
@@ -600,6 +745,7 @@ import { getUniqueRecipients } from '@/request/all-email.js';
 import { getAvailableTemplates } from '@/request/email-template.js';
 import dayjs from 'dayjs';
 import { Icon } from '@iconify/vue';
+import { UploadFilled, ArrowUp, ArrowDown, Delete } from '@element-plus/icons-vue';
 import ShareWhitelistDialog from './ShareWhitelistDialog.vue';
 import TemplateManagementDialog from './TemplateManagementDialog.vue';
 import { useSettingStore } from '@/store/setting.js';
@@ -657,6 +803,15 @@ const domainSelectionMode = ref('auto'); // 'auto' 或 'manual'
 // 自动刷新相关
 const customAutoRefreshInterval = ref(null);
 const autoRefreshIntervalError = ref('');
+
+// 公告相关
+const showAnnouncementPreview = ref(false);
+const previewImageIndex = ref(0);
+const announcementData = reactive({
+  title: '',
+  content: '',
+  images: []
+});
 
 // 表单数据
 const form = reactive({
@@ -1140,10 +1295,133 @@ const resetForm = () => {
   singleEmailInput.value = '';
   // 公告弹窗功能重置
   form.announcementContent = '';
+  announcementData.title = '';
+  announcementData.content = '';
+  announcementData.images = [];
+  showAnnouncementPreview.value = false;
+  previewImageIndex.value = 0;
 
   nextTick(() => {
     formRef.value?.clearValidate();
   });
+};
+
+// 构建公告内容（支持新旧格式）
+const buildAnnouncementContent = () => {
+  // 如果没有标题、内容和图片，返回null
+  if (!announcementData.title && !announcementData.content && announcementData.images.length === 0) {
+    return null
+  }
+
+  // 如果只有纯文本内容（没有标题和图片），返回纯文本
+  if (!announcementData.title && announcementData.images.length === 0 && announcementData.content) {
+    return announcementData.content
+  }
+
+  // 否则返回JSON格式
+  const richContent = {
+    type: 'rich',
+    title: announcementData.title || '',
+    content: announcementData.content || '',
+    images: announcementData.images || []
+  }
+
+  return JSON.stringify(richContent)
+};
+
+// 图片处理方法
+const handleFileSelect = async (event) => {
+  const files = Array.from(event.target.files)
+  await processFiles(files)
+  // 重置文件输入
+  event.target.value = ''
+};
+
+const handleDrop = async (event) => {
+  const files = Array.from(event.dataTransfer.files)
+  await processFiles(files)
+};
+
+const processFiles = async (files) => {
+  const imageFiles = files.filter(file => file.type.startsWith('image/'))
+
+  if (imageFiles.length === 0) {
+    ElMessage.warning('请选择图片文件')
+    return
+  }
+
+  // 检查图片数量限制
+  if (announcementData.images.length + imageFiles.length > 10) {
+    ElMessage.error('公告图片最多10张，当前已有 ' + announcementData.images.length + ' 张')
+    return
+  }
+
+  for (const file of imageFiles) {
+    // 检查单个文件大小（500KB）
+    if (file.size > 500 * 1024) {
+      ElMessage.error(`图片 ${file.name} 超过500KB限制`)
+      continue
+    }
+
+    try {
+      const base64 = await fileToBase64(file)
+      announcementData.images.push({
+        base64,
+        caption: ''
+      })
+    } catch (error) {
+      ElMessage.error(`处理图片 ${file.name} 失败: ${error.message}`)
+    }
+  }
+};
+
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+};
+
+// 粘贴事件处理 - 只处理图片
+const handlePaste = async (event) => {
+  const items = event.clipboardData?.items
+  if (!items) return
+
+  const files = []
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) files.push(file)
+    }
+  }
+
+  if (files.length > 0) {
+    event.preventDefault()
+    await processFiles(files)
+  }
+};
+
+const removeImage = (index) => {
+  announcementData.images.splice(index, 1)
+};
+
+const moveImageUp = (index) => {
+  if (index > 0) {
+    const temp = announcementData.images[index]
+    announcementData.images[index] = announcementData.images[index - 1]
+    announcementData.images[index - 1] = temp
+  }
+};
+
+const moveImageDown = (index) => {
+  if (index < announcementData.images.length - 1) {
+    const temp = announcementData.images[index]
+    announcementData.images[index] = announcementData.images[index + 1]
+    announcementData.images[index + 1] = temp
+  }
 };
 
 // 处理提交
@@ -1254,8 +1532,8 @@ const handleSubmit = async () => {
         // 冷却功能配置
         cooldownEnabled: form.cooldownEnabled,
         cooldownSeconds: form.cooldownSeconds,
-        // 公告弹窗功能
-        announcementContent: form.announcementContent || null
+        // 公告弹窗功能（支持图片）
+        announcementContent: buildAnnouncementContent()
       };
 
       try {
@@ -1292,8 +1570,8 @@ const handleSubmit = async () => {
           // 冷却功能配置
           cooldownEnabled: form.cooldownEnabled,
           cooldownSeconds: form.cooldownSeconds,
-          // 公告弹窗功能
-          announcementContent: form.announcementContent || null
+          // 公告弹窗功能（支持图片）
+          announcementContent: buildAnnouncementContent()
         };
 
         try {
@@ -2055,5 +2333,407 @@ html.dark .sort-select :deep(.el-input__wrapper) {
 
 .random-generator-content :deep(.el-form-item__label) {
   font-weight: 500;
+}
+
+/* 公告编辑器样式 */
+.announcement-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.announcement-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.announcement-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-label {
+  font-weight: 500;
+  font-size: 14px;
+  color: #333;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+/* 上传区域样式 */
+.upload-area {
+  border: 2px dashed #dcdfe6;
+  border-radius: 6px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #fafafa;
+}
+
+.upload-area:hover {
+  border-color: #409eff;
+  background-color: #f5f7fa;
+}
+
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.upload-icon {
+  font-size: 48px;
+  color: #909399;
+}
+
+.upload-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #606266;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 图片列表样式 */
+.images-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.image-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 6px;
+  border: 1px solid #ebeef5;
+}
+
+.image-preview {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #fff;
+  border: 1px solid #dcdfe6;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.image-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* 预览抽屉样式 */
+.announcement-preview-drawer {
+  :deep(.el-drawer__header) {
+    border-bottom: 1px solid #ebeef5;
+  }
+}
+
+.preview-content {
+  padding: 20px;
+  line-height: 1.6;
+  color: #333;
+  word-break: break-word;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.preview-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.preview-images-carousel {
+  margin-bottom: 20px;
+}
+
+.carousel {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5f7fa;
+}
+
+.carousel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background: #f5f7fa;
+}
+
+.carousel-item img {
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.image-caption {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #606266;
+  text-align: center;
+  padding: 0 12px;
+}
+
+.carousel-info {
+  text-align: center;
+  font-size: 12px;
+  color: #909399;
+  margin-top: 8px;
+}
+
+.preview-text {
+  white-space: pre-wrap;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+}
+
+.preview-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  :deep(.el-dialog) {
+    width: 95vw !important;
+    max-width: 95vw;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 12px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+
+  /* 公告编辑器移动端优化 */
+  .announcement-editor {
+    gap: 10px;
+  }
+
+  .announcement-section {
+    gap: 4px;
+  }
+
+  .section-label {
+    font-size: 12px;
+  }
+
+  .upload-area {
+    padding: 20px 12px;
+    border-radius: 4px;
+  }
+
+  .upload-icon {
+    font-size: 24px;
+  }
+
+  .upload-text {
+    font-size: 12px;
+    gap: 2px;
+  }
+
+  .upload-hint {
+    font-size: 10px;
+  }
+
+  .images-list {
+    gap: 6px;
+  }
+
+  .image-item {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .image-preview {
+    width: 50px;
+    height: 50px;
+  }
+
+  .image-actions {
+    gap: 0;
+  }
+
+  .image-actions .el-button {
+    padding: 4px 6px;
+  }
+
+  /* 预览抽屉移动端优化 */
+  .announcement-preview-drawer {
+    :deep(.el-drawer) {
+      width: 100% !important;
+    }
+
+    :deep(.el-drawer__body) {
+      padding: 12px;
+    }
+  }
+
+  .preview-content {
+    padding: 12px;
+    max-height: calc(100vh - 150px);
+    font-size: 13px;
+  }
+
+  .preview-title {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+
+  .preview-images-carousel {
+    margin-bottom: 12px;
+  }
+
+  .carousel-item {
+    min-height: 200px;
+
+    img {
+      max-height: 250px;
+    }
+
+    .image-caption {
+      margin-top: 6px;
+      font-size: 12px;
+      padding: 0 6px;
+    }
+  }
+
+  .carousel-info {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+
+  .preview-text {
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  /* 表单字段移动端优化 */
+  :deep(.el-form-item) {
+    margin-bottom: 12px;
+  }
+
+  :deep(.el-form-item__label) {
+    font-size: 13px;
+  }
+
+  :deep(.el-input__wrapper) {
+    padding: 4px 8px;
+  }
+
+  :deep(.el-input) {
+    font-size: 13px;
+  }
+
+  :deep(.el-textarea__inner) {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+
+  :deep(.el-button) {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-height: 32px;
+  }
+
+  :deep(.el-button--primary) {
+    width: 100%;
+  }
+
+  /* 对话框底部按钮 */
+  .dialog-footer {
+    flex-direction: column;
+    gap: 8px;
+
+    .el-button {
+      width: 100%;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  :deep(.el-dialog) {
+    width: 100vw !important;
+    max-width: 100vw;
+    margin: 0 !important;
+  }
+
+  :deep(.el-dialog__header) {
+    padding: 12px;
+  }
+
+  :deep(.el-dialog__title) {
+    font-size: 14px;
+  }
+
+  :deep(.el-dialog__close) {
+    font-size: 16px;
+  }
+
+  .upload-area {
+    padding: 16px 8px;
+  }
+
+  .image-preview {
+    width: 40px;
+    height: 40px;
+  }
+
+  .preview-content {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .preview-title {
+    font-size: 14px;
+  }
+
+  .carousel-item {
+    min-height: 150px;
+
+    img {
+      max-height: 200px;
+    }
+  }
 }
 </style>

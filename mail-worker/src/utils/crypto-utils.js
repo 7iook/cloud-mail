@@ -37,10 +37,14 @@ const saltHashUtils = {
 	},
 
 	genRandomStr(length = 32) {
+		// 使用密码学安全的随机数生成器（修复安全漏洞）
 		const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+		const array = new Uint8Array(length);
+		crypto.getRandomValues(array);
+
 		let result = '';
 		for (let i = 0; i < length; i++) {
-			result += chars.charAt(Math.floor(Math.random() * chars.length));
+			result += chars.charAt(array[i] % chars.length);
 		}
 		return result;
 	}

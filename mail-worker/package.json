@@ -5,11 +5,16 @@
 	"scripts": {
 		"dev": "wrangler dev --config wrangler-dev.toml",
 		"test": "wrangler deploy --config wrangler-test.toml",
+		"test:properties": "vitest run --config vitest.config.property.js",
+		"test:properties:watch": "vitest --config vitest.config.property.js",
+		"test:properties:coverage": "vitest --coverage --config vitest.config.property.js",
+		"test:coverage:check": "npm run test:properties:coverage && node check-coverage.js",
 		"deploy": "wrangler deploy",
 		"start": "wrangler dev"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.7.5",
+		"fast-check": "^3.23.2",
 		"vitest": "~3.0.7",
 		"wrangler": "^4.7.0"
 	},

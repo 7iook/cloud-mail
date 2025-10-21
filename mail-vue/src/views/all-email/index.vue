@@ -136,6 +136,7 @@ import {Icon} from "@iconify/vue";
 import router from "@/router/index.js";
 import {useI18n} from 'vue-i18n';
 import {toUtc} from "@/utils/day.js";
+import safeStorage from '@/utils/safeStorage.js';
 
 defineOptions({
   name: 'all-email'
@@ -208,17 +209,16 @@ const searchPlaceholder = computed(() => {
   return t('searchByContent')
 })
 
-const paramsStar = localStorage.getItem('all-email-params')
+const paramsStar = safeStorage.getJSON('all-email-params')
 if (paramsStar) {
-  const locaParams = JSON.parse(paramsStar)
-  params.type = locaParams.type
-  params.timeSort = locaParams.timeSort
-  params.status = locaParams.status
-  params.searchType = locaParams.searchType
+  params.type = paramsStar.type
+  params.timeSort = paramsStar.timeSort
+  params.status = paramsStar.status
+  params.searchType = paramsStar.searchType
 }
 
-watch(() => params, () => {
-  localStorage.setItem('all-email-params', JSON.stringify(params))
+watch(() => params, async () => {
+  await safeStorage.setJSON('all-email-params', params)
 }, {
   deep: true
 })

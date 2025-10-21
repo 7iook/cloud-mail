@@ -9,7 +9,7 @@ enabled = true
 [[d1_databases]]
 binding = "db"
 database_name = "email"
-database_id = "a4c1a63a-6ef5-4e6d-8e8c-b6d9e8feb810"
+database_id = "c8949d04-233c-4fc1-8792-89703a408842"
 
 [[kv_namespaces]]
 binding = "kv"

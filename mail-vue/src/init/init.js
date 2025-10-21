@@ -7,6 +7,7 @@ import router from "@/router";
 import {websiteConfig} from "@/request/setting.js";
 import {cvtR2Url} from "@/utils/convert.js";
 import i18n from "@/i18n/index.js";
+import safeStorage from '@/utils/safeStorage.js';
 
 export async function init() {
     document.title = '\u200B'
@@ -15,7 +16,7 @@ export async function init() {
     const userStore = useUserStore();
     const accountStore = useAccountStore();
 
-    const token = localStorage.getItem('token');
+    const token = safeStorage.getItem('token');
 
     if (!settingStore.lang) {
         let lang = navigator.language

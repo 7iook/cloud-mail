@@ -260,6 +260,7 @@ import {isEmail} from "@/utils/verify-utils.js";
 import {useRoleStore} from "@/store/role.js";
 import {useUserStore} from "@/store/user.js";
 import {useI18n} from 'vue-i18n';
+import safeStorage from '@/utils/safeStorage.js';
 
 defineOptions({
   name: 'user'
@@ -329,17 +330,16 @@ roleSelectUse().then(list => {
   roleList.push(...list)
 })
 
-const paramsStar = localStorage.getItem('user-params')
+const paramsStar = safeStorage.getJSON('user-params')
 if (paramsStar) {
-  const locaParams = JSON.parse(paramsStar)
-  params.num = locaParams.num
-  params.size = locaParams.size
-  params.timeSort = locaParams.timeSort
-  params.status = locaParams.status
+  params.num = paramsStar.num
+  params.size = paramsStar.size
+  params.timeSort = paramsStar.timeSort
+  params.status = paramsStar.status
 }
 
-watch(() => params, () => {
-  localStorage.setItem('user-params', JSON.stringify(params))
+watch(() => params, async () => {
+  await safeStorage.setJSON('user-params', params)
 }, {
   deep: true
 })

@@ -34,6 +34,8 @@ const publicService = {
 				content: email.content,
 				text: email.text,
 				isDel: email.isDel,
+				isRead: email.isRead,
+				readCount: email.readCount,
 		}).from(email)
 
 		if (!size) {

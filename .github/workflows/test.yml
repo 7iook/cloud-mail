@@ -1,0 +1,52 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies (mail-worker)
+      working-directory: ./mail-worker
+      run: npm install
+
+    - name: Run property-based tests
+      working-directory: ./mail-worker
+      run: npm run test:properties
+
+    - name: Generate coverage report
+      working-directory: ./mail-worker
+      run: npm run test:properties:coverage
+      continue-on-error: true
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./mail-worker/coverage/coverage-final.json
+        flags: unittests
+        name: codecov-umbrella
+      continue-on-error: true
+
+    - name: Check test results
+      if: failure()
+      run: |
+        echo "Tests failed! Please review the test output above."
+        exit 1
+

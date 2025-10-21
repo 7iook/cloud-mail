@@ -10,6 +10,9 @@ import emailService from '../service/email-service';
 import settingService from '../service/setting-service';
 import BizError from '../error/biz-error';
 import { shareRateLimitMiddleware } from '../middleware/rate-limiter';
+import { isDel } from '../const/entity-const';
+import sanitizeUtils from '../utils/sanitize-utils';
+import verifyUtils from '../utils/verify-utils'; // Fix P1-38: 添加邮箱验证工具
 
 // SSE 实时推送端点
 app.get('/share/stream/:shareToken', shareRateLimitMiddleware, async (c) => {
@@ -20,25 +23,51 @@ app.get('/share/stream/:shareToken', shareRateLimitMiddleware, async (c) => {
 		// 验证分享链接
 		const shareRecord = await shareService.getByToken(c, shareToken);
 
+		// Fix P1-21: 验证shareRecord的shareType是否有效
+		const VALID_SHARE_TYPES = [1, 2];
+		if (!VALID_SHARE_TYPES.includes(shareRecord.shareType)) {
+			throw new BizError('分享配置错误：无效的分享类型', 500);
+		}
+
 		// 根据分享类型进行不同的验证
 		if (shareRecord.shareType === 2) {
 			// 类型2：多邮箱验证分享
-			if (!userEmail) {
+			// Fix P1-27: 严格检查userEmail，防止空字符串或只有空格的字符串
+			if (!userEmail || !userEmail.trim()) {
 				throw new BizError('请输入邮箱地址进行验证', 400);
+			}
+
+			// Fix P1-17: 验证邮箱格式
+			if (!verifyUtils.isEmail(userEmail)) {
+				throw new BizError('请输入有效的邮箱地址', 400);
+			}
+
+			// Fix P1-42: 验证邮箱长度
+			const MAX_EMAIL_LENGTH = 254; // RFC standard
+			if (userEmail.length > MAX_EMAIL_LENGTH) {
+				throw new BizError(`邮箱地址过长（最多${MAX_EMAIL_LENGTH}个字符）`, 400);
 			}
 
 			// 获取该分享的授权邮箱列表
 			let authorizedEmails = [];
 			try {
-				authorizedEmails = shareRecord.authorizedEmails ? JSON.parse(shareRecord.authorizedEmails) : [];
+				if (!shareRecord.authorizedEmails) {
+					throw new BizError('授权邮箱列表配置错误', 500);
+				}
+				authorizedEmails = JSON.parse(shareRecord.authorizedEmails);
+
+				if (!Array.isArray(authorizedEmails) || authorizedEmails.length === 0) {
+					throw new BizError('授权邮箱列表格式错误', 500);
+				}
 			} catch (error) {
 				console.error('解析授权邮箱列表失败:', error);
-				authorizedEmails = [];
+				throw new BizError('分享配置错误，请联系管理员', 500);
 			}
 
-			// 验证邮箱是否在该分享的授权列表中
+			// Fix P1-11: 使用 sanitizeUtils 规范化邮箱进行比较，确保一致性
+			const normalizedUserEmail = sanitizeUtils.sanitizeEmail(userEmail);
 			const isAuthorized = authorizedEmails.some(authorizedEmail =>
-				authorizedEmail.trim().toLowerCase() === userEmail.toLowerCase()
+				sanitizeUtils.sanitizeEmail(authorizedEmail) === normalizedUserEmail
 			);
 
 			if (!isAuthorized) {
@@ -46,18 +75,47 @@ app.get('/share/stream/:shareToken', shareRateLimitMiddleware, async (c) => {
 			}
 
 			// 验证通过，使用输入的邮箱作为目标邮箱
-			shareRecord.targetEmail = userEmail;
+			// Fix P1-12: 对 userEmail 进行规范化处理，确保与数据库中的邮箱格式一致
+			shareRecord.targetEmail = sanitizeUtils.sanitizeEmail(userEmail);
 		} else {
 			// 类型1：单邮箱分享（原有逻辑）
-			if (userEmail && userEmail.toLowerCase() !== shareRecord.targetEmail.toLowerCase()) {
-				throw new BizError('输入的邮箱与分享邮箱不匹配', 400);
+			// Fix P1-13: 使用 sanitizeUtils 规范化邮箱进行比较，确保一致性
+			// Fix P1-22: 严格检查userEmail，防止空字符串或只有空格的字符串
+			if (userEmail && userEmail.trim()) {
+				// Fix P1-18: 验证邮箱格式
+				if (!verifyUtils.isEmail(userEmail)) {
+					throw new BizError('请输入有效的邮箱地址', 400);
+				}
+
+				// Fix P1-45: 验证邮箱长度（Type 1）
+				const MAX_EMAIL_LENGTH = 254; // RFC standard
+				if (userEmail.length > MAX_EMAIL_LENGTH) {
+					throw new BizError(`邮箱地址过长（最多${MAX_EMAIL_LENGTH}个字符）`, 400);
+				}
+
+				const normalizedUserEmail = sanitizeUtils.sanitizeEmail(userEmail);
+				if (normalizedUserEmail !== shareRecord.targetEmail.toLowerCase()) {
+					throw new BizError('输入的邮箱与分享邮箱不匹配', 400);
+				}
 			}
 		}
 
-		// 获取目标账户，如果不存在则按需创建
+		// Fix P1-20: 验证数据库中的targetEmail是否有效
+		if (!verifyUtils.isEmail(shareRecord.targetEmail)) {
+			throw new BizError('分享配置错误：邮箱地址无效', 500);
+		}
+
+		// 获取目标账户
 		let targetAccount = await accountService.selectByEmailIncludeDel(c, shareRecord.targetEmail);
+
+		// Fix P1-5: 对于 Type 2 分享，邮箱必须已经存在（在创建分享时已创建）
 		if (!targetAccount) {
-			// 如果邮箱账户不存在，使用分享创建者的userId自动创建
+			if (shareRecord.shareType === 2) {
+				// Type 2 分享的邮箱应该在创建分享时已经创建，不应该自动创建
+				throw new BizError('邮箱账户不存在，请联系管理员', 500);
+			}
+
+			// Type 1 分享：如果邮箱账户不存在，使用分享创建者的userId自动创建
 			try {
 				targetAccount = await accountService.add(c, { email: shareRecord.targetEmail }, shareRecord.userId);
 				console.log(`为SSE流访问自动创建邮箱账户: ${shareRecord.targetEmail}`);
@@ -65,6 +123,11 @@ app.get('/share/stream/:shareToken', shareRateLimitMiddleware, async (c) => {
 				console.error('SSE流访问时自动创建邮箱账户失败:', error);
 				throw new BizError('邮箱账户创建失败', 500);
 			}
+		}
+
+		// Fix P1-6: 检查账户是否被删除
+		if (targetAccount && targetAccount.isDel === isDel.DELETE) {
+			throw new BizError('邮箱账户已被删除，无法访问', 403);
 		}
 
 		// 获取自动刷新配置

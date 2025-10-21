@@ -5,7 +5,8 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 export function formatDetailDate(time) {
-	return dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+	// 使用 UTC 格式化，确保时间不会因为本地时区而改变
+	return dayjs.utc(time).format('YYYY-MM-DD HH:mm:ss')
 }
 
 export function toUtc(time) {

@@ -50,7 +50,10 @@ const jwtUtils = {
 		try {
 			const [headerB64, payloadB64, signatureB64] = token.split('.');
 
-			if (!headerB64 || !payloadB64 || !signatureB64) return null;
+			if (!headerB64 || !payloadB64 || !signatureB64) {
+				console.log('Invalid token format');
+				return null;
+			}
 
 			const data = `${headerB64}.${payloadB64}`;
 			const key = await crypto.subtle.importKey(
@@ -68,18 +71,25 @@ const jwtUtils = {
 				encoder.encode(data)
 			);
 
+			console.log('Signature valid:', valid);
 			if (!valid) return null;
 
 			const payloadJson = decoder.decode(base64urlDecode(payloadB64));
 			const payload = JSON.parse(payloadJson);
+			console.log('Decoded payload:', payload);
 
 			const now = Math.floor(Date.now() / 1000);
-			if (payload.exp && payload.exp < now) return null;
+			console.log('Current time:', now, 'Token exp:', payload.exp);
+			if (payload.exp && payload.exp < now) {
+				console.log('Token expired');
+				return null;
+			}
 
+			console.log('JWT verification successful');
 			return payload;
 
 		} catch (err) {
-			console.log(err)
+			console.log('JWT verification error:', err)
 			return null;
 		}
 	}

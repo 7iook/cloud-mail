@@ -80,7 +80,19 @@
     </div>
 
     <!-- 邮件列表 - 直接复用全部邮件页面的实现 -->
-    <div v-else class="emails-container">
+    <div v-if="!loading && !captchaRequired && !rateLimitError && !error" class="emails-container">
+      <!-- 公告按钮（顶部 - 在邮件列表之前显示） -->
+      <div v-if="shareInfo?.announcementContent" class="announcement-button-container">
+        <el-button
+          type="primary"
+          text
+          @click="showAnnouncementDialog = true"
+          class="announcement-button"
+        >
+          <Icon icon="material-symbols:info" />
+          查看公告
+        </el-button>
+      </div>
       <!-- 白名单验证输入框 (仅类型2分享显示) -->
       <div v-if="shareInfo?.shareType === 2" class="email-verification-section">
         <div class="verification-header">
@@ -147,17 +159,40 @@
       />
     </div>
 
-    <!-- 公告弹窗 -->
+    <!-- 公告弹窗（支持图片轮播） -->
     <el-dialog
       v-model="showAnnouncementDialog"
-      title="公告"
-      width="500px"
+      :title="parsedAnnouncement?.title || '公告'"
+      width="600px"
       :close-on-click-modal="false"
       @close="handleAnnouncementClose"
       class="announcement-dialog"
     >
       <div class="announcement-content">
-        {{ shareInfo?.announcementContent }}
+        <!-- 图片轮播 -->
+        <div v-if="parsedAnnouncement?.images && parsedAnnouncement.images.length > 0" class="images-carousel">
+          <el-carousel :autoplay="false" class="carousel">
+            <el-carousel-item v-for="(image, index) in parsedAnnouncement.images" :key="index">
+              <div class="carousel-item">
+                <img :src="image.base64" :alt="`Image ${index + 1}`" />
+                <div v-if="image.caption" class="image-caption">{{ image.caption }}</div>
+              </div>
+            </el-carousel-item>
+          </el-carousel>
+          <div class="carousel-info">
+            {{ currentImageIndex + 1 }} / {{ parsedAnnouncement.images.length }}
+          </div>
+        </div>
+
+        <!-- 文本内容 -->
+        <div v-if="parsedAnnouncement?.content" class="announcement-text">
+          {{ parsedAnnouncement.content }}
+        </div>
+
+        <!-- 纯文本公告（向后兼容） -->
+        <div v-if="!parsedAnnouncement && shareInfo?.announcementContent" class="announcement-text">
+          {{ shareInfo.announcementContent }}
+        </div>
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -247,6 +282,8 @@ const {
 const showAnnouncementDialog = ref(false)
 const announcementShown = ref(false) // 标记是否已显示过公告
 const announcementVersionInfo = ref(null) // 存储公告版本信息 {version, shownAt}
+const parsedAnnouncement = ref(null) // 解析后的公告数据
+const currentImageIndex = ref(0) // 当前图片索引
 
 // 获取别名类型文本
 const getAliasTypeText = (aliasType) => {
@@ -372,9 +409,12 @@ const loadShareInfo = async () => {
       }
 
       if (shouldShowAnnouncement) {
+        // 解析公告内容
+        parseAnnouncementContent(info.announcementContent)
         nextTick(() => {
           showAnnouncementDialog.value = true
           announcementShown.value = true
+          currentImageIndex.value = 0
           // 保存版本信息到localStorage
           const versionInfo = {
             version: info.announcementVersion,
@@ -749,6 +789,33 @@ const handleCaptchaVerify = async () => {
   }
 }
 
+// 解析公告内容（支持新旧格式）
+const parseAnnouncementContent = (content) => {
+  parsedAnnouncement.value = null
+
+  if (!content) return
+
+  try {
+    // 尝试解析为JSON（新格式）
+    if (typeof content === 'string' && content.startsWith('{')) {
+      const parsed = JSON.parse(content)
+      if (parsed.type === 'rich') {
+        parsedAnnouncement.value = {
+          title: parsed.title || '',
+          content: parsed.content || '',
+          images: parsed.images || []
+        }
+        return
+      }
+    }
+  } catch (error) {
+    console.error('解析公告JSON失败:', error)
+  }
+
+  // 如果不是JSON格式，当作纯文本处理
+  // parsedAnnouncement.value 保持为 null，使用纯文本显示
+}
+
 // 处理公告弹窗关闭
 const handleAnnouncementClose = () => {
   showAnnouncementDialog.value = false
@@ -896,6 +963,143 @@ onUnmounted(() => {
   .split-container {
     border-radius: 0;
     box-shadow: none;
+  }
+
+  /* 公告按钮移动端优化 */
+  .announcement-button-container {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+
+    .announcement-button {
+      width: 100%;
+      justify-content: center;
+      padding: 10px 16px;
+      font-size: 15px;
+      min-height: 44px;
+    }
+  }
+
+  /* 公告弹窗移动端优化 */
+  .announcement-dialog {
+    :deep(.el-dialog) {
+      width: 95vw !important;
+      max-width: 95vw;
+      margin: 0 auto;
+    }
+
+    :deep(.el-dialog__body) {
+      padding: 16px;
+    }
+  }
+
+  .announcement-content {
+    padding: 12px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+
+    .images-carousel {
+      margin-bottom: 16px;
+
+      .carousel {
+        .carousel-item {
+          min-height: 200px;
+
+          img {
+            max-height: 300px;
+          }
+
+          .image-caption {
+            margin-top: 8px;
+            font-size: 13px;
+            padding: 0 8px;
+          }
+        }
+      }
+
+      .carousel-info {
+        font-size: 11px;
+        margin-top: 6px;
+      }
+    }
+
+    .announcement-text {
+      padding: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  }
+
+  /* 人机验证移动端优化 */
+  .captcha-container {
+    min-height: calc(100vh - 100px);
+    padding: 20px;
+  }
+
+  .captcha-box {
+    padding: 24px 16px;
+    max-width: 100%;
+    border-radius: 8px;
+  }
+
+  .captcha-icon {
+    font-size: 36px;
+    margin-bottom: 16px;
+  }
+
+  .captcha-content h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+
+  .captcha-content p {
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  /* 频率限制错误移动端优化 */
+  .rate-limit-error-container {
+    min-height: 300px;
+    padding: 16px;
+  }
+
+  .rate-limit-error {
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    max-width: 100%;
+
+    .error-icon {
+      font-size: 36px;
+    }
+
+    .error-content {
+      h3 {
+        font-size: 16px;
+      }
+
+      p {
+        font-size: 13px;
+      }
+    }
+  }
+
+  /* 邮件验证表单移动端优化 */
+  .verification-form {
+    flex-direction: column;
+    max-width: 100%;
+
+    .email-input {
+      width: 100%;
+    }
+
+    .el-button {
+      width: 100%;
+    }
+  }
+
+  .verification-error {
+    font-size: 13px;
+    max-width: 100%;
   }
 }
 
@@ -1163,6 +1367,31 @@ onUnmounted(() => {
   }
 }
 
+/* 公告按钮容器 */
+.announcement-button-container {
+  padding: 8px 0;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+
+  .announcement-button {
+    color: #409eff;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      color: #66b1ff;
+      background-color: #ecf5ff;
+    }
+  }
+}
+
 /* 公告弹窗样式 */
 .announcement-dialog {
   :deep(.el-dialog__header) {
@@ -1174,10 +1403,58 @@ onUnmounted(() => {
   padding: 20px;
   line-height: 1.6;
   color: #333;
-  white-space: pre-wrap;
   word-break: break-word;
-  max-height: 400px;
+  max-height: 600px;
   overflow-y: auto;
+
+  .images-carousel {
+    margin-bottom: 20px;
+
+    .carousel {
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f5f7fa;
+
+      .carousel-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+        background: #f5f7fa;
+
+        img {
+          max-width: 100%;
+          max-height: 400px;
+          object-fit: contain;
+          border-radius: 4px;
+        }
+
+        .image-caption {
+          margin-top: 12px;
+          font-size: 14px;
+          color: #606266;
+          text-align: center;
+          padding: 0 12px;
+        }
+      }
+    }
+
+    .carousel-info {
+      text-align: center;
+      font-size: 12px;
+      color: #909399;
+      margin-top: 8px;
+    }
+  }
+
+  .announcement-text {
+    white-space: pre-wrap;
+    padding: 12px;
+    background: #f5f7fa;
+    border-radius: 4px;
+    border-left: 3px solid #409eff;
+  }
 }
 
 .dialog-footer {

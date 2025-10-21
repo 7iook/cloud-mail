@@ -33,6 +33,13 @@ app.onError((err, c) => {
 		return c.json(result.fail('D1数据库未绑定<br>D1 database not bound',502));
 	}
 
+	// 处理 HTTP 429 频率限制错误，保留 Retry-After 头
+	if (err.code === 429) {
+		const response = c.json(result.fail(err.message, err.code));
+		// Retry-After 头已经在中间件中设置，这里只需要返回响应
+		return response;
+	}
+
 	return c.json(result.fail(err.message, err.code));
 });
 

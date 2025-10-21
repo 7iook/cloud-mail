@@ -437,6 +437,8 @@ const emailService = {
 
 	async latest(c, params, userId) {
 		let { emailId, accountId } = params;
+
+
 		const list = await orm(c).select().from(email).where(
 			and(
 				eq(email.userId, userId),
@@ -447,6 +449,8 @@ const emailService = {
 			))
 			.orderBy(desc(email.emailId))
 			.limit(20);
+
+
 
 		const emailIds = list.map(item => item.emailId);
 
@@ -830,6 +834,105 @@ const emailService = {
 			console.error('Get unique recipients error:', error);
 			throw new BizError('获取唯一邮箱列表失败: ' + error.message);
 		}
+	},
+
+	/**
+	 * 标记邮件为已读
+	 * @param {Object} c - Hono context
+	 * @param {number|string} emailId - 邮件ID
+	 * @param {number} userId - 用户ID
+	 * @returns {Promise<void>}
+	 */
+	async markAsRead(c, emailId, userId) {
+		emailId = Number(emailId);
+
+		// 验证邮件是否属于当前用户
+		const emailRow = await orm(c).select().from(email)
+			.where(and(
+				eq(email.emailId, emailId),
+				eq(email.userId, userId),
+				eq(email.isDel, isDel.NORMAL)
+			))
+			.get();
+
+		if (!emailRow) {
+			throw new BizError(t('noUserEmail'));
+		}
+
+		// 更新为已读状态，同时增加读取次数
+		await orm(c).update(email)
+			.set({ 
+				isRead: 1,
+				readCount: sql`${email.readCount} + 1`
+			})
+			.where(eq(email.emailId, emailId))
+			.run();
+	},
+
+	/**
+	 * 标记邮件为未读
+	 * @param {Object} c - Hono context
+	 * @param {number|string} emailId - 邮件ID
+	 * @param {number} userId - 用户ID
+	 * @returns {Promise<void>}
+	 */
+	async markAsUnread(c, emailId, userId) {
+		emailId = Number(emailId);
+
+		// 验证邮件是否属于当前用户
+		const emailRow = await orm(c).select().from(email)
+			.where(and(
+				eq(email.emailId, emailId),
+				eq(email.userId, userId),
+				eq(email.isDel, isDel.NORMAL)
+			))
+			.get();
+
+		if (!emailRow) {
+			throw new BizError(t('noUserEmail'));
+		}
+
+		// 更新为未读状态
+		await orm(c).update(email)
+			.set({ isRead: 0 })
+			.where(eq(email.emailId, emailId))
+			.run();
+	},
+
+	/**
+	 * 批量标记邮件已读/未读
+	 * @param {Object} c - Hono context
+	 * @param {Array<number>} emailIds - 邮件ID数组
+	 * @param {number} userId - 用户ID
+	 * @param {number} isRead - 已读状态 (0=未读, 1=已读)
+	 * @returns {Promise<void>}
+	 */
+	async batchMarkReadStatus(c, emailIds, userId, isRead) {
+		if (!Array.isArray(emailIds) || emailIds.length === 0) {
+			throw new BizError('邮件ID列表不能为空');
+		}
+
+		const emailIdNumbers = emailIds.map(id => Number(id));
+
+		// 验证所有邮件都属于当前用户
+		const emails = await orm(c).select({ emailId: email.emailId })
+			.from(email)
+			.where(and(
+				inArray(email.emailId, emailIdNumbers),
+				eq(email.userId, userId),
+				eq(email.isDel, isDel.NORMAL)
+			))
+			.all();
+
+		if (emails.length !== emailIdNumbers.length) {
+			throw new BizError('部分邮件不存在或无权限操作');
+		}
+
+		// 批量更新已读状态
+		await orm(c).update(email)
+			.set({ isRead: isRead ? 1 : 0 })
+			.where(inArray(email.emailId, emailIdNumbers))
+			.run();
 	}
 };
 

@@ -4,36 +4,74 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 import BizError from '../error/biz-error';
 import cryptoUtils from '../utils/crypto-utils';
 import dayjs from 'dayjs';
+import { getPresetTemplates } from '../data/preset-templates.js';
 
 const emailTemplateService = {
 
-	// 获取用户的模板列表
+	// 获取用户的模板列表(包括禁用的模板)
 	async getUserTemplates(c, userId, page = 1, pageSize = 20) {
 		const offset = (page - 1) * pageSize;
-		
+
 		const templates = await orm(c).select().from(emailTemplate)
-			.where(and(
-				eq(emailTemplate.userId, userId),
-				eq(emailTemplate.isActive, 1)
-			))
+			.where(eq(emailTemplate.userId, userId))
 			.orderBy(desc(emailTemplate.createdAt))
 			.limit(pageSize)
 			.offset(offset)
 			.all();
-			
+
 		return templates;
 	},
 
 	// 获取所有可用模板（包括系统预设）
 	async getAvailableTemplates(c, userId) {
-		const templates = await orm(c).select().from(emailTemplate)
+		// Get user's custom templates from database
+		const userTemplates = await orm(c).select().from(emailTemplate)
 			.where(and(
+				eq(emailTemplate.userId, userId),
 				eq(emailTemplate.isActive, 1)
 			))
 			.orderBy(desc(emailTemplate.createdAt))
 			.all();
-			
-		return templates;
+
+		return userTemplates;
+	},
+
+	// 初始化系统预设模板到用户账户
+	async initializePresetTemplates(c, userId) {
+		// Check if user already has preset templates
+		const existingTemplates = await orm(c).select().from(emailTemplate)
+			.where(eq(emailTemplate.userId, userId))
+			.all();
+
+		// If user has no templates, initialize with presets
+		if (existingTemplates.length === 0) {
+			const presetTemplates = getPresetTemplates();
+			const now = new Date().toISOString();
+
+			for (const preset of presetTemplates) {
+				const templateId = `template_${cryptoUtils.genRandomStr(16)}`;
+				await orm(c).insert(emailTemplate).values({
+					id: templateId,
+					name: preset.name,
+					description: preset.description,
+					senderPattern: preset.senderPattern || null,
+					subjectPattern: preset.subjectPattern || null,
+					bodyPattern: preset.bodyPattern || null,
+					extractionRegex: preset.extractionRegex,
+					codeFormat: preset.codeFormat || null,
+					exampleEmail: preset.exampleEmail || null,
+					exampleCode: preset.exampleCode || null,
+					userId: userId,
+					isActive: 1,
+					createdAt: now,
+					updatedAt: now
+				}).run();
+			}
+
+			return { success: true, count: presetTemplates.length };
+		}
+
+		return { success: false, message: 'User already has templates' };
 	},
 
 	// 根据ID获取模板
@@ -110,7 +148,7 @@ const emailTemplateService = {
 		return { success: true };
 	},
 
-	// 删除模板
+	// 删除模板(软删除)
 	async delete(c, templateId, userId) {
 		// 验证模板是否存在且属于当前用户
 		const templateRow = await this.getById(c, templateId);
@@ -130,6 +168,62 @@ const emailTemplateService = {
 			.run();
 
 		return { success: true };
+	},
+
+	// 切换模板启用状态
+	async toggleActive(c, templateId, userId) {
+		// 验证模板是否存在且属于当前用户
+		const templateRow = await orm(c).select().from(emailTemplate)
+			.where(eq(emailTemplate.id, templateId))
+			.get();
+
+		if (!templateRow) {
+			throw new BizError('模板不存在', 404);
+		}
+		if (templateRow.userId !== userId) {
+			throw new BizError('无权限操作此模板', 403);
+		}
+
+		// 切换状态
+		const newStatus = templateRow.isActive === 1 ? 0 : 1;
+		await orm(c).update(emailTemplate)
+			.set({
+				isActive: newStatus,
+				updatedAt: dayjs().toISOString()
+			})
+			.where(eq(emailTemplate.id, templateId))
+			.run();
+
+		return { success: true, isActive: newStatus };
+	},
+
+	// 批量更新模板启用状态
+	async batchUpdateActive(c, templateIds, isActive, userId) {
+		// 验证所有模板都属于当前用户
+		const templates = await orm(c).select().from(emailTemplate)
+			.where(eq(emailTemplate.userId, userId))
+			.all();
+
+		const userTemplateIds = templates.map(t => t.id);
+		const invalidIds = templateIds.filter(id => !userTemplateIds.includes(id));
+
+		if (invalidIds.length > 0) {
+			throw new BizError('部分模板不存在或无权限操作', 403);
+		}
+
+		// 批量更新
+		const now = dayjs().toISOString();
+		for (const templateId of templateIds) {
+			await orm(c).update(emailTemplate)
+				.set({
+					isActive: isActive ? 1 : 0,
+					updatedAt: now
+				})
+				.where(eq(emailTemplate.id, templateId))
+				.run();
+		}
+
+		return { success: true, count: templateIds.length };
 	},
 
 	// 测试模板匹配
@@ -155,12 +249,20 @@ const emailTemplateService = {
 
 			// 1. 发件人匹配检查
 			if (senderPattern && senderPattern.trim()) {
-				const senderRegex = new RegExp(senderPattern, 'i');
+				// 修复双反斜杠转义问题
+				const fixedPattern = senderPattern.replace(/\\\\\./g, '\\.');
+				const senderRegex = new RegExp(fixedPattern, 'i');
 				if (!senderRegex.test(from)) {
 					return {
 						success: false,
 						reason: 'sender_mismatch',
-						message: '发件人不匹配模板规则'
+						message: '发件人不匹配模板规则',
+						debug: {
+							originalPattern: senderPattern,
+							fixedPattern: fixedPattern,
+							from: from,
+							regexTest: senderRegex.test(from)
+						}
 					};
 				}
 			}
@@ -190,20 +292,28 @@ const emailTemplateService = {
 			}
 
 			// 4. 验证码提取
-			const codeRegex = new RegExp(extractionRegex, 'gi');
+			// 修复双反斜杠转义问题
+			const fixedExtractionRegex = extractionRegex.replace(/\\\\/g, '\\');
+			const codeRegex = new RegExp(fixedExtractionRegex, 'gi');
 			const matches = body.match(codeRegex);
 			
 			if (!matches || matches.length === 0) {
 				return {
 					success: false,
 					reason: 'code_not_found',
-					message: '未找到验证码'
+					message: '未找到验证码',
+					debug: {
+						originalRegex: extractionRegex,
+						fixedRegex: fixedExtractionRegex,
+						bodyPreview: body.substring(0, 200),
+						bodyLength: body.length
+					}
 				};
 			}
 
 			// 提取第一个匹配的验证码
 			const fullMatch = matches[0];
-			const codeMatch = fullMatch.match(new RegExp(extractionRegex, 'i'));
+			const codeMatch = fullMatch.match(new RegExp(fixedExtractionRegex, 'i'));
 			const verificationCode = codeMatch && codeMatch[1] ? codeMatch[1] : fullMatch;
 
 			return {

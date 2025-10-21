@@ -112,14 +112,19 @@ app.use('*', async (c, next) => {
 	// 处理分享token直接访问（如 /share/wp4Qug766zM2gRBaNu6vg25w7ZwZx8hk）
 	// 分享token的格式：32个字母数字字符
 	// 使用正则表达式精确匹配，避免使用多个 !path.includes() 检查
-	const shareTokenPattern = /^\/share\/[a-zA-Z0-9]{32}$/;
+	// 支持以下路径格式：
+	// 1. /share/[32字符] - 直接访问分享链接
+	// 2. /share/info/[32字符] - 获取分享信息
+	// 3. /share/emails/[32字符] - 获取分享邮件列表
+	// 4. /share/stream/[32字符] - 分享流式推送
+	const shareTokenPattern = /^\/share\/(info|emails|stream)?\/[a-zA-Z0-9]{32}$/;
 	const isDirectShareAccess = shareTokenPattern.test(path);
-	
+
 	// 分享token直接访问需要满足以下条件：
 	// 1. 路径匹配分享token格式（32字符）
 	// 2. 不是DELETE或PATCH方法（这些操作需要JWT认证）
-	const shareCondition = isDirectShareAccess && 
-		c.req.method !== 'DELETE' && 
+	const shareCondition = isDirectShareAccess &&
+		c.req.method !== 'DELETE' &&
 		c.req.method !== 'PATCH';
 
 	if (shareCondition) {

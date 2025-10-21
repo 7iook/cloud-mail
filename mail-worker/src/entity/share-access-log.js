@@ -13,7 +13,8 @@ export const shareAccessLog = sqliteTable('share_access_log', {
 	errorMessage: text('error_message').default(''),
 	accessTime: text('access_time').default(sql`CURRENT_TIMESTAMP`).notNull(),
 	responseTime: integer('response_time').default(0), // 响应时间(毫秒)
-	emailCount: integer('email_count').default(0) // 返回的邮件数量
+	emailCount: integer('email_count').default(0), // 返回的邮件数量
+	emailIds: text('email_ids').default('[]') // JSON数组存储访问时返回的邮件ID列表
 });
 
 export default shareAccessLog;

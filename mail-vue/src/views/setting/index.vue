@@ -56,6 +56,7 @@ import router from "@/router/index.js";
 import {accountSetName} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
 import {useI18n} from "vue-i18n";
+import safeStorage from '@/utils/safeStorage.js';
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
@@ -120,7 +121,7 @@ const deleteConfirm = () => {
     type: 'warning'
   }).then(() => {
     userDelete().then(() => {
-      localStorage.removeItem('token');
+      safeStorage.removeItem('token');
       router.replace('/login');
       ElMessage({
         message: t('delSuccessMsg'),

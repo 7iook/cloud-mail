@@ -4,7 +4,8 @@ import path from 'path'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import {ElementPlusResolver} from 'unplugin-vue-components/resolvers'
-import {VitePWA} from 'vite-plugin-pwa';
+import {VitePWA} from 'vite-plugin-pwa'
+import {shareGuardPlugin} from './vite-plugin-share-guard.js';
 
 export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), 'VITE')
@@ -24,7 +25,10 @@ export default defineConfig(({mode}) => {
             ]
         },
         base: env.VITE_STATIC_URL || '/',
-        plugins: [vue(),
+        plugins: [
+            // 🔒 安全守卫：开发环境也启用分享链接验证
+            shareGuardPlugin(),
+            vue(),
             VitePWA({
                 injectRegister: 'script-defer',
                 manifest: {

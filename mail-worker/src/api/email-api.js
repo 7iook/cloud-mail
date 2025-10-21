@@ -29,3 +29,24 @@ app.post('/email/send', async (c) => {
 	return c.json(result.ok(email));
 });
 
+// 标记邮件为已读
+app.put('/email/markAsRead', async (c) => {
+	const { emailId } = c.req.query();
+	await emailService.markAsRead(c, emailId, userContext.getUserId(c));
+	return c.json(result.ok());
+});
+
+// 标记邮件为未读
+app.put('/email/markAsUnread', async (c) => {
+	const { emailId } = c.req.query();
+	await emailService.markAsUnread(c, emailId, userContext.getUserId(c));
+	return c.json(result.ok());
+});
+
+// 批量标记邮件已读/未读状态
+app.put('/email/batchMarkReadStatus', async (c) => {
+	const { emailIds, isRead } = await c.req.json();
+	await emailService.batchMarkReadStatus(c, emailIds, userContext.getUserId(c), isRead);
+	return c.json(result.ok());
+});
+

@@ -118,6 +118,7 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
+import safeStorage from '@/utils/safeStorage.js';
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
@@ -230,7 +231,7 @@ const submit = () => {
 
   loginLoading.value = true
   login(email, form.password).then(async data => {
-    localStorage.setItem('token', data.token)
+    await safeStorage.setItem('token', data.token)
     const user = await loginUserInfo();
     accountStore.currentAccountId = user.accountId;
     userStore.user = user;

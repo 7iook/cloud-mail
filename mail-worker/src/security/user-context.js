@@ -5,7 +5,6 @@ const userContext = {
 	getUserId(c) {
 		const user = c.get('user');
 		if (!user) {
-			console.error('User context not found in Hono context');
 			throw new Error('User context not found');
 		}
 		return user.userId;
