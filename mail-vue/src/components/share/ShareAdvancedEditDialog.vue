@@ -2,10 +2,11 @@
   <el-dialog
     v-model="visible"
     title="高级设置"
-    width="900px"
+    width="1000px"
     :before-close="handleClose"
+    class="advanced-settings-dialog"
   >
-    <el-tabs>
+    <el-tabs tab-position="left" style="height: 600px;">
       <!-- 基础设置标签页 -->
       <el-tab-pane label="基础设置">
         <el-form :model="formData" :rules="rules" label-width="120px">
@@ -246,7 +247,15 @@
       <el-tab-pane label="公告设置">
         <div class="announcement-container">
           <div class="announcement-editor">
-            <el-form :model="announcementData" label-width="80px">
+            <el-form :model="announcementData" label-width="100px">
+              <el-form-item label="展示次数">
+                <el-radio-group v-model="announcementData.displayMode">
+                  <el-radio label="always">每次访问都显示</el-radio>
+                  <el-radio label="once">仅显示一次</el-radio>
+                </el-radio-group>
+                <div class="form-tip">选择"仅显示一次"时，用户关闭公告后不会再看到</div>
+              </el-form-item>
+
               <el-form-item label="公告标题">
                 <el-input
                   v-model="announcementData.title"
@@ -464,7 +473,8 @@ const newAuthorizedEmail = ref('')
 const announcementData = reactive({
   title: '',
   content: '',
-  images: []
+  images: [],
+  displayMode: 'always' // 展示次数：'always' 每次显示，'once' 仅显示一次
 })
 
 // 公告预览相关
@@ -572,6 +582,7 @@ const parseAnnouncementContent = (content) => {
         announcementData.title = parsed.title || ''
         announcementData.content = parsed.content || ''
         announcementData.images = parsed.images || []
+        announcementData.displayMode = parsed.displayMode || 'always'
         return
       }
     }
@@ -748,7 +759,8 @@ const buildAnnouncementContent = () => {
     type: 'rich',
     title: announcementData.title || '',
     content: announcementData.content || '',
-    images: announcementData.images || []
+    images: announcementData.images || [],
+    displayMode: announcementData.displayMode || 'always'
   })
 }
 
@@ -844,6 +856,27 @@ const copyShareUrl = async (text, label) => {
 </script>
 
 <style scoped>
+/* 垂直选项卡布局优化 */
+:deep(.el-tabs--left) {
+  display: flex;
+  height: 100%;
+}
+
+:deep(.el-tabs__nav-wrap--left) {
+  width: 120px;
+  border-right: 1px solid #e4e7eb;
+}
+
+:deep(.el-tabs__content) {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+:deep(.el-tab-pane) {
+  padding: 0;
+}
+
 .form-tip {
   font-size: 12px;
   color: #909399;

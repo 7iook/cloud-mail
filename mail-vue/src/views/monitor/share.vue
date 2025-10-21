@@ -400,31 +400,44 @@ const loadShareInfo = async () => {
     rateLimitError.value = null
     rateLimitRetryAfter.value = 0
 
-    // 显示公告弹窗（支持版本控制，当公告内容更新时重新显示）
+    // 显示公告弹窗（支持版本控制和展示次数控制）
     if (info.announcementContent && info.announcementVersion) {
+      // 解析公告内容以获取 displayMode
+      parseAnnouncementContent(info.announcementContent)
+      const displayMode = parsedAnnouncement.value?.displayMode || 'always'
+
       const announcementKey = `announcement_version_${shareToken}`
+      const viewedKey = `announcement_viewed_${shareToken}`
       const storedVersionInfo = localStorage.getItem(announcementKey)
+      const viewedInfo = localStorage.getItem(viewedKey)
       let shouldShowAnnouncement = false
 
-      if (storedVersionInfo) {
-        try {
-          const versionInfo = JSON.parse(storedVersionInfo)
-          // 如果版本不同，说明公告内容已更新，需要重新显示
-          if (versionInfo.version !== info.announcementVersion) {
+      // 检查是否已显示过（仅显示一次模式）
+      if (displayMode === 'once' && viewedInfo) {
+        shouldShowAnnouncement = false
+      } else if (displayMode === 'always') {
+        // 每次显示模式：检查版本是否更新
+        if (storedVersionInfo) {
+          try {
+            const versionInfo = JSON.parse(storedVersionInfo)
+            // 如果版本不同，说明公告内容已更新，需要重新显示
+            if (versionInfo.version !== info.announcementVersion) {
+              shouldShowAnnouncement = true
+            }
+          } catch (e) {
+            // 如果解析失败，显示公告
             shouldShowAnnouncement = true
           }
-        } catch (e) {
-          // 如果解析失败，显示公告
+        } else {
+          // 首次访问，显示公告
           shouldShowAnnouncement = true
         }
       } else {
-        // 首次访问，显示公告
-        shouldShowAnnouncement = true
+        // 仅显示一次模式：首次访问显示
+        shouldShowAnnouncement = !viewedInfo
       }
 
       if (shouldShowAnnouncement) {
-        // 解析公告内容
-        parseAnnouncementContent(info.announcementContent)
         nextTick(() => {
           showAnnouncementDialog.value = true
           announcementShown.value = true
@@ -817,7 +830,8 @@ const parseAnnouncementContent = (content) => {
         parsedAnnouncement.value = {
           title: parsed.title || '',
           content: parsed.content || '',
-          images: parsed.images || []
+          images: parsed.images || [],
+          displayMode: parsed.displayMode || 'always'
         }
         return
       }
@@ -833,6 +847,15 @@ const parseAnnouncementContent = (content) => {
 // 处理公告弹窗关闭
 const handleAnnouncementClose = () => {
   showAnnouncementDialog.value = false
+
+  // 如果公告设置为"仅显示一次"，记录到 localStorage
+  if (parsedAnnouncement.value?.displayMode === 'once') {
+    const viewedKey = `announcement_viewed_${shareToken}`
+    localStorage.setItem(viewedKey, JSON.stringify({
+      viewedAt: new Date().toISOString(),
+      version: parsedAnnouncement.value.version || 0
+    }))
+  }
 }
 
 // 全屏查看图片

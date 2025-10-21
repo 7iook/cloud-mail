@@ -512,6 +512,16 @@
       <!-- 新增：公告弹窗功能（支持图片） -->
       <el-form-item label="公告内容" prop="announcementContent">
         <div class="announcement-editor">
+          <!-- 展示次数选项 -->
+          <div class="announcement-section">
+            <label class="section-label">展示次数</label>
+            <el-radio-group v-model="announcementData.displayMode">
+              <el-radio label="always">每次访问都显示</el-radio>
+              <el-radio label="once">仅显示一次</el-radio>
+            </el-radio-group>
+            <div class="form-tip">选择"仅显示一次"时，用户关闭公告后不会再看到</div>
+          </div>
+
           <!-- 标题和预览按钮 -->
           <div class="announcement-header">
             <div class="announcement-section" style="flex: 1">
@@ -810,7 +820,8 @@ const previewImageIndex = ref(0);
 const announcementData = reactive({
   title: '',
   content: '',
-  images: []
+  images: [],
+  displayMode: 'always' // 展示次数：'always' 每次显示，'once' 仅显示一次
 });
 
 // 表单数据
@@ -1323,7 +1334,8 @@ const buildAnnouncementContent = () => {
     type: 'rich',
     title: announcementData.title || '',
     content: announcementData.content || '',
-    images: announcementData.images || []
+    images: announcementData.images || [],
+    displayMode: announcementData.displayMode || 'always'
   }
 
   return JSON.stringify(richContent)
