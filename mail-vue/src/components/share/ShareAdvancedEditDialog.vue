@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="高级设置"
-    width="1500px"
+    width="85%"
     :before-close="handleClose"
     class="advanced-settings-dialog"
   >
@@ -785,12 +785,15 @@ const copyShareUrl = async (text, label) => {
 :deep(.advanced-settings-dialog) {
   display: flex;
   flex-direction: column;
+  width: 90vw !important;
+  max-width: 1600px !important;
 }
 
 :deep(.advanced-settings-dialog .el-dialog__body) {
   flex: 1;
   overflow: hidden;
   padding: 0;
+  max-height: calc(100vh - 200px);
 }
 
 /* 容器布局 */
@@ -798,6 +801,7 @@ const copyShareUrl = async (text, label) => {
   display: flex;
   gap: 20px;
   height: 100%;
+  overflow: hidden;
 }
 
 .settings-form-area {
