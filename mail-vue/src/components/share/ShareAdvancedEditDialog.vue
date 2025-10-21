@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="高级设置"
-    width="1400px"
+    width="1500px"
     :before-close="handleClose"
     class="advanced-settings-dialog"
   >
@@ -785,7 +785,7 @@ const copyShareUrl = async (text, label) => {
 .advanced-settings-container {
   display: flex;
   gap: 20px;
-  height: 600px;
+  height: 700px;
 }
 
 .settings-form-area {
@@ -795,7 +795,7 @@ const copyShareUrl = async (text, label) => {
 }
 
 .preview-area {
-  width: 350px;
+  width: 300px;
   border-left: 1px solid #e4e7eb;
   padding-left: 20px;
   overflow-y: auto;

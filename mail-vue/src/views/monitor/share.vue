@@ -405,7 +405,7 @@ const loadShareInfo = async () => {
     rateLimitRetryAfter.value = 0
 
     // 显示公告弹窗（支持版本控制和展示次数控制）
-    if (info.announcementContent && info.announcementVersion) {
+    if (info.announcementContent) {
       // 解析公告内容以获取 displayMode
       parseAnnouncementContent(info.announcementContent)
       const displayMode = parsedAnnouncement.value?.displayMode || 'always'
@@ -421,11 +421,12 @@ const loadShareInfo = async () => {
         shouldShowAnnouncement = false
       } else if (displayMode === 'always') {
         // 每次显示模式：检查版本是否更新
+        const currentVersion = info.announcementVersion || Date.now()
         if (storedVersionInfo) {
           try {
             const versionInfo = JSON.parse(storedVersionInfo)
             // 如果版本不同，说明公告内容已更新，需要重新显示
-            if (versionInfo.version !== info.announcementVersion) {
+            if (versionInfo.version !== currentVersion) {
               shouldShowAnnouncement = true
             }
           } catch (e) {
@@ -448,7 +449,7 @@ const loadShareInfo = async () => {
           currentImageIndex.value = 0
           // 保存版本信息到localStorage
           const versionInfo = {
-            version: info.announcementVersion,
+            version: info.announcementVersion || Date.now(),
             shownAt: new Date().toISOString()
           }
           localStorage.setItem(announcementKey, JSON.stringify(versionInfo))

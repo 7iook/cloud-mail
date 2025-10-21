@@ -858,6 +858,7 @@ const shareService = {
 			enableCaptcha,
 			// 公告弹窗功能
 			announcementContent,
+			announcementVersion,
 			// 过滤模式和模板字段
 			filterMode,
 			templateId,
@@ -1093,11 +1094,16 @@ const shareService = {
 			// 当公告内容更新时，自动更新版本号（使用当前时间戳）
 			// 这样前端可以通过比较版本号来判断是否需要重新显示公告
 			if (announcementContent !== null) {
-				updateData.announcementVersion = Math.floor(Date.now() / 1000);
+				updateData.announcementVersion = announcementVersion || Date.now();
 			} else {
 				// 如果公告内容被清空，也清空版本号
 				updateData.announcementVersion = null;
 			}
+		}
+
+		// 处理 announcementVersion 的显式更新
+		if (announcementVersion !== undefined && announcementContent === undefined) {
+			updateData.announcementVersion = announcementVersion;
 		}
 
 		// 过滤模式和模板字段更新

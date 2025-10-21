@@ -343,7 +343,8 @@ app.post('/share/create', async (c) => {
 			// 新增：人机验证功能
 			enableCaptcha: enableCaptcha !== undefined ? (enableCaptcha ? 1 : 0) : 0, // 默认禁用
 			// 新增：公告弹窗功能
-			announcementContent: announcementContent || null // 公告内容，NULL表示没有公告
+			announcementContent: announcementContent || null, // 公告内容，NULL表示没有公告
+			announcementVersion: announcementContent ? Date.now() : null // 公告版本号（时间戳），用于检测公告更新
 		};
 
 		const shareRecord = await shareService.create(c, shareData, userId);
@@ -1227,7 +1228,11 @@ app.patch('/share/:shareId/announcement', async (c) => {
 			}
 		}
 
-		const updateResult = await shareService.updateAdvancedSettings(c, shareId, { announcementContent });
+		const updateData = {
+			announcementContent,
+			announcementVersion: announcementContent ? Date.now() : null // 更新公告时，更新版本号
+		};
+		const updateResult = await shareService.updateAdvancedSettings(c, shareId, updateData);
 
 		return c.json(result.ok(updateResult));
 
