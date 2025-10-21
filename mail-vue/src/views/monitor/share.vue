@@ -222,6 +222,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Warning } from '@element-plus/icons-vue'
 import { useEmailStore } from "@/store/email.js"
+import { useSettingStore } from "@/store/setting.js"
 import { getShareInfo, getShareEmails } from '@/request/share.js'
 import emailScroll from "@/components/email-scroll/index.vue"
 import SplitPaneLayout from '@/components/SplitPaneLayout.vue'
@@ -237,6 +238,9 @@ const shareToken = route.params.token
 
 // 邮件状态管理
 const emailStore = useEmailStore()
+
+// 系统设置管理
+const settingStore = useSettingStore()
 
 // 初始化分享页面的分屏布局
 onMounted(() => {
@@ -727,10 +731,18 @@ const stopAutoRefresh = () => {
 
 // 加载Turnstile脚本
 const loadTurnstileScript = () => {
+  // 从系统设置获取 siteKey，如果不存在则使用环境变量作为备选
+  const siteKey = settingStore.settings?.siteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY
+
+  if (!siteKey) {
+    ElMessage.error('Turnstile siteKey 未配置，请联系管理员')
+    return
+  }
+
   if (window.turnstile) {
     // 脚本已加载，直接渲染
     window.turnstile.render('#cf-turnstile', {
-      sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+      sitekey: siteKey,
       theme: 'light',
       callback: handleTurnstileCallback,
       'error-callback': handleTurnstileError
@@ -743,7 +755,7 @@ const loadTurnstileScript = () => {
     script.defer = true
     script.onload = () => {
       window.turnstile.render('#cf-turnstile', {
-        sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+        sitekey: siteKey,
         theme: 'light',
         callback: handleTurnstileCallback,
         'error-callback': handleTurnstileError

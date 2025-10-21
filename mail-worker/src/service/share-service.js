@@ -1007,10 +1007,9 @@ const shareService = {
 		}
 
 		// 人机验证功能 - 仅在字段存在时更新
-		// 注意：enable_captcha 列可能在某些数据库中不存在，所以这里不更新
-		// if (enableCaptcha !== undefined) {
-		//	updateData.enableCaptcha = enableCaptcha ? 1 : 0;
-		// }
+		if (enableCaptcha !== undefined) {
+			updateData.enableCaptcha = enableCaptcha ? 1 : 0;
+		}
 
 		// 公告弹窗功能（支持版本控制和图片）
 		if (announcementContent !== undefined) {
