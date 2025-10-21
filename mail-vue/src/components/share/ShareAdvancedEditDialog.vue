@@ -756,11 +756,16 @@ const handleSave = async () => {
       enableCaptcha: formData.enableCaptcha ? 1 : 0,
       announcementContent: buildAnnouncementContent(),
       shareType: formData.shareType,
-      authorizedEmails: formData.authorizedEmails,
       filterMode: formData.filterMode,
       templateId: formData.templateId,
       showFullEmail: formData.showFullEmail ? 1 : 0,
       shareDomain: formData.shareDomain
+    }
+
+    // Fix: 只在多邮箱分享（Type 2）时才发送 authorizedEmails 字段
+    // 原因：后端会验证 authorizedEmails 只能用于 Type 2 分享
+    if (formData.shareType === 2) {
+      settings.authorizedEmails = formData.authorizedEmails
     }
 
     await updateShareAdvancedSettings(formData.shareId, settings)
