@@ -6,7 +6,7 @@
     :before-close="handleClose"
     class="advanced-settings-dialog"
   >
-    <el-tabs tab-position="left" style="height: 600px;">
+    <el-tabs tab-position="left" style="height: 600px;" class="advanced-tabs">
       <!-- 基础设置标签页 -->
       <el-tab-pane label="基础设置">
         <el-form :model="formData" :rules="rules" label-width="120px">
@@ -24,6 +24,72 @@
             />
           </el-form-item>
 
+          <el-divider />
+
+          <el-form-item label="分享类型">
+            <el-radio-group v-model="formData.shareType">
+              <el-radio :label="1">单个邮箱</el-radio>
+              <el-radio :label="2">邮箱验证</el-radio>
+            </el-radio-group>
+          </el-form-item>
+
+          <el-form-item v-if="formData.shareType === 2" label="授权邮箱">
+            <div class="authorized-emails-container">
+              <div class="email-input-group">
+                <el-input
+                  v-model="newAuthorizedEmail"
+                  placeholder="输入邮箱地址"
+                  @keyup.enter="addAuthorizedEmail"
+                />
+                <el-button type="primary" @click="addAuthorizedEmail">添加</el-button>
+              </div>
+
+              <div v-if="formData.authorizedEmails.length > 0" class="email-list">
+                <el-tag
+                  v-for="(email, index) in formData.authorizedEmails"
+                  :key="index"
+                  closable
+                  @close="removeAuthorizedEmail(index)"
+                >
+                  {{ email }}
+                </el-tag>
+              </div>
+              <div v-else class="form-tip">暂无授权邮箱</div>
+            </div>
+          </el-form-item>
+
+          <el-divider />
+
+          <el-form-item label="分享域名">
+            <el-select v-model="formData.shareDomain" placeholder="选择分享域名">
+              <el-option label="使用默认域名" :value="''" />
+              <el-option
+                v-for="domain in availableDomains"
+                :key="domain"
+                :label="domain"
+                :value="domain"
+              />
+            </el-select>
+            <div class="form-tip">选择此分享链接使用的域名</div>
+          </el-form-item>
+
+          <el-form-item label="分享链接">
+            <div class="share-url-display">
+              <el-input v-model="formData.shareUrl" readonly />
+              <el-button type="primary" @click="copyShareUrl">复制链接</el-button>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="刷新 Token">
+            <el-button type="warning" @click="handleRefreshToken">刷新 Token</el-button>
+            <div class="form-tip">刷新后旧链接将失效，请谨慎操作</div>
+          </el-form-item>
+        </el-form>
+      </el-tab-pane>
+
+      <!-- 访问控制标签页 -->
+      <el-tab-pane label="访问控制">
+        <el-form :model="formData" label-width="120px">
           <el-form-item label="每日访问限额">
             <el-input-number
               v-model="formData.otpLimitDaily"
@@ -36,12 +102,9 @@
           <el-form-item label="启用每日限额">
             <el-switch v-model="formData.otpLimitEnabled" />
           </el-form-item>
-        </el-form>
-      </el-tab-pane>
 
-      <!-- 频率限制标签页 -->
-      <el-tab-pane label="频率限制">
-        <el-form :model="formData" label-width="120px">
+          <el-divider />
+
           <el-form-item label="启用频率限制">
             <el-switch v-model="formData.rateLimitEnabled" />
           </el-form-item>
@@ -65,11 +128,34 @@
             />
             <div class="form-tip">0 表示禁用自动恢复</div>
           </el-form-item>
+
+          <el-divider />
+
+          <el-form-item label="启用冷却">
+            <el-switch v-model="formData.cooldownEnabled" />
+            <div class="form-tip">启用后，用户访问后需要等待一段时间才能再次访问</div>
+          </el-form-item>
+
+          <el-form-item v-if="formData.cooldownEnabled" label="冷却时间（秒）" prop="cooldownSeconds">
+            <el-input-number
+              v-model="formData.cooldownSeconds"
+              :min="1"
+              :max="300"
+              placeholder="请输入冷却时间"
+            />
+          </el-form-item>
+
+          <el-divider />
+
+          <el-form-item label="启用人机验证">
+            <el-switch v-model="formData.enableCaptcha" />
+            <div class="form-tip">启用后，用户需要完成人机验证才能访问</div>
+          </el-form-item>
         </el-form>
       </el-tab-pane>
 
-      <!-- 邮件过滤标签页 -->
-      <el-tab-pane label="邮件过滤">
+      <!-- 邮件显示标签页 -->
+      <el-tab-pane label="邮件显示">
         <el-form :model="formData" label-width="120px">
           <el-form-item label="过滤模式">
             <el-radio-group v-model="formData.filterMode">
@@ -116,12 +202,9 @@
           <el-form-item label="启用显示限制">
             <el-switch v-model="formData.verificationCodeLimitEnabled" />
           </el-form-item>
-        </el-form>
-      </el-tab-pane>
 
-      <!-- 邮件数量限制标签页 -->
-      <el-tab-pane label="邮件数量">
-        <el-form :model="formData" label-width="120px">
+          <el-divider />
+
           <el-form-item label="最新邮件数">
             <el-input-number
               v-model="formData.latestEmailCount"
@@ -144,212 +227,38 @@
               @change="handleAutoRefreshIntervalChange"
             />
           </el-form-item>
-        </el-form>
-      </el-tab-pane>
 
-      <!-- 冷却功能标签页 -->
-      <el-tab-pane label="冷却功能">
-        <el-form :model="formData" label-width="120px">
-          <el-form-item label="启用冷却">
-            <el-switch v-model="formData.cooldownEnabled" />
-            <div class="form-tip">启用后，用户访问后需要等待一段时间才能再次访问</div>
+          <el-divider />
+
+          <el-form-item label="展示次数">
+            <el-radio-group v-model="announcementData.displayMode">
+              <el-radio label="always">每次访问都显示</el-radio>
+              <el-radio label="once">仅显示一次</el-radio>
+            </el-radio-group>
+            <div class="form-tip">选择"仅显示一次"时，用户关闭公告后不会再看到</div>
           </el-form-item>
 
-          <el-form-item v-if="formData.cooldownEnabled" label="冷却时间（秒）" prop="cooldownSeconds">
-            <el-input-number
-              v-model="formData.cooldownSeconds"
-              :min="1"
-              :max="300"
-              placeholder="请输入冷却时间"
+          <el-form-item label="公告标题">
+            <el-input
+              v-model="announcementData.title"
+              placeholder="请输入公告标题（可选）"
+              maxlength="100"
+            />
+          </el-form-item>
+
+          <el-form-item label="公告内容">
+            <el-input
+              v-model="announcementData.content"
+              type="textarea"
+              placeholder="请输入公告内容或粘贴图片"
+              rows="3"
+              maxlength="1000"
+              @paste="handlePaste"
             />
           </el-form-item>
         </el-form>
       </el-tab-pane>
 
-      <!-- 人机验证标签页 -->
-      <el-tab-pane label="人机验证">
-        <el-form :model="formData" label-width="120px">
-          <el-form-item label="启用人机验证">
-            <el-switch v-model="formData.enableCaptcha" />
-            <div class="form-tip">启用后，用户需要完成人机验证才能访问</div>
-          </el-form-item>
-        </el-form>
-      </el-tab-pane>
-
-      <!-- 授权邮箱标签页 -->
-      <el-tab-pane label="授权邮箱">
-        <el-form :model="formData" label-width="120px">
-          <el-form-item label="分享类型">
-            <el-radio-group v-model="formData.shareType">
-              <el-radio :label="1">单个邮箱</el-radio>
-              <el-radio :label="2">邮箱验证</el-radio>
-            </el-radio-group>
-          </el-form-item>
-
-          <el-form-item v-if="formData.shareType === 2" label="授权邮箱">
-            <div class="authorized-emails-container">
-              <div class="email-input-group">
-                <el-input
-                  v-model="newAuthorizedEmail"
-                  placeholder="输入邮箱地址"
-                  @keyup.enter="addAuthorizedEmail"
-                />
-                <el-button type="primary" @click="addAuthorizedEmail">添加</el-button>
-              </div>
-
-              <div v-if="formData.authorizedEmails.length > 0" class="email-list">
-                <el-tag
-                  v-for="(email, index) in formData.authorizedEmails"
-                  :key="index"
-                  closable
-                  @close="removeAuthorizedEmail(index)"
-                >
-                  {{ email }}
-                </el-tag>
-              </div>
-              <div v-else class="form-tip">暂无授权邮箱</div>
-            </div>
-          </el-form-item>
-        </el-form>
-      </el-tab-pane>
-
-      <!-- 域名选择标签页 -->
-      <el-tab-pane label="域名设置">
-        <el-form :model="formData" label-width="120px">
-          <el-form-item label="分享域名">
-            <el-select v-model="formData.shareDomain" placeholder="选择分享域名">
-              <el-option label="使用默认域名" :value="''" />
-              <el-option
-                v-for="domain in availableDomains"
-                :key="domain"
-                :label="domain"
-                :value="domain"
-              />
-            </el-select>
-            <div class="form-tip">选择此分享链接使用的域名</div>
-          </el-form-item>
-
-          <el-form-item label="分享链接">
-            <div class="share-url-display">
-              <el-input v-model="formData.shareUrl" readonly />
-              <el-button type="primary" @click="copyShareUrl">复制链接</el-button>
-            </div>
-          </el-form-item>
-
-          <el-form-item label="刷新 Token">
-            <el-button type="warning" @click="handleRefreshToken">刷新 Token</el-button>
-            <div class="form-tip">刷新后旧链接将失效，请谨慎操作</div>
-          </el-form-item>
-        </el-form>
-      </el-tab-pane>
-
-      <!-- 公告设置标签页 -->
-      <el-tab-pane label="公告设置">
-        <div class="announcement-container">
-          <div class="announcement-editor">
-            <el-form :model="announcementData" label-width="100px">
-              <el-form-item label="展示次数">
-                <el-radio-group v-model="announcementData.displayMode">
-                  <el-radio label="always">每次访问都显示</el-radio>
-                  <el-radio label="once">仅显示一次</el-radio>
-                </el-radio-group>
-                <div class="form-tip">选择"仅显示一次"时，用户关闭公告后不会再看到</div>
-              </el-form-item>
-
-              <el-form-item label="公告标题">
-                <el-input
-                  v-model="announcementData.title"
-                  placeholder="请输入公告标题（可选）"
-                  maxlength="100"
-                />
-              </el-form-item>
-
-              <el-form-item label="公告内容">
-                <el-input
-                  v-model="announcementData.content"
-                  type="textarea"
-                  placeholder="请输入公告内容或粘贴图片"
-                  rows="4"
-                  maxlength="1000"
-                  @paste="handlePaste"
-                />
-              </el-form-item>
-
-              <el-form-item label="公告图片">
-                <div class="image-upload-area">
-                  <div class="upload-button-group">
-                    <el-button @click="triggerFileInput">
-                      <UploadFilled /> 选择文件
-                    </el-button>
-                    <el-button @click="handlePasteImage">
-                      粘贴图片
-                    </el-button>
-                    <input
-                      ref="fileInput"
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      style="display: none"
-                      @change="handleFileSelect"
-                    />
-                  </div>
-                  <div class="form-tip">支持拖拽、点击、粘贴上传，最多10张图片，单张≤500KB，总计≤5MB</div>
-
-                  <!-- 图片预览列表 -->
-                  <div v-if="announcementData.images.length > 0" class="image-preview-list">
-                    <div
-                      v-for="(image, index) in announcementData.images"
-                      :key="index"
-                      class="image-item"
-                    >
-                      <img :src="image.base64" :alt="`Image ${index + 1}`" />
-                      <div class="image-actions">
-                        <el-input
-                          v-model="image.caption"
-                          placeholder="图片说明"
-                          size="small"
-                          maxlength="50"
-                        />
-                        <div class="action-buttons">
-                          <el-button
-                            v-if="index > 0"
-                            type="primary"
-                            size="small"
-                            @click="moveImageUp(index)"
-                          >
-                            <ArrowUp />
-                          </el-button>
-                          <el-button
-                            v-if="index < announcementData.images.length - 1"
-                            type="primary"
-                            size="small"
-                            @click="moveImageDown(index)"
-                          >
-                            <ArrowDown />
-                          </el-button>
-                          <el-button
-                            type="danger"
-                            size="small"
-                            @click="removeImage(index)"
-                          >
-                            <Delete />
-                          </el-button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </el-form-item>
-
-              <el-form-item>
-                <el-button type="primary" @click="showAnnouncementPreview = true">
-                  预览公告
-                </el-button>
-              </el-form-item>
-            </el-form>
-          </div>
-        </div>
-      </el-tab-pane>
     </el-tabs>
 
     <template #footer>
@@ -1023,8 +932,51 @@ const copyShareUrl = async (text, label) => {
 
 /* 移动端适配 */
 @media (max-width: 768px) {
-  .el-dialog :deep(.el-dialog__body) {
-    padding: 16px;
+  :deep(.advanced-tabs) {
+    height: auto !important;
+  }
+
+  :deep(.el-tabs--left) {
+    flex-direction: column;
+  }
+
+  :deep(.el-tabs__nav-wrap--left) {
+    width: 100% !important;
+    margin-bottom: 16px;
+  }
+
+  :deep(.el-tabs__nav--left) {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  :deep(.el-tabs__item--left) {
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  :deep(.el-tabs__content) {
+    width: 100% !important;
+  }
+
+  :deep(.el-dialog) {
+    width: 95vw !important;
+    max-width: 95vw;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 12px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+
+  :deep(.el-form) {
+    label-width: 100px !important;
+  }
+
+  :deep(.el-form-item) {
+    margin-bottom: 12px;
   }
 
   .image-preview-list {

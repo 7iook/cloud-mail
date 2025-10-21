@@ -2235,6 +2235,44 @@ const cancelEditExpire = (row) => {
   flex-shrink: 0;
 }
 
+/* 移动端分享链接优化 */
+@media (max-width: 768px) {
+  .share-url-cell {
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .share-url-container {
+    width: 100%;
+  }
+
+  .share-url-link {
+    font-size: 12px;
+    padding: 8px 6px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    word-break: break-word;
+  }
+
+  .copy-btn {
+    width: 100%;
+    min-height: 32px;
+  }
+
+  :deep(.el-table-column--selection .el-table__cell) {
+    padding: 8px 2px;
+  }
+
+  :deep(.el-table__cell) {
+    padding: 8px 4px;
+  }
+}
+
 /* 内联编辑样式 */
 .editable-cell {
   cursor: pointer;
