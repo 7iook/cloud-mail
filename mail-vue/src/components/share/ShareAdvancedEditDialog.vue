@@ -781,11 +781,23 @@ const copyShareUrl = async (text, label) => {
 </script>
 
 <style scoped>
+/* 对话框自适应高度 */
+:deep(.advanced-settings-dialog) {
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.advanced-settings-dialog .el-dialog__body) {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+}
+
 /* 容器布局 */
 .advanced-settings-container {
   display: flex;
   gap: 20px;
-  height: 700px;
+  height: 100%;
 }
 
 .settings-form-area {
