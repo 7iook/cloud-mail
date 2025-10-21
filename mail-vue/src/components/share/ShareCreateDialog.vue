@@ -639,11 +639,20 @@
       </el-form-item>
     </el-form>
 
+    <!-- Turnstile 人机验证容器 -->
+    <div v-if="showCaptcha" class="captcha-container">
+      <div class="captcha-header">
+        <h4>人机验证</h4>
+        <p>请完成人机验证以继续创建分享</p>
+      </div>
+      <div id="cf-turnstile-create" class="cf-turnstile-widget"></div>
+    </div>
+
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
         <el-button type="primary" @click="handleSubmit" :loading="submitting">
-          创建分享
+          {{ showCaptcha ? '验证后创建分享' : '创建分享' }}
         </el-button>
       </div>
     </template>
@@ -777,6 +786,11 @@ const visible = ref(false);
 const formRef = ref();
 const submitting = ref(false);
 const showWhitelistDialog = ref(false);
+
+// Turnstile 人机验证相关
+const showCaptcha = ref(false);
+const captchaToken = ref('');
+const captchaVerifying = ref(false);
 
 // 邮箱选择相关
 const emailSelectionMode = ref('fromAllEmails'); // 'fromAllEmails', 'batchInput', 'singleInput'
@@ -1441,6 +1455,22 @@ const handleSubmit = async () => {
   try {
     await formRef.value.validate();
 
+    // 检查是否需要进行人机验证
+    if (form.enableCaptcha && !captchaToken.value) {
+      if (!showCaptcha.value) {
+        // 第一次点击：显示验证组件
+        showCaptcha.value = true;
+        await nextTick();
+        loadTurnstileScript();
+        ElMessage.info('请完成人机验证');
+        return;
+      } else {
+        // 已显示验证组件但未完成验证
+        ElMessage.error('请先完成人机验证');
+        return;
+      }
+    }
+
     submitting.value = true;
 
     // 调试日志：打印用户选择的域名
@@ -1720,6 +1750,64 @@ const handleTemplateManagementUpdated = () => {
 // 处理关闭
 const handleClose = () => {
   visible.value = false;
+  // 重置 Turnstile 验证状态
+  showCaptcha.value = false;
+  captchaToken.value = '';
+  captchaVerifying.value = false;
+};
+
+// 加载 Turnstile 脚本
+const loadTurnstileScript = () => {
+  const siteKey = settingStore.settings?.siteKey || import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
+  if (!siteKey) {
+    ElMessage.error('Turnstile siteKey 未配置，请联系管理员');
+    showCaptcha.value = false;
+    return;
+  }
+
+  if (window.turnstile) {
+    // Turnstile 脚本已加载，直接渲染
+    window.turnstile.render('#cf-turnstile-create', {
+      sitekey: siteKey,
+      theme: 'light',
+      callback: handleTurnstileCallback,
+      'error-callback': handleTurnstileError
+    });
+  } else {
+    // 加载 Turnstile 脚本
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      window.turnstile.render('#cf-turnstile-create', {
+        sitekey: siteKey,
+        theme: 'light',
+        callback: handleTurnstileCallback,
+        'error-callback': handleTurnstileError
+      });
+    };
+    script.onerror = () => {
+      ElMessage.error('Turnstile 脚本加载失败，请重试');
+      showCaptcha.value = false;
+    };
+    document.head.appendChild(script);
+  }
+};
+
+// Turnstile 验证成功回调
+const handleTurnstileCallback = (token) => {
+  console.log('Turnstile 验证成功，token:', token);
+  captchaToken.value = token;
+  ElMessage.success('人机验证成功');
+};
+
+// Turnstile 验证失败回调
+const handleTurnstileError = () => {
+  console.error('Turnstile 验证失败');
+  ElMessage.error('人机验证失败，请重试');
+  captchaToken.value = '';
 };
 </script>
 
@@ -1738,6 +1826,39 @@ const handleClose = () => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+/* Turnstile 人机验证容器样式 */
+.captcha-container {
+  margin: 16px 0;
+  padding: 16px;
+  background-color: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.captcha-header {
+  h4 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+  }
+}
+
+.cf-turnstile-widget {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
 }
 
 .email-select-container {
