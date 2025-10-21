@@ -259,9 +259,10 @@
                 <el-input
                   v-model="announcementData.content"
                   type="textarea"
-                  placeholder="请输入公告内容"
+                  placeholder="请输入公告内容或粘贴图片"
                   rows="4"
                   maxlength="1000"
+                  @paste="handlePaste"
                 />
               </el-form-item>
 
@@ -637,7 +638,27 @@ const handleFileSelect = async (event) => {
   event.target.value = ''
 }
 
-// 处理粘贴图片
+// 处理粘贴事件 - 只处理图片
+const handlePaste = async (event) => {
+  const items = event.clipboardData?.items
+  if (!items) return
+
+  const files = []
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) files.push(file)
+    }
+  }
+
+  if (files.length > 0) {
+    event.preventDefault()
+    await processFiles(files)
+  }
+}
+
+// 处理粘贴图片（按钮方式 - 保留用于兼容）
 const handlePasteImage = async () => {
   try {
     const items = await navigator.clipboard.read()
@@ -666,12 +687,14 @@ const processFiles = async (files) => {
 
   for (const file of files) {
     if (!file.type.startsWith('image/')) {
-      ElMessage.warning(`${file.name} 不是图片文件`)
+      const fileName = file.name || 'image'
+      ElMessage.warning(`${fileName} 不是图片文件`)
       continue
     }
 
     if (file.size > 500 * 1024) {
-      ElMessage.warning(`${file.name} 超过500KB限制`)
+      const fileName = file.name || 'image'
+      ElMessage.warning(`${fileName} 超过500KB限制`)
       continue
     }
 

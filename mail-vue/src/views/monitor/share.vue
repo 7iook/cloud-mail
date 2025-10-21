@@ -171,10 +171,15 @@
       <div class="announcement-content">
         <!-- 图片轮播 -->
         <div v-if="parsedAnnouncement?.images && parsedAnnouncement.images.length > 0" class="images-carousel">
-          <el-carousel :autoplay="false" class="carousel">
+          <el-carousel :autoplay="false" class="carousel" @change="currentImageIndex = $event">
             <el-carousel-item v-for="(image, index) in parsedAnnouncement.images" :key="index">
               <div class="carousel-item">
-                <img :src="image.base64" :alt="`Image ${index + 1}`" />
+                <img
+                  :src="image.base64"
+                  :alt="`Image ${index + 1}`"
+                  @click="viewImageFullscreen(index)"
+                  title="点击查看全屏"
+                />
                 <div v-if="image.caption" class="image-caption">{{ image.caption }}</div>
               </div>
             </el-carousel-item>
@@ -200,6 +205,14 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 图片全屏查看器 -->
+    <el-image-viewer
+      v-if="showImageViewer && parsedAnnouncement?.images"
+      :url-list="parsedAnnouncement.images.map(img => img.base64)"
+      :initial-index="currentImageIndex"
+      @close="showImageViewer = false"
+    />
   </div>
 </template>
 
@@ -284,6 +297,7 @@ const announcementShown = ref(false) // 标记是否已显示过公告
 const announcementVersionInfo = ref(null) // 存储公告版本信息 {version, shownAt}
 const parsedAnnouncement = ref(null) // 解析后的公告数据
 const currentImageIndex = ref(0) // 当前图片索引
+const showImageViewer = ref(false) // 图片全屏查看器显示状态
 
 // 获取别名类型文本
 const getAliasTypeText = (aliasType) => {
@@ -821,6 +835,12 @@ const handleAnnouncementClose = () => {
   showAnnouncementDialog.value = false
 }
 
+// 全屏查看图片
+const viewImageFullscreen = (index) => {
+  currentImageIndex.value = index
+  showImageViewer.value = true
+}
+
 // 初始化
 onMounted(async () => {
   emailStore.emailScroll = scroll
@@ -1001,26 +1021,60 @@ onUnmounted(() => {
       margin-bottom: 16px;
 
       .carousel {
-        height: 250px;
+        height: 400px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f5f7fa;
+
+        :deep(.el-carousel__container) {
+          height: 100%;
+        }
+
+        :deep(.el-carousel__item) {
+          height: 100%;
+        }
 
         .carousel-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
           height: 100%;
+          background: #f5f7fa;
+          padding: 20px;
 
           img {
-            max-height: 250px;
+            max-width: 100%;
+            max-height: 350px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+
+            &:hover {
+              transform: scale(1.02);
+            }
           }
 
           .image-caption {
-            margin-top: 8px;
-            font-size: 13px;
-            padding: 0 8px;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #606266;
+            text-align: center;
+            padding: 0 12px;
+            word-break: break-word;
+            max-width: 100%;
           }
         }
       }
 
       .carousel-info {
-        font-size: 11px;
-        margin-top: 6px;
+        font-size: 12px;
+        margin-top: 8px;
+        text-align: center;
+        color: #909399;
       }
     }
 
