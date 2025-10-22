@@ -22,6 +22,42 @@
       label-position="left"
       style="margin-top: 20px"
     >
+      <!-- 分享名称 -->
+      <el-form-item>
+        <template #label>
+          <el-checkbox v-model="enabledFields.shareName">分享名称</el-checkbox>
+        </template>
+        <div class="setting-group" :class="{ disabled: !enabledFields.shareName }">
+          <el-input
+            v-model="formData.shareName"
+            placeholder="请输入分享名称"
+            :disabled="!enabledFields.shareName"
+            maxlength="50"
+            show-word-limit
+          />
+          <div class="form-tip">修改所有选中分享的名称</div>
+        </div>
+      </el-form-item>
+
+      <!-- 过期时间 -->
+      <el-form-item>
+        <template #label>
+          <el-checkbox v-model="enabledFields.expireTime">过期时间</el-checkbox>
+        </template>
+        <div class="setting-group" :class="{ disabled: !enabledFields.expireTime }">
+          <el-date-picker
+            v-model="formData.expireTime"
+            type="datetime"
+            placeholder="选择过期时间"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            :disabled="!enabledFields.expireTime"
+            style="width: 100%"
+          />
+          <div class="form-tip">设置所有选中分享的过期时间</div>
+        </div>
+      </el-form-item>
+
       <!-- 频率限制设置 -->
       <el-form-item>
         <template #label>
@@ -465,6 +501,8 @@ const shareCount = computed(() => props.selectedShares.length)
 
 // 启用的字段控制
 const enabledFields = reactive({
+  shareName: false,
+  expireTime: false,
   rateLimit: false,
   emailCount: false,
   autoRefresh: false,
@@ -489,6 +527,8 @@ const announcementData = reactive({
 
 // 表单数据
 const formData = reactive({
+  shareName: '',
+  expireTime: '',
   rateLimitPerSecond: 5,
   autoRecoverySeconds: 60,
   latestEmailCount: null,
@@ -680,6 +720,8 @@ const handleSave = async () => {
     
     // 构建确认信息
     const enabledFieldNames = []
+    if (enabledFields.shareName) enabledFieldNames.push('分享名称')
+    if (enabledFields.expireTime) enabledFieldNames.push('过期时间')
     if (enabledFields.rateLimit) enabledFieldNames.push('频率限制')
     if (enabledFields.emailCount) enabledFieldNames.push('邮件数量限制')
     if (enabledFields.autoRefresh) enabledFieldNames.push('自动刷新')
@@ -719,6 +761,12 @@ const handleSave = async () => {
 
     // 构建要更新的设置数据
     const settings = {}
+    if (enabledFields.shareName) {
+      settings.shareName = formData.shareName
+    }
+    if (enabledFields.expireTime) {
+      settings.expireTime = formData.expireTime
+    }
     if (enabledFields.rateLimit) {
       settings.rateLimitPerSecond = formData.rateLimitPerSecond
       settings.autoRecoverySeconds = formData.autoRecoverySeconds
