@@ -1,5 +1,6 @@
 import KvConst from '../const/kv-const';
 import setting from '../entity/setting';
+import announcementRead from '../entity/announcement-read';
 import orm from '../entity/orm';
 import { verifyRecordType } from '../const/entity-const';
 import fileUtils from '../utils/file-utils';
@@ -11,6 +12,7 @@ import constant from '../const/constant';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n'
 import verifyRecordService from './verify-record-service';
+import { eq, and } from 'drizzle-orm';
 
 const settingService = {
 
@@ -124,6 +126,77 @@ const settingService = {
 		await this.refresh(c);
 	},
 
+	// 获取全局公告
+	async getGlobalAnnouncement(c) {
+		const settingData = await this.query(c);
+		return {
+			title: settingData.globalAnnouncementTitle || '',
+			content: settingData.globalAnnouncementContent,
+			version: settingData.globalAnnouncementVersion,
+			enabled: settingData.globalAnnouncementEnabled === 1,
+			displayMode: settingData.globalAnnouncementDisplayMode || 'always',
+			images: settingData.globalAnnouncementImages ? JSON.parse(settingData.globalAnnouncementImages) : [],
+			overrideShareAnnouncement: settingData.globalAnnouncementOverrideShareAnnouncement === 1,
+			autoApplyNewShare: settingData.globalAnnouncementAutoApplyNewShare === 1
+		};
+	},
+
+	// 设置全局公告
+	async setGlobalAnnouncement(c, params) {
+		const { title, content, enabled, displayMode, images, overrideShareAnnouncement, autoApplyNewShare } = params;
+
+		// 验证标题长度
+		if (title !== null && title !== undefined) {
+			if (typeof title !== 'string') {
+				throw new BizError('公告标题必须是字符串或null', 400);
+			}
+			if (title.length > 100) {
+				throw new BizError('公告标题不能超过100字符', 400);
+			}
+		}
+
+		// 验证公告内容长度
+		if (content !== null && content !== undefined) {
+			if (typeof content !== 'string') {
+				throw new BizError('公告内容必须是字符串或null', 400);
+			}
+			if (content.length > 1000) {
+				throw new BizError('公告内容不能超过1000字符', 400);
+			}
+		}
+
+		// 验证展示模式
+		const validDisplayModes = ['always', 'once'];
+		if (displayMode && !validDisplayModes.includes(displayMode)) {
+			throw new BizError('展示模式必须是 always 或 once', 400);
+		}
+
+		// 验证图片
+		let imagesJson = '[]';
+		if (images && Array.isArray(images)) {
+			if (images.length > 10) {
+				throw new BizError('图片数量不能超过10张', 400);
+			}
+			imagesJson = JSON.stringify(images);
+		}
+
+		const updateData = {
+			globalAnnouncementTitle: title || '',
+			globalAnnouncementContent: content || null,
+			globalAnnouncementVersion: content ? Date.now() : null,
+			globalAnnouncementEnabled: enabled ? 1 : 0,
+			globalAnnouncementDisplayMode: displayMode || 'always',
+			globalAnnouncementImages: imagesJson,
+			globalAnnouncementOverrideShareAnnouncement: overrideShareAnnouncement ? 1 : 0,
+			globalAnnouncementAutoApplyNewShare: autoApplyNewShare !== false ? 1 : 0
+		};
+
+		await orm(c).update(setting).set(updateData).returning().get();
+		await this.refresh(c);
+
+		return this.getGlobalAnnouncement(c);
+	},
+
 	async setBackground(c, params) {
 
 		const settingRow = await this.query(c);
@@ -199,6 +272,50 @@ const settingService = {
 			loginDomain: settingRow.loginDomain,
 			shareWhitelist: settingRow.shareWhitelist
 		};
+	},
+
+	// 标记公告为已读
+	async markAnnouncementAsRead(c, userId, announcementVersion) {
+		try {
+			if (!userId || !announcementVersion) {
+				throw new BizError('用户ID和公告版本号不能为空', 400);
+			}
+
+			// 尝试插入，如果已存在则忽略（UNIQUE 约束）
+			await orm(c).insert(announcementRead).values({
+				userId: userId,
+				announcementVersion: announcementVersion
+			}).run();
+
+			return { success: true, message: '公告已标记为已读' };
+		} catch (error) {
+			// 如果是 UNIQUE 约束冲突，说明已经标记过，返回成功
+			if (error.message && error.message.includes('UNIQUE')) {
+				return { success: true, message: '公告已标记为已读' };
+			}
+			throw error;
+		}
+	},
+
+	// 检查公告是否已读
+	async checkAnnouncementRead(c, userId, announcementVersion) {
+		try {
+			if (!userId || !announcementVersion) {
+				return { isRead: false };
+			}
+
+			const record = await orm(c).select().from(announcementRead).where(
+				and(
+					eq(announcementRead.userId, userId),
+					eq(announcementRead.announcementVersion, announcementVersion)
+				)
+			).get();
+
+			return { isRead: !!record };
+		} catch (error) {
+			console.error('检查公告已读状态失败:', error);
+			return { isRead: false };
+		}
 	}
 };
 

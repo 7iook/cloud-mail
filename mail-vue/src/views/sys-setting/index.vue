@@ -326,6 +326,22 @@
             </div>
           </div>
 
+          <!-- Global Announcement Settings Card -->
+          <div class="settings-card">
+            <div class="card-title">{{ $t('globalAnnouncementTitle') || 'Global Announcement' }}</div>
+            <div class="card-content">
+              <div class="setting-item">
+                <div><span>{{ $t('globalAnnouncementStatus') || 'Status' }}</span></div>
+                <div class="forward">
+                  <span>{{ globalAnnouncement.enabled ? $t('enabled') : $t('disabled') }}</span>
+                  <el-button class="opt-button" size="small" type="primary" @click="openGlobalAnnouncementSetting">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="settings-card about">
             <div class="card-title">{{ $t('about') }}</div>
             <div class="card-content">
@@ -629,6 +645,47 @@
           </div>
         </template>
       </el-dialog>
+      <!-- Global Announcement Settings Dialog -->
+      <el-dialog
+          v-model="globalAnnouncementShow"
+          :title="$t('globalAnnouncementTitle') || 'Global Announcement'"
+          class="notice-popup"
+          width="800px"
+          @closed="resetGlobalAnnouncementForm"
+      >
+        <form>
+          <!-- Use AnnouncementEditor component -->
+          <AnnouncementEditor
+              v-model="globalAnnouncementForm"
+              :maxImages="10"
+              :maxContentLength="5000"
+          />
+
+          <!-- Configuration options -->
+          <div class="notice-popup-item" style="margin-top: 20px;">
+            <label>{{ $t('announcementConfig') || 'Announcement Configuration' }}</label>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-switch v-model="globalAnnouncementForm.overrideShareAnnouncement" />
+                <span>{{ $t('overrideShareAnnouncement') || 'Override per-share announcements' }}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <el-switch v-model="globalAnnouncementForm.autoApplyNewShare" />
+                <span>{{ $t('autoApplyNewShare') || 'Auto-apply to new shares' }}</span>
+              </div>
+            </div>
+          </div>
+        </form>
+        <template #footer>
+          <div class="dialog-footer">
+            <el-switch v-model="globalAnnouncementForm.enabled" :active-text="$t('enable')"
+                       :inactive-text="$t('disable')"/>
+            <el-button :loading="settingLoading" type="primary" @click="saveGlobalAnnouncement">
+              {{ $t('save') }}
+            </el-button>
+          </div>
+        </template>
+      </el-dialog>
       <el-dialog v-model="addS3Show" :title="t('s3Configuration')" width="340" @closed="resetAddS3Form">
         <form>
           <el-input class="dialog-input" type="text" placeholder="Bucket" v-model="s3.bucket"/>
@@ -649,7 +706,7 @@
 
 <script setup>
 import {computed, defineOptions, reactive, ref} from "vue";
-import {physicsDeleteAll, setBackground, settingQuery, settingSet} from "@/request/setting.js";
+import {physicsDeleteAll, setBackground, settingQuery, settingSet, getGlobalAnnouncement, setGlobalAnnouncement} from "@/request/setting.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
@@ -660,10 +717,12 @@ import {storeToRefs} from "pinia";
 import {debounce} from 'lodash-es'
 import {isEmail} from "@/utils/verify-utils.js";
 import loading from "@/components/loading/index.vue";
+import AnnouncementEditor from "@/components/common/AnnouncementEditor.vue";
 import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
 import axios from "axios";
+import {ElMessage, ElMessageBox} from "element-plus";
 
 defineOptions({
   name: 'sys-setting'
@@ -732,6 +791,27 @@ const noticeForm = reactive({
   noticeWidth: 0
 })
 
+const globalAnnouncementShow = ref(false)
+const globalAnnouncement = reactive({
+  title: '',
+  content: null,
+  version: null,
+  enabled: false,
+  displayMode: 'always',
+  images: [],
+  overrideShareAnnouncement: false,
+  autoApplyNewShare: true
+})
+const globalAnnouncementForm = reactive({
+  title: '',
+  content: '',
+  enabled: false,
+  displayMode: 'always',
+  images: [],
+  overrideShareAnnouncement: false,
+  autoApplyNewShare: true
+})
+
 const regKeyOptions = computed(() => [
   {label: t('enable'), value: 0},
   {label: t('disable'), value: 1},
@@ -775,6 +855,22 @@ function getSettings() {
     regVerifyCount.value = setting.value.regVerifyCount
     resetNoticeForm()
     resetAddS3Form()
+    loadGlobalAnnouncement()
+  })
+}
+
+function loadGlobalAnnouncement() {
+  getGlobalAnnouncement().then((data) => {
+    globalAnnouncement.title = data.title || ''
+    globalAnnouncement.content = data.content
+    globalAnnouncement.version = data.version
+    globalAnnouncement.enabled = data.enabled
+    globalAnnouncement.displayMode = data.displayMode || 'always'
+    globalAnnouncement.images = data.images || []
+    globalAnnouncement.overrideShareAnnouncement = data.overrideShareAnnouncement || false
+    globalAnnouncement.autoApplyNewShare = data.autoApplyNewShare !== false
+  }).catch((e) => {
+    console.error('Failed to load global announcement:', e)
   })
 }
 
@@ -894,6 +990,84 @@ function resetNoticeForm() {
   noticeForm.noticeType = setting.value.noticeType
   noticeForm.noticeOffset = setting.value.noticeOffset
   noticeForm.noticeWidth = setting.value.noticeWidth
+}
+
+function resetGlobalAnnouncementForm() {
+  globalAnnouncementForm.title = globalAnnouncement.title || ''
+  globalAnnouncementForm.content = globalAnnouncement.content || ''
+  globalAnnouncementForm.enabled = globalAnnouncement.enabled
+  globalAnnouncementForm.displayMode = globalAnnouncement.displayMode || 'always'
+  globalAnnouncementForm.images = [...(globalAnnouncement.images || [])]
+  globalAnnouncementForm.overrideShareAnnouncement = globalAnnouncement.overrideShareAnnouncement
+  globalAnnouncementForm.autoApplyNewShare = globalAnnouncement.autoApplyNewShare
+}
+
+function openGlobalAnnouncementSetting() {
+  resetGlobalAnnouncementForm()
+  globalAnnouncementShow.value = true
+}
+
+function buildAnnouncementContent() {
+  // If no title, content and images, return null
+  if (!globalAnnouncementForm.title && !globalAnnouncementForm.content && globalAnnouncementForm.images.length === 0) {
+    return null
+  }
+
+  // If only plain text content (no title and images), return plain text
+  if (!globalAnnouncementForm.title && globalAnnouncementForm.images.length === 0 && globalAnnouncementForm.content) {
+    return globalAnnouncementForm.content
+  }
+
+  // Otherwise return JSON format
+  const richContent = {
+    type: 'rich',
+    title: globalAnnouncementForm.title || '',
+    content: globalAnnouncementForm.content || '',
+    images: globalAnnouncementForm.images || [],
+    displayMode: globalAnnouncementForm.displayMode || 'always'
+  }
+
+  return JSON.stringify(richContent)
+}
+
+function saveGlobalAnnouncement() {
+  if (settingLoading.value) return
+  settingLoading.value = true
+
+  const announcementContent = buildAnnouncementContent()
+
+  setGlobalAnnouncement({
+    title: globalAnnouncementForm.title || '',
+    content: announcementContent,
+    enabled: globalAnnouncementForm.enabled,
+    displayMode: globalAnnouncementForm.displayMode || 'always',
+    images: globalAnnouncementForm.images || [],
+    overrideShareAnnouncement: globalAnnouncementForm.overrideShareAnnouncement,
+    autoApplyNewShare: globalAnnouncementForm.autoApplyNewShare
+  }).then((data) => {
+    globalAnnouncement.title = data.title || ''
+    globalAnnouncement.content = data.content
+    globalAnnouncement.version = data.version
+    globalAnnouncement.enabled = data.enabled
+    globalAnnouncement.displayMode = data.displayMode || 'always'
+    globalAnnouncement.images = data.images || []
+    globalAnnouncement.overrideShareAnnouncement = data.overrideShareAnnouncement || false
+    globalAnnouncement.autoApplyNewShare = data.autoApplyNewShare !== false
+    settingLoading.value = false
+    ElMessage({
+      message: t('saveSuccessMsg'),
+      type: "success",
+      plain: true
+    })
+    globalAnnouncementShow.value = false
+  }).catch((e) => {
+    settingLoading.value = false
+    ElMessage({
+      message: t('saveFailMsg') || 'Save failed',
+      type: "error",
+      plain: true
+    })
+  })
 }
 
 function saveNoticePopup() {
@@ -1209,6 +1383,7 @@ function editSetting(settingForm, refreshStatus = true) {
     regVerifyCountShow.value = false
     noticePopupShow.value = false
     addS3Show.value = false
+    globalAnnouncementShow.value = false
   }).catch((e) => {
     loginOpacity.value = setting.value.loginOpacity
     setting.value = {...setting.value, ...JSON.parse(backup)}

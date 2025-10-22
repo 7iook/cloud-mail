@@ -63,7 +63,9 @@ app.post('/share/create', async (c) => {
 			enableCaptcha,
 			captchaToken,
 			// 新增参数：公告弹窗功能
-			announcementContent
+			announcementContent,
+			// 新增参数：全局公告控制
+			useGlobalAnnouncement
 		} = requestBody;
 		const userId = userContext.getUserId(c);
 
@@ -344,7 +346,9 @@ app.post('/share/create', async (c) => {
 			enableCaptcha: enableCaptcha !== undefined ? (enableCaptcha ? 1 : 0) : 0, // 默认禁用
 			// 新增：公告弹窗功能
 			announcementContent: announcementContent || null, // 公告内容，NULL表示没有公告
-			announcementVersion: announcementContent ? Date.now() : null // 公告版本号（时间戳），用于检测公告更新
+			announcementVersion: announcementContent ? Date.now() : null, // 公告版本号（时间戳），用于检测公告更新
+			// 新增：全局公告控制
+			useGlobalAnnouncement: useGlobalAnnouncement !== undefined ? (useGlobalAnnouncement ? 1 : 0) : 1 // 默认使用全局公告
 		};
 
 		const shareRecord = await shareService.create(c, shareData, userId);
@@ -606,17 +610,13 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 		let targetAccount = await accountService.selectByEmailIncludeDel(c, effectiveTargetEmail);
 
 		// Fix P1-5: 对于 Type 2 分享，邮箱必须已经存在（在创建分享时已创建）
+		// Fix P2-1: 如果邮箱不存在，自动创建（适用于 Type 1 和 Type 2 分享）
 		if (!targetAccount) {
-			if (shareRecord.shareType === 2) {
-				// Type 2 分享的邮箱应该在创建分享时已经创建，不应该自动创建
-				errorMessage = '邮箱账户不存在，请联系管理员';
-				accessResult = 'rejected';
-				throw new BizError(errorMessage, 404);
-			}
-
-			// Type 1 分享：如果邮箱账户不存在，使用分享创建者的userId自动创建
+			// 无论是 Type 1 还是 Type 2 分享，如果邮箱账户不存在，都应该自动创建
+			// 这样可以确保授权邮箱在访问时能够正常工作
 			try {
 				targetAccount = await accountService.add(c, { email: effectiveTargetEmail }, shareRecord.userId);
+				console.log(`为分享访问自动创建邮箱账户: ${effectiveTargetEmail}`);
 			} catch (error) {
 				errorMessage = '邮箱账户创建失败';
 				accessResult = 'failed';
@@ -763,7 +763,8 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 			}
 
 			// 检查是否达到每日限制
-			if (shareRecord.otpCountDaily >= shareRecord.otpLimitDaily) {
+			// Fix: otpLimitDaily = 0 表示无限制，应该跳过限制检查
+			if (shareRecord.otpLimitDaily > 0 && shareRecord.otpCountDaily >= shareRecord.otpLimitDaily) {
 				errorMessage = `今日访问次数已达上限（${shareRecord.otpLimitDaily}次）`;
 				accessResult = 'rejected';
 				throw new BizError(errorMessage, 429);

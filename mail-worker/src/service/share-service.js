@@ -194,7 +194,9 @@ const shareService = {
 			autoRefreshEnabled,
 			autoRefreshInterval,
 			// 新增：公告弹窗功能
-			announcementContent
+			announcementContent,
+			// 新增：全局公告控制
+			useGlobalAnnouncement
 		} = params;
 
 		// 生成分享token
@@ -257,7 +259,9 @@ const shareService = {
 			autoRefreshEnabled: autoRefreshEnabled !== undefined ? (autoRefreshEnabled ? 1 : 0) : 0,
 			autoRefreshInterval: autoRefreshInterval !== undefined ? autoRefreshInterval : 30,
 			// 公告弹窗功能
-			announcementContent: announcementContent || null
+			announcementContent: announcementContent || null,
+			// 全局公告控制
+			useGlobalAnnouncement: useGlobalAnnouncement !== undefined ? (useGlobalAnnouncement ? 1 : 0) : 1
 		};
 
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();

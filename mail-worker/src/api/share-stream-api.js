@@ -109,13 +109,10 @@ app.get('/share/stream/:shareToken', shareRateLimitMiddleware, async (c) => {
 		let targetAccount = await accountService.selectByEmailIncludeDel(c, shareRecord.targetEmail);
 
 		// Fix P1-5: 对于 Type 2 分享，邮箱必须已经存在（在创建分享时已创建）
+		// Fix P2-1: 如果邮箱不存在，自动创建（适用于 Type 1 和 Type 2 分享）
 		if (!targetAccount) {
-			if (shareRecord.shareType === 2) {
-				// Type 2 分享的邮箱应该在创建分享时已经创建，不应该自动创建
-				throw new BizError('邮箱账户不存在，请联系管理员', 500);
-			}
-
-			// Type 1 分享：如果邮箱账户不存在，使用分享创建者的userId自动创建
+			// 无论是 Type 1 还是 Type 2 分享，如果邮箱账户不存在，都应该自动创建
+			// 这样可以确保授权邮箱在访问时能够正常工作
 			try {
 				targetAccount = await accountService.add(c, { email: shareRecord.targetEmail }, shareRecord.userId);
 				console.log(`为SSE流访问自动创建邮箱账户: ${shareRecord.targetEmail}`);

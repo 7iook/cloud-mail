@@ -45,7 +45,9 @@ export const share = sqliteTable('share', {
 	enableCaptcha: integer('enable_captcha').default(0).notNull(), // 1=启用人机验证, 0=禁用
 	// 公告弹窗功能
 	announcementContent: text('announcement_content'), // 分享链接的公告内容，NULL表示没有公告
-	announcementVersion: integer('announcement_version') // 公告版本号（时间戳），用于检测公告更新
+	announcementVersion: integer('announcement_version'), // 公告版本号（时间戳），用于检测公告更新
+	// 全局公告控制字段
+	useGlobalAnnouncement: integer('use_global_announcement').default(1).notNull() // 1=使用全局公告, 0=使用自定义公告
 });
 
 export default share;

@@ -19,3 +19,19 @@ export function setBackground(background) {
 export function physicsDeleteAll() {
     return http.delete('/setting/physicsDeleteAll')
 }
+
+export function getGlobalAnnouncement() {
+    return http.get('/setting/global-announcement')
+}
+
+export function setGlobalAnnouncement(data) {
+    return http.put('/setting/global-announcement', data)
+}
+
+export function markAnnouncementAsRead(userId, announcementVersion) {
+    return http.post('/setting/announcement/mark-read', { userId, announcementVersion })
+}
+
+export function checkAnnouncementRead(userId, announcementVersion) {
+    return http.get('/setting/announcement/check-read', { params: { userId, announcementVersion } })
+}

@@ -510,8 +510,28 @@
         </div>
       </el-form-item>
 
+      <!-- 新增：全局公告选项 -->
+      <el-form-item label="公告设置" prop="useGlobalAnnouncement">
+        <div class="announcement-mode-selector">
+          <el-radio-group v-model="form.useGlobalAnnouncement" @change="handleAnnouncementModeChange">
+            <el-radio :value="true">
+              <div class="mode-option">
+                <div class="mode-title">使用全局公告</div>
+                <div class="mode-desc">应用系统管理员设置的全局公告</div>
+              </div>
+            </el-radio>
+            <el-radio :value="false">
+              <div class="mode-option">
+                <div class="mode-title">自定义公告</div>
+                <div class="mode-desc">为此分享链接设置自定义公告</div>
+              </div>
+            </el-radio>
+          </el-radio-group>
+        </div>
+      </el-form-item>
+
       <!-- 新增：公告弹窗功能（支持图片） -->
-      <el-form-item label="公告内容" prop="announcementContent">
+      <el-form-item v-if="!form.useGlobalAnnouncement" label="公告内容" prop="announcementContent">
         <div class="announcement-editor">
           <!-- 展示次数选项 -->
           <div class="announcement-section">
@@ -870,7 +890,9 @@ const form = reactive({
   // 新增：人机验证功能
   enableCaptcha: false, // 人机验证开关，默认禁用
   // 新增：公告弹窗功能
-  announcementContent: '' // 公告内容，空字符串表示不显示公告
+  announcementContent: '', // 公告内容，空字符串表示不显示公告
+  // 新增：全局公告控制
+  useGlobalAnnouncement: true // 是否使用全局公告，默认使用
 });
 
 // 表单验证规则
@@ -1184,6 +1206,19 @@ const handleShareTypeChange = (type) => {
   nextTick(() => {
     formRef.value?.clearValidate();
   });
+};
+
+// 处理公告模式变更
+const handleAnnouncementModeChange = (useGlobal) => {
+  if (useGlobal) {
+    // 切换到全局公告模式，清空自定义公告
+    announcementData.title = '';
+    announcementData.content = '';
+    announcementData.images = [];
+    announcementData.displayMode = 'always';
+    form.announcementContent = '';
+  }
+  // 切换到自定义公告模式时，保留已输入的内容
 };
 
 // 从邮箱列表中提取域名并返回最频繁的域名
@@ -1576,7 +1611,9 @@ const handleSubmit = async () => {
         cooldownEnabled: form.cooldownEnabled,
         cooldownSeconds: form.cooldownSeconds,
         // 公告弹窗功能（支持图片）
-        announcementContent: buildAnnouncementContent(),
+        announcementContent: form.useGlobalAnnouncement ? null : buildAnnouncementContent(),
+        // 全局公告控制
+        useGlobalAnnouncement: form.useGlobalAnnouncement,
         // 人机验证 token
         captchaToken: form.enableCaptcha ? captchaToken.value : undefined
       };
@@ -1616,7 +1653,9 @@ const handleSubmit = async () => {
           cooldownEnabled: form.cooldownEnabled,
           cooldownSeconds: form.cooldownSeconds,
           // 公告弹窗功能（支持图片）
-          announcementContent: buildAnnouncementContent(),
+          announcementContent: form.useGlobalAnnouncement ? null : buildAnnouncementContent(),
+          // 全局公告控制
+          useGlobalAnnouncement: form.useGlobalAnnouncement,
           // 人机验证 token
           captchaToken: form.enableCaptcha ? captchaToken.value : undefined
         };

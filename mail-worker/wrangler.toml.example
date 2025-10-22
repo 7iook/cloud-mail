@@ -1,0 +1,47 @@
+name = "cloud-mail"
+main = "src/index.js"
+compatibility_date = "2025-06-04"
+keep_vars = true
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "db"
+database_name = "email"
+database_id = "YOUR_D1_DATABASE_ID"  # 请替换为你的D1数据库ID
+
+[[kv_namespaces]]
+binding = "kv"
+id = "YOUR_KV_NAMESPACE_ID"  # 请替换为你的KV命名空间ID
+
+#[[ratelimits]]
+#name = "LOOSE_RATE_LIMITER"
+#namespace_id = "1003"
+#simple = { limit = 60, period = 60 }  # 60秒内最多60次
+
+#[[r2_buckets]]
+#binding = "r2"			#r2对象存储绑定名默认不可修改
+#bucket_name = ""		#r2对象存储桶的名字
+
+[assets]
+binding = "assets"		#静态资源绑定名默认不可修改
+directory = "./dist"	#前端vue项目打包的静态资源存放位置,默认dist
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[triggers]
+crons = ["0 16 * * *"]	#定时任务每天晚上12点执行
+
+
+[vars]
+orm_log = false
+# 邮件域名配置 - 请替换为你的真实域名
+domain = ["your-domain.com", "your-domain2.com"]
+# 管理员邮箱 - 请替换为你的管理员邮箱
+admin = "admin@your-domain.com"
+# JWT密钥 - 请生成一个安全的随机字符串
+jwt_secret = "your-secure-jwt-secret-here-please-generate-random-string"
+
+[build]
+command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

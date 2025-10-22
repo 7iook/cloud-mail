@@ -33,6 +33,15 @@ export const setting = sqliteTable('setting', {
 	noticeOffset: integer('notice_offset').default(0).notNull(),
 	noticeWidth: integer('notice_width').default(400).notNull(),
 	notice: integer('notice').default(0).notNull(),
+	// 全局公告功能字段
+	globalAnnouncementContent: text('global_announcement_content'), // 全局公告内容，NULL表示没有全局公告
+	globalAnnouncementVersion: integer('global_announcement_version'), // 全局公告版本号（时间戳）
+	globalAnnouncementEnabled: integer('global_announcement_enabled').default(0).notNull(), // 1=启用全局公告, 0=禁用
+	globalAnnouncementTitle: text('global_announcement_title').default('').notNull(), // 公告标题，最多100字符
+	globalAnnouncementDisplayMode: text('global_announcement_display_mode').default('always').notNull(), // 'always'=总是显示, 'once'=仅显示一次
+	globalAnnouncementImages: text('global_announcement_images').default('[]').notNull(), // 图片列表（JSON数组）
+	globalAnnouncementOverrideShareAnnouncement: integer('global_announcement_override_share_announcement').default(0).notNull(), // 1=覆盖单链接公告, 0=不覆盖
+	globalAnnouncementAutoApplyNewShare: integer('global_announcement_auto_apply_new_share').default(1).notNull(), // 1=新链接自动使用, 0=不自动使用
 	noRecipient: integer('no_recipient').default(1).notNull(),
 	loginDomain: integer('login_domain').default(0).notNull(),
 	bucket: text('bucket').default('').notNull(),

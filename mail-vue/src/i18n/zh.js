@@ -294,7 +294,19 @@ const zh = {
     s3Configuration: 'S3 配置',
     allContent: '全部内容',
     searchAllContent: '搜索邮件主题、正文、发件人、收件人...',
-    foundEmails: '找到 {count} 封邮件'
-
+    foundEmails: '找到 {count} 封邮件',
+    globalAnnouncementTitle: '全局公告',
+    globalAnnouncementStatus: '公告状态',
+    globalAnnouncementContentDesc: '公告内容',
+    announcementTitle: '公告标题',
+    announcementTitlePlaceholder: '请输入公告标题（可选）',
+    announcementContent: '公告内容',
+    announcementContentPlaceholder: '请输入公告内容（支持 [link]URL[/link]、[red]文本[/red] 等标记）',
+    displayMode: '展示模式',
+    displayAlways: '总是显示',
+    displayOnce: '仅显示一次',
+    announcementConfig: '公告配置',
+    overrideShareAnnouncement: '覆盖单链接中已设置的公告',
+    autoApplyNewShare: '新链接自动使用此公告'
 }
 export default zh
