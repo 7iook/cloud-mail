@@ -412,34 +412,18 @@ const loadShareInfo = async () => {
 
       const announcementKey = `announcement_version_${shareToken}`
       const viewedKey = `announcement_viewed_${shareToken}`
-      const storedVersionInfo = localStorage.getItem(announcementKey)
-      const viewedInfo = localStorage.getItem(viewedKey)
       let shouldShowAnnouncement = false
 
-      // 检查是否已显示过（仅显示一次模式）
-      if (displayMode === 'once' && viewedInfo) {
-        shouldShowAnnouncement = false
-      } else if (displayMode === 'always') {
-        // 每次显示模式：检查版本是否更新
-        const currentVersion = info.announcementVersion || Date.now()
-        if (storedVersionInfo) {
-          try {
-            const versionInfo = JSON.parse(storedVersionInfo)
-            // 如果版本不同，说明公告内容已更新，需要重新显示
-            if (versionInfo.version !== currentVersion) {
-              shouldShowAnnouncement = true
-            }
-          } catch (e) {
-            // 如果解析失败，显示公告
-            shouldShowAnnouncement = true
-          }
-        } else {
-          // 首次访问，显示公告
-          shouldShowAnnouncement = true
-        }
-      } else {
-        // 仅显示一次模式：首次访问显示
+      if (displayMode === 'always') {
+        // 每次访问都显示模式：直接显示，不检查localStorage
+        shouldShowAnnouncement = true
+      } else if (displayMode === 'once') {
+        // 仅显示一次模式：检查是否已显示过
+        const viewedInfo = localStorage.getItem(viewedKey)
         shouldShowAnnouncement = !viewedInfo
+      } else {
+        // 默认行为：每次显示
+        shouldShowAnnouncement = true
       }
 
       if (shouldShowAnnouncement) {
@@ -447,18 +431,12 @@ const loadShareInfo = async () => {
           showAnnouncementDialog.value = true
           announcementShown.value = true
           currentImageIndex.value = 0
-          // 保存版本信息到localStorage
-          const versionInfo = {
-            version: info.announcementVersion || Date.now(),
-            shownAt: new Date().toISOString()
-          }
-          localStorage.setItem(announcementKey, JSON.stringify(versionInfo))
         })
       }
     } else if (!info.announcementContent) {
       // 如果公告内容为空，清除localStorage中的记录
-      const announcementKey = `announcement_version_${shareToken}`
-      localStorage.removeItem(announcementKey)
+      const viewedKey = `announcement_viewed_${shareToken}`
+      localStorage.removeItem(viewedKey)
     }
 
     loading.value = false
