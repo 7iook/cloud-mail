@@ -862,12 +862,12 @@ const renderAnnouncementContent = (content) => {
     .replace(/'/g, '&#039;')
 
   // 处理链接标记
-  html = html.replace(/\[link\](.*?)\[\/link\]/g, '<a href="$1" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="$1">$1</a>')
+  html = html.replace(/\[link\](.*?)\[\/link\]/g, '<span class="announcement-link-wrapper"><a href="$1" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="$1">$1</a><span class="announcement-link-copy" data-url="$1" title="复制链接">📋</span></span>')
 
   // 自动识别 URL 链接（http/https/www）
   html = html.replace(/(?<!<a[^>]*>)(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+)(?![^<]*<\/a>)/g, (match) => {
     const url = match.startsWith('www.') ? 'https://' + match : match
-    return `<a href="${url}" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="${url}">${match}</a>`
+    return `<span class="announcement-link-wrapper"><a href="${url}" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="${url}">${match}</a><span class="announcement-link-copy" data-url="${url}" title="复制链接">📋</span></span>`
   })
 
   // 处理颜色标记
@@ -888,8 +888,11 @@ const renderAnnouncementContent = (content) => {
 // 处理公告链接点击（复制链接）
 const handleAnnouncementLinkClick = (event) => {
   const target = event.target
-  if (target.classList.contains('announcement-link')) {
+
+  // 处理复制图标点击
+  if (target.classList.contains('announcement-link-copy')) {
     event.preventDefault()
+    event.stopPropagation()
     const url = target.getAttribute('data-url')
     if (url) {
       navigator.clipboard.writeText(url).then(() => {
@@ -899,6 +902,8 @@ const handleAnnouncementLinkClick = (event) => {
       })
     }
   }
+
+  // 链接本身会自动打开（target="_blank"），无需额外处理
 }
 
 // 全屏查看图片
@@ -1634,5 +1639,35 @@ onUnmounted(() => {
 
 .announcement-text :deep(.announcement-link):active {
   opacity: 0.6;
+}
+
+/* 公告链接包装器 */
+.announcement-text :deep(.announcement-link-wrapper) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+/* 公告链接复制图标 */
+.announcement-text :deep(.announcement-link-copy) {
+  display: inline-block;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: all 0.2s;
+  user-select: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.announcement-text :deep(.announcement-link-copy):hover {
+  opacity: 1;
+  background-color: #f0f0f0;
+  transform: scale(1.1);
+}
+
+.announcement-text :deep(.announcement-link-copy):active {
+  transform: scale(0.95);
 }
 </style>
