@@ -271,38 +271,35 @@
                         <el-button size="small" @click="insertLink">
                           <Icon icon="material-symbols:link" /> 插入链接
                         </el-button>
-                        <el-button size="small" @click="showColorPicker = true">
-                          <Icon icon="material-symbols:palette" /> 颜色
-                        </el-button>
+                        <el-dropdown @command="handleColorCommand" trigger="click">
+                          <el-button size="small">
+                            <Icon icon="material-symbols:palette" /> 颜色
+                          </el-button>
+                          <template #dropdown>
+                            <el-dropdown-menu>
+                              <el-dropdown-item
+                                v-for="color in colorPresets"
+                                :key="color.value"
+                                :command="color"
+                              >
+                                <span
+                                  class="color-swatch"
+                                  :style="{ backgroundColor: color.value }"
+                                />
+                                {{ color.label }}
+                              </el-dropdown-item>
+                            </el-dropdown-menu>
+                          </template>
+                        </el-dropdown>
                         <el-button size="small" @click="insertHighlight">
                           <Icon icon="material-symbols:highlight" /> 高亮
                         </el-button>
                       </el-button-group>
                     </div>
 
-                    <!-- 颜色选择器 -->
-                    <el-popover
-                      v-model:visible="showColorPicker"
-                      placement="bottom"
-                      :width="200"
-                      trigger="click"
-                    >
-                      <div class="color-picker-container">
-                        <div class="color-presets">
-                          <div
-                            v-for="color in colorPresets"
-                            :key="color.value"
-                            class="color-preset"
-                            :style="{ backgroundColor: color.value }"
-                            :title="color.label"
-                            @click="insertColor(color)"
-                          />
-                        </div>
-                      </div>
-                    </el-popover>
-
                     <!-- 文本编辑区 -->
                     <el-input
+                      ref="contentInput"
                       v-model="announcementData.content"
                       type="textarea"
                       placeholder="请输入公告内容（支持 [link]URL[/link]、[red]文本[/red] 等标记）"
@@ -422,7 +419,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Icon } from '@iconify/vue'
 import {
@@ -450,6 +447,9 @@ const visible = ref(false)
 const saving = ref(false)
 const activeTab = ref('basic')
 const showColorPicker = ref(false)
+
+// 编辑器引用
+const contentInput = ref(null)
 
 // 可用域名列表
 const availableDomains = ref([])
@@ -658,14 +658,16 @@ const insertLink = () => {
   }
 }
 
-// 插入颜色
-const insertColor = (color) => {
-  const text = prompt('请输入要着色的文本:')
-  if (text) {
-    const colorName = color.label.toLowerCase()
-    announcementData.content += `[${colorName}]${text}[/${colorName}]`
-  }
-  showColorPicker.value = false
+// 处理颜色命令
+const handleColorCommand = (color) => {
+  const colorName = color.label.toLowerCase()
+  const colorTag = `[${colorName}]文本[/${colorName}]`
+  announcementData.content += colorTag
+
+  // 自动聚焦到输入框
+  nextTick(() => {
+    contentInput.value?.focus()
+  })
 }
 
 // 插入高亮
@@ -1111,6 +1113,17 @@ watch(visible, (newVal) => {
 .color-preset:hover {
   border-color: #409eff;
   transform: scale(1.1);
+}
+
+/* 颜色样本（下拉菜单中） */
+.color-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  margin-right: 8px;
+  border: 1px solid #ddd;
+  vertical-align: middle;
 }
 
 /* 图片上传区域 */
