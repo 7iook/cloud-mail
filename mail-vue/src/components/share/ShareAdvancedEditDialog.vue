@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     title="高级设置"
-    width="95%"
+    width="50%"
     max-height="90vh"
     :before-close="handleClose"
     class="advanced-settings-dialog"
@@ -1007,6 +1007,7 @@ watch(visible, (newVal) => {
 
 .announcement-editor-container {
   display: flex;
+  flex-direction: column;
   gap: 20px;
   height: 100%;
 }
@@ -1018,9 +1019,10 @@ watch(visible, (newVal) => {
 }
 
 .announcement-preview-container {
-  width: 400px;
-  border-left: 1px solid #e4e7eb;
-  padding-left: 20px;
+  width: 100%;
+  max-height: 300px;
+  border-top: 1px solid #e4e7eb;
+  padding-top: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
