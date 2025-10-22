@@ -1035,7 +1035,9 @@ watch(visible, (newVal) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 400px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .editor-toolbar {
@@ -1044,6 +1046,7 @@ watch(visible, (newVal) => {
   padding: 8px;
   background-color: #f5f7fa;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .editor-toolbar :deep(.el-button-group) {
@@ -1051,9 +1054,15 @@ watch(visible, (newVal) => {
 }
 
 /* 公告内容输入框 */
+.announcement-content-input {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .announcement-content-input :deep(.el-textarea__inner) {
-  min-height: 300px !important;
-  resize: vertical;
+  height: 100% !important;
+  resize: none;
 }
 
 /* 颜色选择器 */
