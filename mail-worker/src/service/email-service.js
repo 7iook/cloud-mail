@@ -467,6 +467,34 @@ const emailService = {
 		return list;
 	},
 
+	async latestByTargetEmail(c, params, userId) {
+		let { emailId, targetEmail } = params;
+
+		const list = await orm(c).select().from(email).where(
+			and(
+				eq(email.userId, userId),
+				eq(email.isDel, isDel.NORMAL),
+				eq(email.toEmail, targetEmail),
+				eq(email.type, emailConst.type.RECEIVE),
+				gt(email.emailId, emailId)
+			))
+			.orderBy(desc(email.emailId))
+			.limit(20);
+
+		const emailIds = list.map(item => item.emailId);
+
+		if (emailIds.length > 0) {
+			const attsList = await attService.selectByEmailIds(c, emailIds);
+
+			list.forEach(emailRow => {
+				const atts = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
+				emailRow.attList = atts;
+			});
+		}
+
+		return list;
+	},
+
 	async allLatest(c, params) {
 		let { emailId } = params;
 		emailId = Number(emailId);

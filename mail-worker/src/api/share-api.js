@@ -605,37 +605,14 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 		}
 		*/
 
-		// Fix P0-6: 使用 effectiveTargetEmail 而非 shareRecord.targetEmail
-		// 获取该邮箱的账户信息
-		let targetAccount = await accountService.selectByEmailIncludeDel(c, effectiveTargetEmail);
-
-		// Fix P1-5: 对于 Type 2 分享，邮箱必须已经存在（在创建分享时已创建）
-		// Fix P2-1: 如果邮箱不存在，自动创建（适用于 Type 1 和 Type 2 分享）
-		if (!targetAccount) {
-			// 无论是 Type 1 还是 Type 2 分享，如果邮箱账户不存在，都应该自动创建
-			// 这样可以确保授权邮箱在访问时能够正常工作
-			try {
-				targetAccount = await accountService.add(c, { email: effectiveTargetEmail }, shareRecord.userId);
-				console.log(`为分享访问自动创建邮箱账户: ${effectiveTargetEmail}`);
-			} catch (error) {
-				errorMessage = '邮箱账户创建失败';
-				accessResult = 'failed';
-				throw new BizError(errorMessage, 500);
-			}
-		}
-
-		// Fix P1-6: 检查账户是否被删除
-		if (targetAccount && targetAccount.isDel === isDel.DELETE) {
-			errorMessage = '邮箱账户已被删除，无法访问';
-			accessResult = 'rejected';
-			throw new BizError(errorMessage, 403);
-		}
-
-		// 获取该邮箱的最新邮件
-		let emails = await emailService.latest(c, {
+		// Fix: 直接查询 email 表中 to_email 匹配 target_email 的邮件
+		// 原因：这是一个临时邮箱转发系统，邮箱不需要预先在 account 表中存在
+		// 只需要验证域名合法性，然后直接查询 email 表中的邮件记录
+		// 使用 shareRecord.userId 作为查询条件，确保只能访问该用户的邮件
+		let emails = await emailService.latestByTargetEmail(c, {
 			emailId: 0,
-			accountId: targetAccount.accountId
-		}, targetAccount.userId);
+			targetEmail: effectiveTargetEmail
+		}, shareRecord.userId);
 
 		let filteredEmails = [];
 		
