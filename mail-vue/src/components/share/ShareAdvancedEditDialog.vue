@@ -291,6 +291,24 @@
                             </el-dropdown-menu>
                           </template>
                         </el-dropdown>
+                        <el-button size="small" @click="insertBold">
+                          <Icon icon="material-symbols:format-bold" /> 加粗
+                        </el-button>
+                        <el-dropdown @command="handleSizeCommand" trigger="click">
+                          <el-button size="small">
+                            <Icon icon="material-symbols:text-fields" /> 大小
+                          </el-button>
+                          <template #dropdown>
+                            <el-dropdown-menu>
+                              <el-dropdown-item command="large">
+                                <span class="size-preview" style="font-size: 18px;">大</span>
+                              </el-dropdown-item>
+                              <el-dropdown-item command="xlarge">
+                                <span class="size-preview" style="font-size: 22px;">特大</span>
+                              </el-dropdown-item>
+                            </el-dropdown-menu>
+                          </template>
+                        </el-dropdown>
                         <el-button size="small" @click="insertHighlight">
                           <Icon icon="material-symbols:highlight" /> 高亮
                         </el-button>
@@ -624,6 +642,13 @@ const renderAnnouncementContent = (content) => {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
 
+  // 处理加粗标记
+  html = html.replace(/\[bold\](.*?)\[\/bold\]/g, '<strong>$1</strong>')
+
+  // 处理字体大小标记
+  html = html.replace(/\[large\](.*?)\[\/large\]/g, '<span style="font-size: 18px;">$1</span>')
+  html = html.replace(/\[xlarge\](.*?)\[\/xlarge\]/g, '<span style="font-size: 22px;">$1</span>')
+
   // 处理颜色标记（在链接处理之前）
   html = html.replace(/\[red\](.*?)\[\/red\]/g, '<span style="color: #FF0000;">$1</span>')
   html = html.replace(/\[green\](.*?)\[\/green\]/g, '<span style="color: #00AA00;">$1</span>')
@@ -662,6 +687,28 @@ const insertLink = () => {
 const handleColorCommand = (color) => {
   const colorTag = `[${color.tag}]文本[/${color.tag}]`
   announcementData.content += colorTag
+
+  // 自动聚焦到输入框
+  nextTick(() => {
+    contentInput.value?.focus()
+  })
+}
+
+// 插入加粗
+const insertBold = () => {
+  const boldTag = `[bold]文本[/bold]`
+  announcementData.content += boldTag
+
+  // 自动聚焦到输入框
+  nextTick(() => {
+    contentInput.value?.focus()
+  })
+}
+
+// 处理字体大小命令
+const handleSizeCommand = (size) => {
+  const sizeTag = `[${size}]文本[/${size}]`
+  announcementData.content += sizeTag
 
   // 自动聚焦到输入框
   nextTick(() => {
@@ -1123,6 +1170,12 @@ watch(visible, (newVal) => {
   margin-right: 8px;
   border: 1px solid #ddd;
   vertical-align: middle;
+}
+
+/* 字体大小预览 */
+.size-preview {
+  display: inline-block;
+  min-width: 30px;
 }
 
 /* 图片上传区域 */

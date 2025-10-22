@@ -861,6 +861,13 @@ const renderAnnouncementContent = (content) => {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
 
+  // 处理加粗标记
+  html = html.replace(/\[bold\](.*?)\[\/bold\]/g, '<strong>$1</strong>')
+
+  // 处理字体大小标记
+  html = html.replace(/\[large\](.*?)\[\/large\]/g, '<span style="font-size: 18px;">$1</span>')
+  html = html.replace(/\[xlarge\](.*?)\[\/xlarge\]/g, '<span style="font-size: 22px;">$1</span>')
+
   // 处理颜色标记（在链接处理之前）
   html = html.replace(/\[red\](.*?)\[\/red\]/g, '<span style="color: #FF0000;">$1</span>')
   html = html.replace(/\[green\](.*?)\[\/green\]/g, '<span style="color: #00AA00;">$1</span>')
