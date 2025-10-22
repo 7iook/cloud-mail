@@ -306,10 +306,11 @@
                       v-model="announcementData.content"
                       type="textarea"
                       placeholder="请输入公告内容（支持 [link]URL[/link]、[red]文本[/red] 等标记）"
-                      rows="8"
+                      rows="15"
                       maxlength="1000"
                       show-word-limit
                       @paste="handlePaste"
+                      class="announcement-content-input"
                     />
                   </div>
                 </el-form-item>
@@ -1033,6 +1034,7 @@ watch(visible, (newVal) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 400px;
 }
 
 .editor-toolbar {
@@ -1045,6 +1047,12 @@ watch(visible, (newVal) => {
 
 .editor-toolbar :deep(.el-button-group) {
   display: flex;
+}
+
+/* 公告内容输入框 */
+.announcement-content-input :deep(.el-textarea__inner) {
+  min-height: 300px !important;
+  resize: vertical;
 }
 
 /* 颜色选择器 */
