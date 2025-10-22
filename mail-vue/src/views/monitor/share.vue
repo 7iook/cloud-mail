@@ -163,7 +163,7 @@
     <el-dialog
       v-model="showAnnouncementDialog"
       :title="parsedAnnouncement?.title || '公告'"
-      width="600px"
+      :width="isMobileDevice ? '95vw' : '600px'"
       :close-on-click-modal="false"
       @close="handleAnnouncementClose"
       class="announcement-dialog"
@@ -241,6 +241,14 @@ const emailStore = useEmailStore()
 
 // 系统设置管理
 const settingStore = useSettingStore()
+
+// 移动设备检测
+const isMobileDevice = ref(window.innerWidth < 768)
+
+// 窗口大小变化处理函数
+const handleResize = () => {
+  isMobileDevice.value = window.innerWidth < 768
+}
 
 // 初始化分享页面的分屏布局
 onMounted(() => {
@@ -931,6 +939,9 @@ onMounted(async () => {
     announcementShown.value = true
   }
 
+  // 监听窗口大小变化
+  window.addEventListener('resize', handleResize)
+
   await loadShareInfo()
 })
 
@@ -944,6 +955,9 @@ onUnmounted(() => {
     clearInterval(cooldownTimer)
     cooldownTimer = null
   }
+
+  // 移除窗口大小变化监听器
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -1083,16 +1097,32 @@ onUnmounted(() => {
       width: 95vw !important;
       max-width: 95vw;
       margin: 0 auto;
+      max-height: 90vh;
+    }
+
+    :deep(.el-dialog__header) {
+      padding: 12px 16px;
+    }
+
+    :deep(.el-dialog__title) {
+      font-size: 16px;
+      font-weight: 500;
     }
 
     :deep(.el-dialog__body) {
-      padding: 16px;
+      padding: 12px;
+      max-height: calc(90vh - 120px);
+      overflow-y: auto;
+    }
+
+    :deep(.el-dialog__footer) {
+      padding: 12px 16px;
     }
   }
 
   .announcement-content {
-    padding: 12px;
-    max-height: calc(100vh - 200px);
+    padding: 8px;
+    max-height: calc(90vh - 140px);
     overflow-y: auto;
 
     .images-carousel {
@@ -1542,7 +1572,7 @@ onUnmounted(() => {
   overflow-y: auto;
 
   .images-carousel {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 
     .carousel {
       border-radius: 8px;
@@ -1565,7 +1595,7 @@ onUnmounted(() => {
         justify-content: center;
         height: 100%;
         background: #f5f7fa;
-        padding: 20px;
+        padding: 16px;
 
         img {
           max-width: 100%;
@@ -1577,8 +1607,8 @@ onUnmounted(() => {
         }
 
         .image-caption {
-          margin-top: 12px;
-          font-size: 14px;
+          margin-top: 10px;
+          font-size: 13px;
           color: #606266;
           text-align: center;
           padding: 0 12px;
@@ -1676,5 +1706,119 @@ onUnmounted(() => {
 
 .announcement-text :deep(.announcement-link-copy):active {
   transform: scale(0.95);
+}
+
+/* 超小屏幕优化 (< 480px) */
+@media (max-width: 480px) {
+  .announcement-dialog {
+    :deep(.el-dialog) {
+      width: 100vw !important;
+      max-width: 100vw !important;
+      margin: 0 !important;
+      max-height: 100vh;
+      border-radius: 0;
+    }
+
+    :deep(.el-dialog__header) {
+      padding: 10px 12px;
+    }
+
+    :deep(.el-dialog__title) {
+      font-size: 14px;
+    }
+
+    :deep(.el-dialog__body) {
+      padding: 10px;
+      max-height: calc(100vh - 100px);
+    }
+
+    :deep(.el-dialog__footer) {
+      padding: 10px 12px;
+    }
+  }
+
+  .announcement-content {
+    padding: 6px;
+    max-height: calc(100vh - 120px);
+
+    .images-carousel {
+      margin-bottom: 12px;
+
+      .carousel {
+        height: 250px;
+
+        .carousel-item {
+          padding: 12px;
+
+          img {
+            max-height: 220px;
+          }
+
+          .image-caption {
+            margin-top: 8px;
+            font-size: 12px;
+          }
+        }
+      }
+
+      .carousel-info {
+        font-size: 11px;
+        margin-top: 4px;
+      }
+    }
+  }
+
+  .announcement-text {
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 8px;
+
+    :deep(strong) {
+      font-weight: 600;
+    }
+
+    :deep(mark) {
+      padding: 1px 2px;
+    }
+  }
+
+  .dialog-footer {
+    padding: 8px 0;
+
+    .el-button {
+      width: 100%;
+      min-height: 40px;
+      font-size: 14px;
+    }
+  }
+}
+
+/* 小屏幕优化 (480px - 768px) */
+@media (max-width: 768px) and (min-width: 481px) {
+  .announcement-dialog {
+    :deep(.el-dialog) {
+      max-height: 85vh;
+    }
+
+    :deep(.el-dialog__body) {
+      max-height: calc(85vh - 120px);
+    }
+  }
+
+  .announcement-content {
+    max-height: calc(85vh - 140px);
+
+    .images-carousel {
+      .carousel {
+        height: 300px;
+
+        .carousel-item {
+          img {
+            max-height: 270px;
+          }
+        }
+      }
+    }
+  }
 }
 </style>
