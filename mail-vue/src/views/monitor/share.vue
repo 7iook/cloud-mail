@@ -190,8 +190,8 @@
         </div>
 
         <!-- 文本内容 -->
-        <div v-if="parsedAnnouncement?.content" class="announcement-text">
-          {{ parsedAnnouncement.content }}
+        <div v-if="parsedAnnouncement?.content" class="announcement-text" @click="handleAnnouncementLinkClick">
+          <div v-html="renderAnnouncementContent(parsedAnnouncement.content)" />
         </div>
 
         <!-- 纯文本公告（向后兼容） -->
@@ -868,6 +868,58 @@ const handleAnnouncementClose = () => {
       viewedAt: new Date().toISOString(),
       version: parsedAnnouncement.value.version || 0
     }))
+  }
+}
+
+// 渲染公告内容（支持链接识别和标记语法）
+const renderAnnouncementContent = (content) => {
+  if (!content) return ''
+
+  let html = content
+    // 转义 HTML 特殊字符
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+
+  // 处理链接标记
+  html = html.replace(/\[link\](.*?)\[\/link\]/g, '<a href="$1" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="$1">$1</a>')
+
+  // 自动识别 URL 链接（http/https/www）
+  html = html.replace(/(?<!<a[^>]*>)(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+)(?![^<]*<\/a>)/g, (match) => {
+    const url = match.startsWith('www.') ? 'https://' + match : match
+    return `<a href="${url}" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="${url}">${match}</a>`
+  })
+
+  // 处理颜色标记
+  html = html.replace(/\[red\](.*?)\[\/red\]/g, '<span style="color: #FF0000;">$1</span>')
+  html = html.replace(/\[green\](.*?)\[\/green\]/g, '<span style="color: #00AA00;">$1</span>')
+  html = html.replace(/\[blue\](.*?)\[\/blue\]/g, '<span style="color: #0066FF;">$1</span>')
+  html = html.replace(/\[yellow\](.*?)\[\/yellow\]/g, '<span style="color: #FFAA00;">$1</span>')
+
+  // 处理高亮标记
+  html = html.replace(/\[highlight\](.*?)\[\/highlight\]/g, '<mark style="background-color: #FFFF00; padding: 2px 4px;">$1</mark>')
+
+  // 处理换行
+  html = html.replace(/\n/g, '<br>')
+
+  return html
+}
+
+// 处理公告链接点击（复制链接）
+const handleAnnouncementLinkClick = (event) => {
+  const target = event.target
+  if (target.classList.contains('announcement-link')) {
+    event.preventDefault()
+    const url = target.getAttribute('data-url')
+    if (url) {
+      navigator.clipboard.writeText(url).then(() => {
+        ElMessage.success('链接已复制到剪贴板')
+      }).catch(() => {
+        ElMessage.error('复制失败，请手动复制')
+      })
+    }
   }
 }
 
@@ -1585,5 +1637,24 @@ onUnmounted(() => {
   to {
     opacity: 1;
   }
+}
+
+/* 公告链接样式 */
+.announcement-text :deep(.announcement-link) {
+  color: #0066FF;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.announcement-text :deep(.announcement-link):hover {
+  color: #0052CC;
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.announcement-text :deep(.announcement-link):active {
+  opacity: 0.6;
 }
 </style>
