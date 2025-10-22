@@ -459,10 +459,10 @@ const availableTemplates = ref([])
 
 // 颜色预设
 const colorPresets = [
-  { label: '红色', value: '#FF0000' },
-  { label: '绿色', value: '#00AA00' },
-  { label: '蓝色', value: '#0066FF' },
-  { label: '黄色', value: '#FFAA00' }
+  { label: '红色', value: '#FF0000', tag: 'red' },
+  { label: '绿色', value: '#00AA00', tag: 'green' },
+  { label: '蓝色', value: '#0066FF', tag: 'blue' },
+  { label: '黄色', value: '#FFAA00', tag: 'yellow' }
 ]
 
 // 表单数据
@@ -660,8 +660,7 @@ const insertLink = () => {
 
 // 处理颜色命令
 const handleColorCommand = (color) => {
-  const colorName = color.label.toLowerCase()
-  const colorTag = `[${colorName}]文本[/${colorName}]`
+  const colorTag = `[${color.tag}]文本[/${color.tag}]`
   announcementData.content += colorTag
 
   // 自动聚焦到输入框
