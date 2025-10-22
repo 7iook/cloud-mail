@@ -478,12 +478,13 @@ const emailService = {
 			targetEmailLower: targetEmail.toLowerCase()
 		});
 
-		// 修复：使用大小写不敏感的查询
-		// 原因：to_email 字段可能以原始大小写存储，但 targetEmail 已被规范化为小写
-		// 使用 sql`LOWER(${email.toEmail}) = LOWER(${targetEmail})` 进行大小写不敏感比较
+		// 修复：移除 user_id 过滤
+		// 原因：这是一个临时邮箱转发系统，分享链接本身就是访问控制机制
+		// 分享类型2已经通过 authorizedEmails 进行了邮箱验证
+		// 不需要再通过 user_id 进行额外的权限过滤
+		// 这样可以支持所有 user_id 的邮件（包括 user_id = 0 和 user_id = 1）
 		const list = await orm(c).select().from(email).where(
 			and(
-				eq(email.userId, userId),
 				eq(email.isDel, isDel.NORMAL),
 				sql`LOWER(${email.toEmail}) = LOWER(${targetEmail})`,
 				eq(email.type, emailConst.type.RECEIVE),
