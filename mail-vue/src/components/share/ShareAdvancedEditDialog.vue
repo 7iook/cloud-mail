@@ -1008,7 +1008,7 @@ watch(visible, (newVal) => {
 
 .announcement-editor-container {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 20px;
   height: 100%;
 }
@@ -1017,13 +1017,14 @@ watch(visible, (newVal) => {
   flex: 1;
   overflow-y: auto;
   padding-right: 10px;
+  min-width: 0;
 }
 
 .announcement-preview-container {
-  width: 100%;
-  max-height: 300px;
-  border-top: 1px solid #e4e7eb;
-  padding-top: 20px;
+  width: 350px;
+  flex-shrink: 0;
+  border-left: 1px solid #e4e7eb;
+  padding-left: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -1193,6 +1194,7 @@ watch(visible, (newVal) => {
 
   .announcement-preview-container {
     width: 100%;
+    max-height: 300px;
     border-left: none;
     border-top: 1px solid #e4e7eb;
     padding-left: 0;
