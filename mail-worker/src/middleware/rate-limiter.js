@@ -250,14 +250,15 @@ export async function shareRateLimitMiddleware(c, next) {
 
 					// 频率限制由开关控制，最小值为1
 					// 如果有有效的频率限制值，创建配置
-					if (perSecond && perSecond > 0) {
+					// Fix: 使用显式的 !== 检查而不是依赖 falsy 值，确保当 perSecond === 0 时正确禁用频率限制
+					if (perSecond !== undefined && perSecond !== null && perSecond > 0) {
 						customConfig = {
 							strict: { limit: perSecond, period: 1 },
 							autoRecoverySeconds: recoverySeconds || 60
 						};
 						console.log('✅ 使用自定义频率限制配置:', customConfig);
 					} else {
-						console.log('⚠️ 频率限制字段无效或未设置，customConfig保持为null');
+						console.log('⚠️ 频率限制字段无效或未设置（perSecond=' + perSecond + '），customConfig保持为null');
 						customConfig = null;
 					}
 				} else {
@@ -355,4 +356,3 @@ export function createRateLimitMiddleware(config) {
 }
 
 export default RateLimiter;
-
