@@ -624,17 +624,7 @@ const renderAnnouncementContent = (content) => {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
 
-  // 处理链接标记
-  html = html.replace(/\[link\](.*?)\[\/link\]/g, '<a href="$1" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="$1">$1</a>')
-
-  // 自动识别 URL 链接（http/https/www）
-  // 避免重复处理已经标记的链接
-  html = html.replace(/(?<!<a[^>]*>)(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+)(?![^<]*<\/a>)/g, (match) => {
-    const url = match.startsWith('www.') ? 'https://' + match : match
-    return `<a href="${url}" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="${url}">${match}</a>`
-  })
-
-  // 处理颜色标记
+  // 处理颜色标记（在链接处理之前）
   html = html.replace(/\[red\](.*?)\[\/red\]/g, '<span style="color: #FF0000;">$1</span>')
   html = html.replace(/\[green\](.*?)\[\/green\]/g, '<span style="color: #00AA00;">$1</span>')
   html = html.replace(/\[blue\](.*?)\[\/blue\]/g, '<span style="color: #0066FF;">$1</span>')
@@ -642,6 +632,16 @@ const renderAnnouncementContent = (content) => {
 
   // 处理高亮标记
   html = html.replace(/\[highlight\](.*?)\[\/highlight\]/g, '<mark style="background-color: #FFFF00; padding: 2px 4px;">$1</mark>')
+
+  // 处理链接标记
+  html = html.replace(/\[link\](.*?)\[\/link\]/g, '<span class="announcement-link-wrapper"><a href="$1" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="$1">$1</a><span class="announcement-link-copy" data-url="$1" title="复制链接">📋</span></span>')
+
+  // 自动识别 URL 链接（http/https/www）
+  // 避免重复处理已经标记的链接
+  html = html.replace(/(?<!<a[^>]*>)(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+)(?![^<]*<\/a>)/g, (match) => {
+    const url = match.startsWith('www.') ? 'https://' + match : match
+    return `<span class="announcement-link-wrapper"><a href="${url}" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="${url}">${match}</a><span class="announcement-link-copy" data-url="${url}" title="复制链接">📋</span></span>`
+  })
 
   // 处理换行
   html = html.replace(/\n/g, '<br>')
