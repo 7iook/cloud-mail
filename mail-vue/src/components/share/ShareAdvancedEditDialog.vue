@@ -397,7 +397,7 @@
                 </div>
 
                 <!-- 公告内容 -->
-                <div v-if="announcementData.content" class="preview-content">
+                <div v-if="announcementData.content" class="preview-content" @click="handleLinkClick">
                   <div v-html="renderAnnouncementContent(announcementData.content)" />
                 </div>
 
@@ -625,7 +625,14 @@ const renderAnnouncementContent = (content) => {
     .replace(/'/g, '&#039;')
 
   // 处理链接标记
-  html = html.replace(/\[link\](.*?)\[\/link\]/g, '<a href="$1" target="_blank" style="color: #0066FF; text-decoration: underline;">$1</a>')
+  html = html.replace(/\[link\](.*?)\[\/link\]/g, '<a href="$1" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="$1">$1</a>')
+
+  // 自动识别 URL 链接（http/https/www）
+  // 避免重复处理已经标记的链接
+  html = html.replace(/(?<!<a[^>]*>)(https?:\/\/[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+)(?![^<]*<\/a>)/g, (match) => {
+    const url = match.startsWith('www.') ? 'https://' + match : match
+    return `<a href="${url}" target="_blank" style="color: #0066FF; text-decoration: underline; cursor: pointer;" class="announcement-link" data-url="${url}">${match}</a>`
+  })
 
   // 处理颜色标记
   html = html.replace(/\[red\](.*?)\[\/red\]/g, '<span style="color: #FF0000;">$1</span>')
@@ -763,6 +770,22 @@ const moveImageDown = (index) => {
     const temp = announcementData.images[index]
     announcementData.images[index] = announcementData.images[index + 1]
     announcementData.images[index + 1] = temp
+  }
+}
+
+// 处理链接点击（复制链接）
+const handleLinkClick = (event) => {
+  const target = event.target
+  if (target.classList.contains('announcement-link')) {
+    event.preventDefault()
+    const url = target.getAttribute('data-url')
+    if (url) {
+      navigator.clipboard.writeText(url).then(() => {
+        ElMessage.success('链接已复制到剪贴板')
+      }).catch(() => {
+        ElMessage.error('复制失败，请手动复制')
+      })
+    }
   }
 }
 
@@ -1186,6 +1209,25 @@ watch(visible, (newVal) => {
   color: #606266;
   line-height: 1.6;
   font-size: 14px;
+}
+
+/* 链接样式 */
+.preview-content :deep(.announcement-link) {
+  color: #0066FF;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.preview-content :deep(.announcement-link):hover {
+  color: #0052CC;
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.preview-content :deep(.announcement-link):active {
+  opacity: 0.6;
 }
 
 .preview-empty {
