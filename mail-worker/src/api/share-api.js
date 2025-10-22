@@ -611,7 +611,7 @@ app.get('/share/emails/:shareToken', shareRateLimitMiddleware, async (c) => {
 				// Type 2 分享的邮箱应该在创建分享时已经创建，不应该自动创建
 				errorMessage = '邮箱账户不存在，请联系管理员';
 				accessResult = 'rejected';
-				throw new BizError(errorMessage, 500);
+				throw new BizError(errorMessage, 404);
 			}
 
 			// Type 1 分享：如果邮箱账户不存在，使用分享创建者的userId自动创建

@@ -97,6 +97,7 @@
               <el-select v-model="sortBy" @change="loadAllEmails" class="sort-select">
                 <el-option label="按邮箱排序" value="email" />
                 <el-option label="按邮件数量排序" value="count" />
+                <el-option label="按最后来件时间排序" value="time" />
               </el-select>
             </div>
 

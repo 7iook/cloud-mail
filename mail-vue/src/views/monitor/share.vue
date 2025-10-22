@@ -164,7 +164,7 @@
       v-model="showAnnouncementDialog"
       :title="parsedAnnouncement?.title || '公告'"
       :width="isMobileDevice ? '95vw' : '600px'"
-      :close-on-click-modal="false"
+      :close-on-click-modal="true"
       @close="handleAnnouncementClose"
       class="announcement-dialog"
     >

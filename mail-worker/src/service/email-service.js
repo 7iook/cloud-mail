@@ -788,7 +788,12 @@ const emailService = {
 			}
 
 			// 排序字段
-			const orderField = orderBy === 'count' ? 'emailCount DESC' : 'email ASC';
+			let orderField = 'email ASC';
+			if (orderBy === 'count') {
+				orderField = 'emailCount DESC';
+			} else if (orderBy === 'time') {
+				orderField = 'latestReceiveTime DESC';
+			}
 
 			// SQL查询：使用DISTINCT去重，按邮箱分组统计邮件数
 			const querySQL = `
