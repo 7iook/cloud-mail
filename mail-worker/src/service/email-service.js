@@ -470,16 +470,32 @@ const emailService = {
 	async latestByTargetEmail(c, params, userId) {
 		let { emailId, targetEmail } = params;
 
+		// 调试日志
+		console.log('[DEBUG latestByTargetEmail] Input params:', {
+			emailId,
+			targetEmail,
+			userId,
+			targetEmailLower: targetEmail.toLowerCase()
+		});
+
+		// 修复：使用大小写不敏感的查询
+		// 原因：to_email 字段可能以原始大小写存储，但 targetEmail 已被规范化为小写
+		// 使用 sql`LOWER(${email.toEmail}) = LOWER(${targetEmail})` 进行大小写不敏感比较
 		const list = await orm(c).select().from(email).where(
 			and(
 				eq(email.userId, userId),
 				eq(email.isDel, isDel.NORMAL),
-				eq(email.toEmail, targetEmail),
+				sql`LOWER(${email.toEmail}) = LOWER(${targetEmail})`,
 				eq(email.type, emailConst.type.RECEIVE),
 				gt(email.emailId, emailId)
 			))
 			.orderBy(desc(email.emailId))
 			.limit(20);
+
+		console.log('[DEBUG latestByTargetEmail] Query result count:', list.length);
+		if (list.length > 0) {
+			console.log('[DEBUG latestByTargetEmail] First email to_email:', list[0].toEmail);
+		}
 
 		const emailIds = list.map(item => item.emailId);
 
