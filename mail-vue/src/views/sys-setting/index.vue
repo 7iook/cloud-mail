@@ -860,7 +860,8 @@ function getSettings() {
 }
 
 function loadGlobalAnnouncement() {
-  getGlobalAnnouncement().then((data) => {
+  // 返回Promise，以便调用者可以使用await
+  return getGlobalAnnouncement().then((data) => {
     globalAnnouncement.title = data.title || ''
     globalAnnouncement.content = data.content
     globalAnnouncement.version = data.version
@@ -1004,8 +1005,10 @@ function resetGlobalAnnouncementForm() {
   })
 }
 
-function openGlobalAnnouncementSetting() {
-  loadGlobalAnnouncement()
+async function openGlobalAnnouncementSetting() {
+  // 先加载数据，然后重置表单
+  // 这样可以确保表单使用最新的数据
+  await loadGlobalAnnouncement()
   resetGlobalAnnouncementForm()
   globalAnnouncementShow.value = true
 }
