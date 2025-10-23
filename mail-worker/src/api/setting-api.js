@@ -39,13 +39,15 @@ app.get('/setting/global-announcement', async (c) => {
 // 设置全局公告
 app.put('/setting/global-announcement', async (c) => {
 	try {
-		const { title, content, enabled, displayMode, images } = await c.req.json();
+		const { title, content, enabled, displayMode, images, overrideShareAnnouncement, autoApplyNewShare } = await c.req.json();
 		const announcement = await settingService.setGlobalAnnouncement(c, {
 			title,
 			content,
 			enabled,
 			displayMode,
-			images
+			images,
+			overrideShareAnnouncement,
+			autoApplyNewShare
 		});
 		return c.json(result.ok(announcement));
 	} catch (error) {

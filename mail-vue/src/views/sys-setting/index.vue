@@ -998,6 +998,8 @@ function resetGlobalAnnouncementForm() {
   globalAnnouncementForm.enabled = globalAnnouncement.enabled
   globalAnnouncementForm.displayMode = globalAnnouncement.displayMode || 'always'
   globalAnnouncementForm.images = [...(globalAnnouncement.images || [])]
+  globalAnnouncementForm.overrideShareAnnouncement = globalAnnouncement.overrideShareAnnouncement || false
+  globalAnnouncementForm.autoApplyNewShare = globalAnnouncement.autoApplyNewShare !== false
   globalAnnouncementForm.overrideShareAnnouncement = globalAnnouncement.overrideShareAnnouncement
   globalAnnouncementForm.autoApplyNewShare = globalAnnouncement.autoApplyNewShare
 }

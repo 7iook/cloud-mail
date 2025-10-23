@@ -224,6 +224,7 @@ import { Warning } from '@element-plus/icons-vue'
 import { useEmailStore } from "@/store/email.js"
 import { useSettingStore } from "@/store/setting.js"
 import { getShareInfo, getShareEmails } from '@/request/share.js'
+import { getGlobalAnnouncement } from '@/request/setting.js'
 import emailScroll from "@/components/email-scroll/index.vue"
 import SplitPaneLayout from '@/components/SplitPaneLayout.vue'
 import LayoutModeSelector from '@/components/LayoutModeSelector.vue'
@@ -312,6 +313,7 @@ const announcementVersionInfo = ref(null) // 存储公告版本信息 {version, 
 const parsedAnnouncement = ref(null) // 解析后的公告数据
 const currentImageIndex = ref(0) // 当前图片索引
 const showImageViewer = ref(false) // 图片全屏查看器显示状态
+const globalAnnouncement = ref(null) // 全局公告数据
 
 // 获取别名类型文本
 const getAliasTypeText = (aliasType) => {
@@ -422,10 +424,33 @@ const loadShareInfo = async () => {
     rateLimitError.value = null
     rateLimitRetryAfter.value = 0
 
+    // 获取全局公告
+    try {
+      const globalAnnounceData = await getGlobalAnnouncement()
+      globalAnnouncement.value = globalAnnounceData
+    } catch (err) {
+      console.error('获取全局公告失败:', err)
+      globalAnnouncement.value = null
+    }
+
     // 显示公告弹窗（支持版本控制和展示次数控制）
+    // 优先级：per-share公告 > 全局公告（如果启用覆盖）
+    let announcementToShow = null
+    let announcementSource = null
+
     if (info.announcementContent) {
+      // 有per-share公告，使用per-share公告
+      announcementToShow = info.announcementContent
+      announcementSource = 'share'
+    } else if (globalAnnouncement.value?.enabled && globalAnnouncement.value?.overrideShareAnnouncement) {
+      // 没有per-share公告，但有全局公告且启用了覆盖选项
+      announcementToShow = globalAnnouncement.value?.content
+      announcementSource = 'global'
+    }
+
+    if (announcementToShow) {
       // 解析公告内容以获取 displayMode
-      parseAnnouncementContent(info.announcementContent)
+      parseAnnouncementContent(announcementToShow)
       const displayMode = parsedAnnouncement.value?.displayMode || 'always'
 
       const announcementKey = `announcement_version_${shareToken}`
@@ -451,8 +476,8 @@ const loadShareInfo = async () => {
           currentImageIndex.value = 0
         })
       }
-    } else if (!info.announcementContent) {
-      // 如果公告内容为空，清除localStorage中的记录
+    } else {
+      // 如果没有公告内容，清除localStorage中的记录
       const viewedKey = `announcement_viewed_${shareToken}`
       localStorage.removeItem(viewedKey)
     }
