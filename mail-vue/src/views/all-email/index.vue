@@ -217,8 +217,19 @@ if (paramsStar) {
   params.searchType = paramsStar.searchType
 }
 
+// 防抖定时器
+let paramsDebounceTimer = null
+
 watch(() => params, async () => {
-  await safeStorage.setJSON('all-email-params', params)
+  // 清除之前的定时器
+  if (paramsDebounceTimer) {
+    clearTimeout(paramsDebounceTimer)
+  }
+  
+  // 使用 500ms 防抖延迟，避免频繁保存到 localStorage
+  paramsDebounceTimer = setTimeout(async () => {
+    await safeStorage.setJSON('all-email-params', params)
+  }, 500)
 }, {
   deep: true
 })
