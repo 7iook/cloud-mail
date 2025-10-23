@@ -39,7 +39,9 @@ app.get('/setting/global-announcement', async (c) => {
 // 设置全局公告
 app.put('/setting/global-announcement', async (c) => {
 	try {
+		console.log('[API] PUT /setting/global-announcement 请求到达');
 		const { title, content, enabled, displayMode, images, overrideShareAnnouncement, autoApplyNewShare } = await c.req.json();
+		console.log('[API] 接收到的参数:', { title, content, enabled, displayMode, images, overrideShareAnnouncement, autoApplyNewShare });
 		const announcement = await settingService.setGlobalAnnouncement(c, {
 			title,
 			content,
@@ -49,12 +51,15 @@ app.put('/setting/global-announcement', async (c) => {
 			overrideShareAnnouncement,
 			autoApplyNewShare
 		});
+		console.log('[API] setGlobalAnnouncement 返回:', announcement);
 		return c.json(result.ok(announcement));
 	} catch (error) {
+		console.error('[API] 错误:', error);
+		console.error('[API] 错误堆栈:', error.stack);
 		if (error instanceof BizError) {
 			return c.json(result.fail(error.message), error.code || 400);
 		}
-		return c.json(result.fail('设置全局公告失败'), 500);
+		return c.json(result.fail('设置全局公告失败: ' + error.message), 500);
 	}
 });
 
