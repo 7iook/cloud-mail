@@ -145,6 +145,16 @@ const settingService = {
 	async setGlobalAnnouncement(c, params) {
 		const { title, content, enabled, displayMode, images, overrideShareAnnouncement, autoApplyNewShare } = params;
 
+		console.log('[DEBUG setGlobalAnnouncement] 接收到的参数:', {
+			title,
+			content,
+			enabled,
+			displayMode,
+			images,
+			overrideShareAnnouncement,
+			autoApplyNewShare
+		});
+
 		// 验证标题长度
 		if (title !== null && title !== undefined) {
 			if (typeof title !== 'string') {
@@ -191,12 +201,20 @@ const settingService = {
 			globalAnnouncementAutoApplyNewShare: autoApplyNewShare !== false ? 1 : 0
 		};
 
+		console.log('[DEBUG setGlobalAnnouncement] 准备更新的数据:', updateData);
+
 		// 使用.run()执行update操作，而不是.returning().get()
 		// .run()会正确执行update并返回结果
 		await orm(c).update(setting).set(updateData).run();
+
+		console.log('[DEBUG setGlobalAnnouncement] Update执行完成');
+
 		await this.refresh(c);
 
-		return this.getGlobalAnnouncement(c);
+		const result = this.getGlobalAnnouncement(c);
+		console.log('[DEBUG setGlobalAnnouncement] 返回的结果:', result);
+
+		return result;
 	},
 
 	async setBackground(c, params) {
