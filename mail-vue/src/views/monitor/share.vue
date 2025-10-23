@@ -438,14 +438,30 @@ const loadShareInfo = async () => {
     let announcementToShow = null
     let announcementSource = null
 
+    console.log('[DEBUG] globalAnnouncement.value:', globalAnnouncement.value)
+
     if (info.announcementContent) {
       // 有per-share公告，使用per-share公告
       announcementToShow = info.announcementContent
       announcementSource = 'share'
     } else if (globalAnnouncement.value?.enabled && globalAnnouncement.value?.overrideShareAnnouncement) {
       // 没有per-share公告，但有全局公告且启用了覆盖选项
-      announcementToShow = globalAnnouncement.value?.content
+      // 将分离的字段转换为JSON格式，以便parseAnnouncementContent()能正确解析
+      const { title, content, images, displayMode } = globalAnnouncement.value
+      console.log('[DEBUG] Global announcement data:', { title, content, images, displayMode })
+      if (title || (images && images.length > 0)) {
+        announcementToShow = JSON.stringify({
+          type: 'rich',
+          title: title || '',
+          content: content || '',
+          images: images || [],
+          displayMode: displayMode || 'always'
+        })
+      } else {
+        announcementToShow = content
+      }
       announcementSource = 'global'
+      console.log('[DEBUG] announcementToShow:', announcementToShow)
     }
 
     if (announcementToShow) {

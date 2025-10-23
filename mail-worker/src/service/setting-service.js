@@ -18,15 +18,22 @@ const settingService = {
 
 	async refresh(c) {
 		const settingRow = await orm(c).select().from(setting).get();
+		console.log('[DEBUG refresh] 从数据库读取的设置:', {
+			title: settingRow.globalAnnouncementTitle,
+			content: settingRow.globalAnnouncementContent ? settingRow.globalAnnouncementContent.substring(0, 50) : null
+		});
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
 		c.set('setting', settingRow);
 		// 优雅处理 KV 不可用的情况
 		if (c.env.kv) {
 			try {
 				await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
+				console.log('[DEBUG refresh] KV 写入成功');
 			} catch (error) {
 				console.warn('KV 写入失败:', error.message);
 			}
+		} else {
+			console.warn('[DEBUG refresh] KV 不可用');
 		}
 	},
 
@@ -129,13 +136,19 @@ const settingService = {
 	// 获取全局公告
 	async getGlobalAnnouncement(c) {
 		const settingData = await this.query(c);
+
+		const title = settingData.globalAnnouncementTitle || '';
+		const content = settingData.globalAnnouncementContent;
+		const displayMode = settingData.globalAnnouncementDisplayMode || 'always';
+		const images = settingData.globalAnnouncementImages ? JSON.parse(settingData.globalAnnouncementImages) : [];
+
 		return {
-			title: settingData.globalAnnouncementTitle || '',
-			content: settingData.globalAnnouncementContent,
+			title,
+			content,
 			version: settingData.globalAnnouncementVersion,
 			enabled: settingData.globalAnnouncementEnabled === 1,
-			displayMode: settingData.globalAnnouncementDisplayMode || 'always',
-			images: settingData.globalAnnouncementImages ? JSON.parse(settingData.globalAnnouncementImages) : [],
+			displayMode,
+			images,
 			overrideShareAnnouncement: settingData.globalAnnouncementOverrideShareAnnouncement === 1,
 			autoApplyNewShare: settingData.globalAnnouncementAutoApplyNewShare === 1
 		};
@@ -143,17 +156,18 @@ const settingService = {
 
 	// 设置全局公告
 	async setGlobalAnnouncement(c, params) {
-		const { title, content, enabled, displayMode, images, overrideShareAnnouncement, autoApplyNewShare } = params;
+		try {
+			const { title, content, enabled, displayMode, images, overrideShareAnnouncement, autoApplyNewShare } = params;
 
-		console.log('[DEBUG setGlobalAnnouncement] 接收到的参数:', {
-			title,
-			content,
-			enabled,
-			displayMode,
-			images,
-			overrideShareAnnouncement,
-			autoApplyNewShare
-		});
+			console.log('[DEBUG setGlobalAnnouncement] 接收到的参数:', {
+				title,
+				content,
+				enabled,
+				displayMode,
+				images,
+				overrideShareAnnouncement,
+				autoApplyNewShare
+			});
 
 		// 验证标题长度
 		if (title !== null && title !== undefined) {
@@ -211,10 +225,14 @@ const settingService = {
 
 		await this.refresh(c);
 
-		const result = this.getGlobalAnnouncement(c);
+		const result = await this.getGlobalAnnouncement(c);
 		console.log('[DEBUG setGlobalAnnouncement] 返回的结果:', result);
 
 		return result;
+		} catch (error) {
+			console.error('[ERROR setGlobalAnnouncement]:', error);
+			throw error;
+		}
 	},
 
 	async setBackground(c, params) {
