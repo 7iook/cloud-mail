@@ -993,13 +993,15 @@ function resetNoticeForm() {
 }
 
 function resetGlobalAnnouncementForm() {
-  globalAnnouncementForm.title = globalAnnouncement.title || ''
-  globalAnnouncementForm.content = globalAnnouncement.content || ''
-  globalAnnouncementForm.enabled = globalAnnouncement.enabled
-  globalAnnouncementForm.displayMode = globalAnnouncement.displayMode || 'always'
-  globalAnnouncementForm.images = [...(globalAnnouncement.images || [])]
-  globalAnnouncementForm.overrideShareAnnouncement = globalAnnouncement.overrideShareAnnouncement || false
-  globalAnnouncementForm.autoApplyNewShare = globalAnnouncement.autoApplyNewShare !== false
+  Object.assign(globalAnnouncementForm, {
+    title: globalAnnouncement.title || '',
+    content: globalAnnouncement.content || '',
+    enabled: globalAnnouncement.enabled,
+    displayMode: globalAnnouncement.displayMode || 'always',
+    images: [...(globalAnnouncement.images || [])],
+    overrideShareAnnouncement: globalAnnouncement.overrideShareAnnouncement || false,
+    autoApplyNewShare: globalAnnouncement.autoApplyNewShare !== false
+  })
 }
 
 function openGlobalAnnouncementSetting() {
