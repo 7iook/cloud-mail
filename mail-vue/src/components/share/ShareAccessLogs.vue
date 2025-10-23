@@ -428,7 +428,9 @@ const handleShareChange = (shareId) => {
 // 加载分享列表
 const loadShareList = async () => {
   try {
-    const response = await getShareList({ page: 1, pageSize: 100 });
+    // 优化：初始加载只获取 20 条分享记录，而不是 100 条
+    // 这样可以减少网络延迟和内存占用
+    const response = await getShareList({ page: 1, pageSize: 20 });
     shareList.value = response.data?.list || response.list || [];
 
     // 使用nextTick确保DOM更新后再设置默认值

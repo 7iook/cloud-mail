@@ -152,11 +152,19 @@ function loadBackground(next) {
         const img = new Image();
         img.src = src;
 
+        // 添加 3 秒超时控制，防止图片加载失败导致路由卡顿
+        const timeoutId = setTimeout(() => {
+            console.warn("背景图片加载超时:", src);
+            next()
+        }, 3000);
+
         img.onload = () => {
+            clearTimeout(timeoutId)
             next()
         };
 
         img.onerror = () => {
+            clearTimeout(timeoutId)
             console.warn("背景图片加载失败:", img.src);
             next()
         };
