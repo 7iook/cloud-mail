@@ -37,6 +37,20 @@ const settingService = {
 		}
 	},
 
+	// 清除缓存
+	async clearCache(c) {
+		console.log('[DEBUG clearCache] 清除缓存');
+		c.set('setting', null);
+		if (c.env.kv) {
+			try {
+				await c.env.kv.delete(KvConst.SETTING);
+				console.log('[DEBUG clearCache] KV 缓存已删除');
+			} catch (error) {
+				console.warn('KV 缓存删除失败:', error.message);
+			}
+		}
+	},
+
 	async query(c) {
 
 		if (c.get?.('setting')) {
@@ -217,12 +231,13 @@ const settingService = {
 
 		console.log('[DEBUG setGlobalAnnouncement] 准备更新的数据:', updateData);
 
-		// 使用.run()执行update操作，而不是.returning().get()
-		// .run()会正确执行update并返回结果
-		await orm(c).update(setting).set(updateData).run();
+		// 使用.returning().get()执行update操作
+		await orm(c).update(setting).set(updateData).returning().get();
 
 		console.log('[DEBUG setGlobalAnnouncement] Update执行完成');
 
+		// 清除缓存，强制重新读取数据库
+		await this.clearCache(c);
 		await this.refresh(c);
 
 		const result = await this.getGlobalAnnouncement(c);
