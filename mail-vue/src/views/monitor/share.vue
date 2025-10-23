@@ -14,7 +14,7 @@
         <div v-if="autoRefreshEnabled" class="auto-refresh-status">
           <div v-if="autoRefreshActive && !autoRefreshPaused" class="refresh-active">
             <Icon icon="material-symbols:refresh" class="rotating" />
-            <span>自动刷新中 ({{ autoRefreshInterval }}s)</span>
+            <span>自动刷新中 ({{ autoRefreshCountdown }}s)</span>
             <el-button size="small" text @click="pauseAutoRefresh">暂停</el-button>
           </div>
           <div v-else-if="autoRefreshPaused" class="refresh-paused">
@@ -277,7 +277,9 @@ const autoRefreshInterval = ref(30)
 const autoRefreshActive = ref(false)
 const autoRefreshPaused = ref(false)
 const newEmailsCount = ref(0)
+const autoRefreshCountdown = ref(0) // 自动刷新倒计时
 let autoRefreshTimer = null
+let countdownTimer = null // 倒计时定时器
 
 // 新增：人机验证相关状态
 const captchaRequired = ref(false)
@@ -401,6 +403,14 @@ const loadShareInfo = async () => {
       emailsVerified.value = true
 
       // 启动自动刷新（如果启用）
+      if (autoRefreshEnabled.value) {
+        nextTick(() => {
+          startAutoRefresh()
+        })
+      }
+    } else if (info.shareType === 2) {
+      // Fix: 类型2分享也启动自动刷新（如果启用）
+      // 即使用户还没有验证邮箱，自动刷新也应该准备好
       if (autoRefreshEnabled.value) {
         nextTick(() => {
           startAutoRefresh()
@@ -617,10 +627,28 @@ const startAutoRefresh = () => {
 
   autoRefreshActive.value = true
   autoRefreshPaused.value = false
+  autoRefreshCountdown.value = autoRefreshInterval.value // 初始化倒计时
+
+  // 启动倒计时
+  const startCountdown = () => {
+    if (countdownTimer) {
+      clearInterval(countdownTimer)
+    }
+
+    autoRefreshCountdown.value = autoRefreshInterval.value
+    countdownTimer = setInterval(() => {
+      if (autoRefreshCountdown.value > 0) {
+        autoRefreshCountdown.value--
+      }
+    }, 1000)
+  }
 
   const refreshLoop = async () => {
     while (autoRefreshActive.value && !autoRefreshPaused.value) {
       try {
+        // 启动倒计时
+        startCountdown()
+
         // 等待刷新间隔
         await new Promise(resolve => {
           autoRefreshTimer = setTimeout(resolve, autoRefreshInterval.value * 1000)
@@ -695,6 +723,10 @@ const pauseAutoRefresh = () => {
     clearTimeout(autoRefreshTimer)
     autoRefreshTimer = null
   }
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+    countdownTimer = null
+  }
 }
 
 const resumeAutoRefresh = () => {
@@ -711,6 +743,11 @@ const stopAutoRefresh = () => {
     clearTimeout(autoRefreshTimer)
     autoRefreshTimer = null
   }
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+    countdownTimer = null
+  }
+  autoRefreshCountdown.value = 0
 }
 
 // 🔒 安全策略：移除重试、返回首页、复制链接等功能
