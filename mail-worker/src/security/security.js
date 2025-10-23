@@ -13,6 +13,7 @@ const exclude = [
 	'/register',
 	'/file',
 	'/setting/websiteConfig',
+	'/setting/global-announcement',
 	'/webhooks',
 	'/init',
 	'/migrate',

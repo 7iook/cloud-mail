@@ -1000,8 +1000,6 @@ function resetGlobalAnnouncementForm() {
   globalAnnouncementForm.images = [...(globalAnnouncement.images || [])]
   globalAnnouncementForm.overrideShareAnnouncement = globalAnnouncement.overrideShareAnnouncement || false
   globalAnnouncementForm.autoApplyNewShare = globalAnnouncement.autoApplyNewShare !== false
-  globalAnnouncementForm.overrideShareAnnouncement = globalAnnouncement.overrideShareAnnouncement
-  globalAnnouncementForm.autoApplyNewShare = globalAnnouncement.autoApplyNewShare
 }
 
 function openGlobalAnnouncementSetting() {
