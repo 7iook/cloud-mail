@@ -1037,11 +1037,11 @@ function saveGlobalAnnouncement() {
   if (settingLoading.value) return
   settingLoading.value = true
 
-  const announcementContent = buildAnnouncementContent()
-
+  // 直接发送分离的字段，不使用buildAnnouncementContent()
+  // 后端期望的是分离的title、content、images字段，而不是JSON字符串
   setGlobalAnnouncement({
     title: globalAnnouncementForm.title || '',
-    content: announcementContent,
+    content: globalAnnouncementForm.content || '',
     enabled: globalAnnouncementForm.enabled,
     displayMode: globalAnnouncementForm.displayMode || 'always',
     images: globalAnnouncementForm.images || [],
