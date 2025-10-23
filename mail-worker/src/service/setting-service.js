@@ -191,7 +191,9 @@ const settingService = {
 			globalAnnouncementAutoApplyNewShare: autoApplyNewShare !== false ? 1 : 0
 		};
 
-		await orm(c).update(setting).set(updateData).returning().get();
+		// 使用.run()执行update操作，而不是.returning().get()
+		// .run()会正确执行update并返回结果
+		await orm(c).update(setting).set(updateData).run();
 		await this.refresh(c);
 
 		return this.getGlobalAnnouncement(c);
