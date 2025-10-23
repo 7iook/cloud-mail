@@ -1003,6 +1003,7 @@ function resetGlobalAnnouncementForm() {
 }
 
 function openGlobalAnnouncementSetting() {
+  loadGlobalAnnouncement()
   resetGlobalAnnouncementForm()
   globalAnnouncementShow.value = true
 }
