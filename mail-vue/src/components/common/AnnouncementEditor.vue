@@ -267,10 +267,14 @@ const localData = reactive({
 
 // Watch for external changes
 watch(() => props.modelValue, (newVal) => {
-  localData.title = newVal.title || ''
-  localData.content = newVal.content || ''
-  localData.images = [...(newVal.images || [])]
-  localData.displayMode = newVal.displayMode || 'always'
+  if (newVal) {
+    localData.title = newVal.title || ''
+    localData.content = newVal.content || ''
+    // Create a new array to avoid mutation issues
+    const newImages = Array.isArray(newVal.images) ? newVal.images.map(img => ({...img})) : []
+    localData.images.splice(0, localData.images.length, ...newImages)
+    localData.displayMode = newVal.displayMode || 'always'
+  }
 }, { deep: true })
 
 // Watch for local changes
