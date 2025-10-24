@@ -287,11 +287,13 @@ watch(() => props.modelValue, (newVal) => {
 
 // Watch for local changes
 watch(localData, (newVal) => {
+  // FIX: When watching a ref with deep option, newVal is the unwrapped value
+  // Do not use .value here - it's already unwrapped
   emit('update:modelValue', {
-    title: newVal.value.title,
-    content: newVal.value.content,
-    images: newVal.value.images,
-    displayMode: newVal.value.displayMode
+    title: newVal.title,
+    content: newVal.content,
+    images: newVal.images,
+    displayMode: newVal.displayMode
   })
 }, { deep: true })
 
