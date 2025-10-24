@@ -313,6 +313,20 @@ app.post('/share/create', async (c) => {
 			await shareCaptchaService.verifyCaptchaToken(c, captchaToken, clientIp, 'create');
 		}
 
+		// 获取全局设置，以便自动应用autoApplyNewShare配置
+		const globalSetting = await settingService.getGlobalAnnouncement(c);
+
+		// 确定useGlobalAnnouncement的值
+		// 优先级：前端显式传递 > 全局autoApplyNewShare设置 > 默认为1
+		let finalUseGlobalAnnouncement;
+		if (useGlobalAnnouncement !== undefined) {
+			// 前端显式传递了值，使用前端的值
+			finalUseGlobalAnnouncement = useGlobalAnnouncement ? 1 : 0;
+		} else {
+			// 前端没有传递，自动根据全局autoApplyNewShare设置
+			finalUseGlobalAnnouncement = globalSetting.autoApplyNewShare ? 1 : 0;
+		}
+
 		// 创建分享记录到数据库
 		const shareData = {
 			targetEmail: cleanedTargetEmail,
@@ -347,8 +361,8 @@ app.post('/share/create', async (c) => {
 			// 新增：公告弹窗功能
 			announcementContent: announcementContent || null, // 公告内容，NULL表示没有公告
 			announcementVersion: announcementContent ? Date.now() : null, // 公告版本号（时间戳），用于检测公告更新
-			// 新增：全局公告控制
-			useGlobalAnnouncement: useGlobalAnnouncement !== undefined ? (useGlobalAnnouncement ? 1 : 0) : 1 // 默认使用全局公告
+			// 新增：全局公告控制 - 自动根据全局autoApplyNewShare设置
+			useGlobalAnnouncement: finalUseGlobalAnnouncement
 		};
 
 		const shareRecord = await shareService.create(c, shareData, userId);

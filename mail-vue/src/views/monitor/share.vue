@@ -434,21 +434,17 @@ const loadShareInfo = async () => {
     }
 
     // 显示公告弹窗（支持版本控制和展示次数控制）
-    // 优先级：per-share公告 > 全局公告（如果启用覆盖）
+    // 优先级：全局公告（如果启用覆盖） > per-share公告 > 全局公告（如果未启用覆盖）
     let announcementToShow = null
     let announcementSource = null
 
     console.log('[DEBUG] globalAnnouncement.value:', globalAnnouncement.value)
 
-    if (info.announcementContent) {
-      // 有per-share公告，使用per-share公告
-      announcementToShow = info.announcementContent
-      announcementSource = 'share'
-    } else if (globalAnnouncement.value?.enabled && globalAnnouncement.value?.overrideShareAnnouncement) {
-      // 没有per-share公告，但有全局公告且启用了覆盖选项
-      // 将分离的字段转换为JSON格式，以便parseAnnouncementContent()能正确解析
+    // 首先检查是否启用了全局公告覆盖
+    if (globalAnnouncement.value?.enabled && globalAnnouncement.value?.overrideShareAnnouncement) {
+      // 启用了覆盖选项，优先显示全局公告（忽略per-share公告）
       const { title, content, images, displayMode } = globalAnnouncement.value
-      console.log('[DEBUG] Global announcement data:', { title, content, images, displayMode })
+      console.log('[DEBUG] Using global announcement (override enabled):', { title, content, images, displayMode })
       if (title || (images && images.length > 0)) {
         announcementToShow = JSON.stringify({
           type: 'rich',
@@ -461,7 +457,26 @@ const loadShareInfo = async () => {
         announcementToShow = content
       }
       announcementSource = 'global'
-      console.log('[DEBUG] announcementToShow:', announcementToShow)
+    } else if (info.announcementContent) {
+      // 没有启用覆盖，优先显示per-share公告
+      announcementToShow = info.announcementContent
+      announcementSource = 'share'
+    } else if (globalAnnouncement.value?.enabled) {
+      // 没有per-share公告，显示全局公告
+      const { title, content, images, displayMode } = globalAnnouncement.value
+      console.log('[DEBUG] Using global announcement (no share announcement):', { title, content, images, displayMode })
+      if (title || (images && images.length > 0)) {
+        announcementToShow = JSON.stringify({
+          type: 'rich',
+          title: title || '',
+          content: content || '',
+          images: images || [],
+          displayMode: displayMode || 'always'
+        })
+      } else {
+        announcementToShow = content
+      }
+      announcementSource = 'global'
     }
 
     if (announcementToShow) {

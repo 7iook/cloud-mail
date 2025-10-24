@@ -260,8 +260,8 @@ const shareService = {
 			autoRefreshInterval: autoRefreshInterval !== undefined ? autoRefreshInterval : 30,
 			// 公告弹窗功能
 			announcementContent: announcementContent || null,
-			// 全局公告控制
-			useGlobalAnnouncement: useGlobalAnnouncement !== undefined ? (useGlobalAnnouncement ? 1 : 0) : 1
+			// 全局公告控制 - 使用API层传递的值（已自动应用autoApplyNewShare设置）
+			useGlobalAnnouncement: useGlobalAnnouncement !== undefined ? useGlobalAnnouncement : 1
 		};
 
 		const shareRow = await orm(c).insert(share).values(shareData).returning().get();
