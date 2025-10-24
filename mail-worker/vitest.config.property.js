@@ -6,6 +6,12 @@ export default defineConfig({
 		environment: 'node',
 		include: ['**/*.test.js'],
 		exclude: ['node_modules', 'dist'],
+		pool: 'forks',
+		poolOptions: {
+			forks: {
+				singleFork: true
+			}
+		},
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],
@@ -24,9 +30,6 @@ export default defineConfig({
 		hookTimeout: 30000,
 		teardownTimeout: 10000,
 		isolate: true,
-		threads: true,
-		maxThreads: 4,
-		minThreads: 1,
 		// fast-check specific settings
 		reporters: ['verbose'],
 		outputFile: {
