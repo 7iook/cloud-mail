@@ -231,13 +231,17 @@ const settingService = {
 
 		console.log('[DEBUG setGlobalAnnouncement] 准备更新的数据:', updateData);
 
-		// 使用.returning().get()执行update操作
-		await orm(c).update(setting).set(updateData).returning().get();
+		// 分开执行：先执行 UPDATE，再清除缓存和刷新
+		// 这样可以确保数据被正确保存到数据库
+		await orm(c).update(setting).set(updateData).run();
 
 		console.log('[DEBUG setGlobalAnnouncement] Update执行完成');
 
 		// 清除缓存，强制重新读取数据库
+		// 确保 clearCache 完全完成后再执行 refresh
 		await this.clearCache(c);
+		// 添加小延迟以确保缓存清除完成
+		await new Promise(resolve => setTimeout(resolve, 100));
 		await this.refresh(c);
 
 		const result = await this.getGlobalAnnouncement(c);

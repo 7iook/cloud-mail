@@ -265,15 +265,22 @@ const localData = reactive({
   displayMode: props.modelValue.displayMode || 'always'
 })
 
-// Watch for external changes
+// Watch for external changes - simplified to avoid constant assignment errors
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
-    localData.title = newVal.title || ''
-    localData.content = newVal.content || ''
-    // Create a new array to avoid mutation issues
-    const newImages = Array.isArray(newVal.images) ? newVal.images.map(img => ({...img})) : []
-    localData.images.splice(0, localData.images.length, ...newImages)
-    localData.displayMode = newVal.displayMode || 'always'
+    // Use Object.assign to update properties safely
+    Object.assign(localData, {
+      title: newVal.title || '',
+      content: newVal.content || '',
+      displayMode: newVal.displayMode || 'always'
+    })
+    // Update images array using splice to maintain reactivity
+    if (Array.isArray(newVal.images)) {
+      const newImages = newVal.images.map(img => ({...img}))
+      localData.images.splice(0, localData.images.length, ...newImages)
+    } else {
+      localData.images.splice(0, localData.images.length)
+    }
   }
 }, { deep: true })
 
