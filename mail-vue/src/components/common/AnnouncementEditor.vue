@@ -261,10 +261,10 @@ const contentInput = ref(null)
 // FIX: Use ref instead of reactive to avoid Proxy edge cases in production
 // This prevents "Assignment to constant variable" error when watch updates the object
 const localData = ref({
-  title: props.modelValue.title || '',
-  content: props.modelValue.content || '',
-  images: [...(props.modelValue.images || [])],
-  displayMode: props.modelValue.displayMode || 'always'
+  title: props.modelValue?.title || '',
+  content: props.modelValue?.content || '',
+  images: [...(props.modelValue?.images || [])],
+  displayMode: props.modelValue?.displayMode || 'always'
 })
 
 // Watch for external changes - avoid Object.assign to prevent Proxy edge cases in production
