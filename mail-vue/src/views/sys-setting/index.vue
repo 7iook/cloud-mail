@@ -802,7 +802,9 @@ const globalAnnouncement = reactive({
   overrideShareAnnouncement: false,
   autoApplyNewShare: true
 })
-const globalAnnouncementForm = reactive({
+// FIX: Use ref instead of reactive to avoid Proxy edge cases in production
+// This prevents "Assignment to constant variable" error when Object.assign is used
+const globalAnnouncementForm = ref({
   title: '',
   content: '',
   enabled: false,
@@ -994,7 +996,9 @@ function resetNoticeForm() {
 }
 
 function resetGlobalAnnouncementForm() {
-  Object.assign(globalAnnouncementForm, {
+  // FIX: Use direct property assignment on ref.value instead of Object.assign
+  // This avoids Proxy edge cases in production minified code
+  globalAnnouncementForm.value = {
     title: globalAnnouncement.title || '',
     content: globalAnnouncement.content || '',
     enabled: globalAnnouncement.enabled,
@@ -1002,7 +1006,7 @@ function resetGlobalAnnouncementForm() {
     images: [...(globalAnnouncement.images || [])],
     overrideShareAnnouncement: globalAnnouncement.overrideShareAnnouncement || false,
     autoApplyNewShare: globalAnnouncement.autoApplyNewShare !== false
-  })
+  }
 }
 
 async function openGlobalAnnouncementSetting() {
@@ -1015,22 +1019,22 @@ async function openGlobalAnnouncementSetting() {
 
 function buildAnnouncementContent() {
   // If no title, content and images, return null
-  if (!globalAnnouncementForm.title && !globalAnnouncementForm.content && globalAnnouncementForm.images.length === 0) {
+  if (!globalAnnouncementForm.value.title && !globalAnnouncementForm.value.content && globalAnnouncementForm.value.images.length === 0) {
     return null
   }
 
   // If only plain text content (no title and images), return plain text
-  if (!globalAnnouncementForm.title && globalAnnouncementForm.images.length === 0 && globalAnnouncementForm.content) {
-    return globalAnnouncementForm.content
+  if (!globalAnnouncementForm.value.title && globalAnnouncementForm.value.images.length === 0 && globalAnnouncementForm.value.content) {
+    return globalAnnouncementForm.value.content
   }
 
   // Otherwise return JSON format
   const richContent = {
     type: 'rich',
-    title: globalAnnouncementForm.title || '',
-    content: globalAnnouncementForm.content || '',
-    images: globalAnnouncementForm.images || [],
-    displayMode: globalAnnouncementForm.displayMode || 'always'
+    title: globalAnnouncementForm.value.title || '',
+    content: globalAnnouncementForm.value.content || '',
+    images: globalAnnouncementForm.value.images || [],
+    displayMode: globalAnnouncementForm.value.displayMode || 'always'
   }
 
   return JSON.stringify(richContent)
@@ -1043,13 +1047,13 @@ function saveGlobalAnnouncement() {
   // 直接发送分离的字段，不使用buildAnnouncementContent()
   // 后端期望的是分离的title、content、images字段，而不是JSON字符串
   setGlobalAnnouncement({
-    title: globalAnnouncementForm.title || '',
-    content: globalAnnouncementForm.content || '',
-    enabled: globalAnnouncementForm.enabled,
-    displayMode: globalAnnouncementForm.displayMode || 'always',
-    images: globalAnnouncementForm.images || [],
-    overrideShareAnnouncement: globalAnnouncementForm.overrideShareAnnouncement,
-    autoApplyNewShare: globalAnnouncementForm.autoApplyNewShare
+    title: globalAnnouncementForm.value.title || '',
+    content: globalAnnouncementForm.value.content || '',
+    enabled: globalAnnouncementForm.value.enabled,
+    displayMode: globalAnnouncementForm.value.displayMode || 'always',
+    images: globalAnnouncementForm.value.images || [],
+    overrideShareAnnouncement: globalAnnouncementForm.value.overrideShareAnnouncement,
+    autoApplyNewShare: globalAnnouncementForm.value.autoApplyNewShare
   }).then((data) => {
     globalAnnouncement.title = data.title || ''
     globalAnnouncement.content = data.content
