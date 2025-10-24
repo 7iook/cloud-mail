@@ -7,7 +7,7 @@ export default defineWorkersConfig({
 		exclude: ['node_modules', 'dist'],
 		poolOptions: {
 			workers: {
-				wrangler: { configPath: './wrangler.jsonc' },
+				wrangler: { configPath: './wrangler.toml' },
 			},
 		},
 		coverage: {
