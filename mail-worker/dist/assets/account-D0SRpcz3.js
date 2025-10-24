@@ -1,0 +1,1 @@
+import{at as c}from"./index-92mnh-J5.js";function e(t,a){return c.get("/account/list",{params:{accountId:t,size:a}})}function u(t,a){return c.post("/account/add",{email:t,token:a})}function o(t,a){return c.put("/account/setName",{name:a,accountId:t})}function r(t){return c.delete("/account/delete",{params:{accountId:t}})}export{e as a,r as b,u as c,o as d};
