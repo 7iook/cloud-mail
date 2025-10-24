@@ -258,7 +258,9 @@ const colorPresets = [
 const showPreview = ref(false)
 const previewImageIndex = ref(0)
 const contentInput = ref(null)
-const localData = reactive({
+// FIX: Use ref instead of reactive to avoid Proxy edge cases in production
+// This prevents "Assignment to constant variable" error when watch updates the object
+const localData = ref({
   title: props.modelValue.title || '',
   content: props.modelValue.content || '',
   images: [...(props.modelValue.images || [])],
@@ -268,17 +270,17 @@ const localData = reactive({
 // Watch for external changes - avoid Object.assign to prevent Proxy edge cases in production
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
-    // FIX: Use direct property assignment instead of Object.assign
+    // FIX: Use direct property assignment on ref.value to avoid Proxy edge cases
     // This avoids triggering Proxy set trap limitations in minified production code
-    localData.title = newVal.title || ''
-    localData.content = newVal.content || ''
-    localData.displayMode = newVal.displayMode || 'always'
+    localData.value.title = newVal.title || ''
+    localData.value.content = newVal.content || ''
+    localData.value.displayMode = newVal.displayMode || 'always'
     // Update images array using splice to maintain reactivity
     if (Array.isArray(newVal.images)) {
       const newImages = newVal.images.map(img => ({...img}))
-      localData.images.splice(0, localData.images.length, ...newImages)
+      localData.value.images.splice(0, localData.value.images.length, ...newImages)
     } else {
-      localData.images.splice(0, localData.images.length)
+      localData.value.images.splice(0, localData.value.images.length)
     }
   }
 }, { deep: true })
@@ -286,10 +288,10 @@ watch(() => props.modelValue, (newVal) => {
 // Watch for local changes
 watch(localData, (newVal) => {
   emit('update:modelValue', {
-    title: newVal.title,
-    content: newVal.content,
-    images: newVal.images,
-    displayMode: newVal.displayMode
+    title: newVal.value.title,
+    content: newVal.value.content,
+    images: newVal.value.images,
+    displayMode: newVal.value.displayMode
   })
 }, { deep: true })
 
@@ -312,8 +314,8 @@ const processFiles = async (files) => {
     return
   }
 
-  if (localData.images.length + imageFiles.length > props.maxImages) {
-    ElMessage.error(`公告图片最多${props.maxImages}张，当前已有 ${localData.images.length} 张`)
+  if (localData.value.images.length + imageFiles.length > props.maxImages) {
+    ElMessage.error(`公告图片最多${props.maxImages}张，当前已有 ${localData.value.images.length} 张`)
     return
   }
 
@@ -325,7 +327,7 @@ const processFiles = async (files) => {
 
     try {
       const base64 = await fileToBase64(file)
-      localData.images.push({
+      localData.value.images.push({
         base64,
         caption: ''
       })
@@ -364,22 +366,22 @@ const handlePaste = async (event) => {
 }
 
 const removeImage = (index) => {
-  localData.images.splice(index, 1)
+  localData.value.images.splice(index, 1)
 }
 
 const moveImageUp = (index) => {
   if (index > 0) {
-    const temp = localData.images[index]
-    localData.images[index] = localData.images[index - 1]
-    localData.images[index - 1] = temp
+    const temp = localData.value.images[index]
+    localData.value.images[index] = localData.value.images[index - 1]
+    localData.value.images[index - 1] = temp
   }
 }
 
 const moveImageDown = (index) => {
-  if (index < localData.images.length - 1) {
-    const temp = localData.images[index]
-    localData.images[index] = localData.images[index + 1]
-    localData.images[index + 1] = temp
+  if (index < localData.value.images.length - 1) {
+    const temp = localData.value.images[index]
+    localData.value.images[index] = localData.value.images[index + 1]
+    localData.value.images[index + 1] = temp
   }
 }
 
@@ -387,7 +389,7 @@ const moveImageDown = (index) => {
 const insertLink = () => {
   const url = prompt('请输入链接地址:')
   if (url) {
-    localData.content += `[link]${url}[/link]`
+    localData.value.content += `[link]${url}[/link]`
     nextTick(() => {
       contentInput.value?.focus()
     })
@@ -396,7 +398,7 @@ const insertLink = () => {
 
 const handleColorCommand = (color) => {
   const colorTag = `[${color.tag}]文本[/${color.tag}]`
-  localData.content += colorTag
+  localData.value.content += colorTag
   nextTick(() => {
     contentInput.value?.focus()
   })
@@ -404,7 +406,7 @@ const handleColorCommand = (color) => {
 
 const insertBold = () => {
   const boldTag = `[bold]文本[/bold]`
-  localData.content += boldTag
+  localData.value.content += boldTag
   nextTick(() => {
     contentInput.value?.focus()
   })
@@ -412,7 +414,7 @@ const insertBold = () => {
 
 const handleSizeCommand = (size) => {
   const sizeTag = `[${size}]文本[/${size}]`
-  localData.content += sizeTag
+  localData.value.content += sizeTag
   nextTick(() => {
     contentInput.value?.focus()
   })
@@ -421,7 +423,7 @@ const handleSizeCommand = (size) => {
 const insertHighlight = () => {
   const text = prompt('请输入要高亮的文本:')
   if (text) {
-    localData.content += `[highlight]${text}[/highlight]`
+    localData.value.content += `[highlight]${text}[/highlight]`
     nextTick(() => {
       contentInput.value?.focus()
     })
