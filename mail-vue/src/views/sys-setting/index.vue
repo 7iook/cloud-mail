@@ -655,8 +655,16 @@
       >
         <form>
           <!-- Use AnnouncementEditor component -->
+          <!-- FIX: Use @update:modelValue instead of v-model to preserve other fields (enabled, overrideShareAnnouncement, autoApplyNewShare) -->
+          <!-- v-model would replace the entire object, losing the switch states -->
           <AnnouncementEditor
-              v-model="globalAnnouncementForm"
+              :modelValue="globalAnnouncementForm"
+              @update:modelValue="(newVal) => {
+                globalAnnouncementForm.value.title = newVal.title
+                globalAnnouncementForm.value.content = newVal.content
+                globalAnnouncementForm.value.images = newVal.images
+                globalAnnouncementForm.value.displayMode = newVal.displayMode
+              }"
               :maxImages="10"
               :maxContentLength="5000"
           />
