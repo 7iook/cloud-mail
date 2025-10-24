@@ -1,16 +1,14 @@
-import { defineConfig } from 'vitest/config';
+import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
 
-export default defineConfig({
+export default defineWorkersConfig({
 	test: {
 		globals: true,
-		environment: 'node',
 		include: ['**/*.test.js'],
 		exclude: ['node_modules', 'dist'],
-		pool: 'forks',
 		poolOptions: {
-			forks: {
-				singleFork: true
-			}
+			workers: {
+				wrangler: { configPath: './wrangler.jsonc' },
+			},
 		},
 		coverage: {
 			provider: 'v8',
@@ -29,7 +27,6 @@ export default defineConfig({
 		testTimeout: 30000,
 		hookTimeout: 30000,
 		teardownTimeout: 10000,
-		isolate: true,
 		// fast-check specific settings
 		reporters: ['verbose'],
 		outputFile: {
