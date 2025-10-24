@@ -289,12 +289,22 @@ watch(() => props.modelValue, (newVal) => {
 watch(localData, (newVal) => {
   // FIX: When watching a ref with deep option, newVal is the unwrapped value
   // Do not use .value here - it's already unwrapped
-  emit('update:modelValue', {
-    title: newVal.title,
-    content: newVal.content,
-    images: newVal.images,
-    displayMode: newVal.displayMode
-  })
+  // FIX: Only emit if the values actually changed to avoid infinite loops
+  // This prevents Proxy edge cases in production when watch triggers parent updates
+  const hasChanged =
+    newVal.title !== props.modelValue?.title ||
+    newVal.content !== props.modelValue?.content ||
+    newVal.displayMode !== props.modelValue?.displayMode ||
+    newVal.images.length !== (props.modelValue?.images?.length || 0)
+
+  if (hasChanged) {
+    emit('update:modelValue', {
+      title: newVal.title,
+      content: newVal.content,
+      images: newVal.images,
+      displayMode: newVal.displayMode
+    })
+  }
 }, { deep: true })
 
 const handleFileSelect = async (event) => {
