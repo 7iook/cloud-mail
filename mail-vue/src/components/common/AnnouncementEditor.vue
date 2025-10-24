@@ -265,15 +265,14 @@ const localData = reactive({
   displayMode: props.modelValue.displayMode || 'always'
 })
 
-// Watch for external changes - simplified to avoid constant assignment errors
+// Watch for external changes - avoid Object.assign to prevent Proxy edge cases in production
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
-    // Use Object.assign to update properties safely
-    Object.assign(localData, {
-      title: newVal.title || '',
-      content: newVal.content || '',
-      displayMode: newVal.displayMode || 'always'
-    })
+    // FIX: Use direct property assignment instead of Object.assign
+    // This avoids triggering Proxy set trap limitations in minified production code
+    localData.title = newVal.title || ''
+    localData.content = newVal.content || ''
+    localData.displayMode = newVal.displayMode || 'always'
     // Update images array using splice to maintain reactivity
     if (Array.isArray(newVal.images)) {
       const newImages = newVal.images.map(img => ({...img}))
