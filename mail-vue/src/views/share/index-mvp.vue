@@ -419,7 +419,7 @@
                             link
                             type="primary"
                             size="small"
-                            @click="showAuthorizedEmails(innerScope.row)"
+                            @click.stop="openAuthorizedEmailsDialog(innerScope.row)"
                           >
                             查看详情
                           </el-button>
@@ -3319,6 +3319,37 @@ const cancelEditExpire = (row) => {
   padding: 12px 0;
   background-color: #f5f7fa;
   border-radius: 4px;
+  /* 添加过渡动画 */
+  animation: expandSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* 展开行进入动画 */
+@keyframes expandSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 展开行内部表格的过渡效果 */
+.group-expand-content :deep(.el-table) {
+  transition: all 0.3s ease;
+}
+
+/* 展开行内部表格行的过渡效果 */
+.group-expand-content :deep(.el-table__row) {
+  transition: all 0.2s ease;
+}
+
+/* 展开行内部表格行悬停效果 */
+.group-expand-content :deep(.el-table__row:hover) {
+  background-color: #eef2f8 !important;
 }
 
 .group-item-name {
