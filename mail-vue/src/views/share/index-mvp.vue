@@ -376,28 +376,177 @@
                   <el-table
                     :data="scope.row.shares"
                     style="width: 100%"
-                    :show-header="false"
+                    :show-header="true"
                     row-key="shareId"
                   >
-                    <el-table-column prop="shareName" label="分享名称" min-width="150">
+                    <!-- 状态列 -->
+                    <el-table-column label="状态" width="120">
                       <template #default="innerScope">
-                        <div class="group-item-name">
-                          {{ innerScope.row.shareName }}
-                          <span class="group-item-time">
-                            创建于 {{ tzDayjs(innerScope.row.createTime).format('YYYY-MM-DD HH:mm') }}
-                          </span>
-                        </div>
+                        <generic>
+                          <generic>{{ innerScope.row.status === 'active' ? '使用中' : innerScope.row.status === 'expired' ? '已过期' : '已禁用' }}</generic>
+                          <generic v-if="innerScope.row.daysRemaining !== null">
+                            {{ innerScope.row.daysRemaining === 0 ? '今天到期' : `还剩 ${innerScope.row.daysRemaining} 天` }}
+                          </generic>
+                        </generic>
                       </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="200" align="right">
+
+                    <!-- 分享类型列 -->
+                    <el-table-column label="分享类型" width="100">
+                      <template #default="innerScope">
+                        {{ innerScope.row.shareType === 1 ? '单邮箱分享' : '多邮箱分享' }}
+                      </template>
+                    </el-table-column>
+
+                    <!-- 目标邮箱列 -->
+                    <el-table-column label="目标邮箱" min-width="150">
+                      <template #default="innerScope">
+                        <generic v-if="innerScope.row.shareType === 1">
+                          {{ innerScope.row.targetEmail }}
+                        </generic>
+                        <generic v-else>
+                          <generic>
+                            {{ getGroupDisplayName(innerScope.row) }}
+                          </generic>
+                          <el-button
+                            link
+                            type="primary"
+                            size="small"
+                            @click="showAuthorizedEmails(innerScope.row)"
+                          >
+                            查看详情
+                          </el-button>
+                        </generic>
+                      </template>
+                    </el-table-column>
+
+                    <!-- 分享名称列 -->
+                    <el-table-column prop="shareName" label="分享名称" min-width="150">
+                      <template #default="innerScope">
+                        <generic
+                          :title="innerScope.row.shareName"
+                          @click="copyToClipboard(innerScope.row.shareName)"
+                          style="cursor: pointer"
+                        >
+                          {{ innerScope.row.shareName }}
+                          <Icon icon="material-symbols:content-copy" style="font-size: 14px; margin-left: 4px" />
+                        </generic>
+                      </template>
+                    </el-table-column>
+
+                    <!-- 今日访问列 -->
+                    <el-table-column label="今日访问" width="120">
+                      <template #default="innerScope">
+                        <generic>
+                          <el-progress
+                            :percentage="innerScope.row.todayAccessCount && innerScope.row.otpLimit ? Math.round((innerScope.row.todayAccessCount / innerScope.row.otpLimit) * 100) : 0"
+                            :color="customProgressColor"
+                          />
+                          <generic style="margin-top: 4px">
+                            {{ innerScope.row.todayAccessCount || 0 }} /
+                            <generic
+                              @click="editOtpLimit(innerScope.row)"
+                              style="cursor: pointer; color: #409eff"
+                              title="单击编辑每日访问限制"
+                            >
+                              {{ innerScope.row.otpLimit || 100 }}
+                              <Icon icon="material-symbols:edit" style="font-size: 12px; margin-left: 2px" />
+                            </generic>
+                          </generic>
+                        </generic>
+                      </template>
+                    </el-table-column>
+
+                    <!-- 显示限制列 -->
+                    <el-table-column label="显示限制" width="120">
+                      <template #default="innerScope">
+                        <generic
+                          @click="editVerificationCodeLimit(innerScope.row)"
+                          style="cursor: pointer; color: #409eff"
+                          title="单击编辑显示限制"
+                        >
+                          最多 {{ innerScope.row.verificationCodeLimit || 100 }} 条
+                          <Icon icon="material-symbols:edit" style="font-size: 12px; margin-left: 2px" />
+                        </generic>
+                      </template>
+                    </el-table-column>
+
+                    <!-- Token列 -->
+                    <el-table-column label="Token令牌" width="120">
+                      <template #default="innerScope">
+                        <code
+                          @click="copyToClipboard(innerScope.row.shareToken)"
+                          style="cursor: pointer"
+                        >
+                          {{ innerScope.row.shareToken.substring(0, 12) }}...
+                        </code>
+                      </template>
+                    </el-table-column>
+
+                    <!-- 创建时间列 -->
+                    <el-table-column label="创建时间" width="160">
+                      <template #default="innerScope">
+                        {{ tzDayjs(innerScope.row.createTime).format('YYYY-MM-DD HH:mm') }}
+                      </template>
+                    </el-table-column>
+
+                    <!-- 过期时间列 -->
+                    <el-table-column label="过期时间" width="160">
+                      <template #default="innerScope">
+                        <generic
+                          @dblclick="editExpireTime(innerScope.row)"
+                          style="cursor: pointer; color: #409eff"
+                          title="双击编辑过期时间"
+                        >
+                          {{ tzDayjs(innerScope.row.expireTime).format('YYYY-MM-DD HH:mm') }}
+                          <Icon icon="material-symbols:edit" style="font-size: 12px; margin-left: 2px" />
+                        </generic>
+                      </template>
+                    </el-table-column>
+
+                    <!-- 分享链接列 -->
+                    <el-table-column label="分享链接" min-width="200">
+                      <template #default="innerScope">
+                        <generic>
+                          <a :href="innerScope.row.shareUrl" target="_blank">
+                            {{ innerScope.row.shareUrl }}
+                          </a>
+                          <el-button
+                            link
+                            type="primary"
+                            size="small"
+                            @click="copyShareLink(innerScope.row)"
+                          >
+                            <Icon icon="material-symbols:content-copy" style="font-size: 14px" />
+                          </el-button>
+                        </generic>
+                      </template>
+                    </el-table-column>
+
+                    <!-- 操作列 -->
+                    <el-table-column label="操作" width="200" align="right" fixed="right">
                       <template #default="innerScope">
                         <el-button
                           size="small"
-                          type="primary"
+                          @click="refreshToken(innerScope.row)"
+                          v-perm="'share:create'"
+                        >
+                          <Icon icon="material-symbols:refresh" style="font-size: 14px; margin-right: 4px" />
+                          刷新Token
+                        </el-button>
+                        <el-button
+                          size="small"
                           @click="editAdvancedSettings(innerScope.row)"
                           v-perm="'share:create'"
                         >
-                          编辑
+                          <Icon icon="material-symbols:settings" style="font-size: 14px; margin-right: 4px" />
+                          高级设置
+                        </el-button>
+                        <el-button
+                          size="small"
+                          @click="showAccessLogs(innerScope.row)"
+                        >
+                          访问日志
                         </el-button>
                         <el-button
                           type="danger"
@@ -405,6 +554,7 @@
                           @click="handleDeleteShare(innerScope.row)"
                           v-perm="'share:delete'"
                         >
+                          <Icon icon="material-symbols:delete" style="font-size: 14px; margin-right: 4px" />
                           删除
                         </el-button>
                       </template>
