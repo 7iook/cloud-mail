@@ -282,6 +282,12 @@ const autoRefreshCountdown = ref(0) // 自动刷新倒计时
 let autoRefreshTimer = null
 let countdownTimer = null // 倒计时定时器
 
+// Fix P2-53: 页面加载完成标志，用于控制新邮件提醒的显示时机
+const pageLoadComplete = ref(false)
+
+// Fix P2-54: 已提醒的邮件 ID 集合，用于避免重复提醒同一封邮件
+let notifiedEmailIds = new Set()
+
 // 新增：人机验证相关状态
 const captchaRequired = ref(false)
 const captchaToken = ref('')
@@ -509,6 +515,8 @@ const loadShareInfo = async () => {
     }
 
     loading.value = false
+    // Fix P2-53: 标记页面加载完成，允许显示新邮件提醒
+    pageLoadComplete.value = true
   } catch (err) {
     console.error('加载分享信息失败:', err)
 
@@ -733,22 +741,34 @@ const startAutoRefresh = () => {
           if (hasNewEmails) {
             // Fix P1-49: 检查scroll.value是否有addItem方法，防止emailScroll组件未渲染时出错
             if (scroll.value && typeof scroll.value.addItem === 'function') {
+              // 收集本次新增的邮件 ID
+              const newEmailIdsInThisBatch = []
+
               // 更新邮件列表
               response.emails.forEach(email => {
                 if (email.emailId > currentLatestId) {
                   scroll.value.addItem(email)
+                  newEmailIdsInThisBatch.push(email.emailId)
                   newEmailsCount.value++
                 }
               })
 
-              // 显示新邮件通知
-              if (newEmailsCount.value > 0) {
-                ElMessage.success(`收到 ${newEmailsCount.value} 封新邮件`)
-                // 3秒后重置计数
-                setTimeout(() => {
-                  newEmailsCount.value = 0
-                }, 3000)
+              // Fix P2-53 & P2-54: 改进新邮件提醒逻辑
+              // 1. 只在页面加载完成后显示提醒
+              // 2. 只对未提醒过的邮件进行提醒
+              if (pageLoadComplete.value && newEmailIdsInThisBatch.length > 0) {
+                // 过滤出未提醒过的邮件
+                const unnotifiedEmails = newEmailIdsInThisBatch.filter(id => !notifiedEmailIds.has(id))
+
+                if (unnotifiedEmails.length > 0) {
+                  ElMessage.success(`收到 ${unnotifiedEmails.length} 封新邮件`)
+                  // 将这些邮件 ID 添加到已提醒集合
+                  unnotifiedEmails.forEach(id => notifiedEmailIds.add(id))
+                }
               }
+
+              // 重置计数
+              newEmailsCount.value = 0
             } else {
               console.warn('emailScroll组件未正确初始化，无法添加新邮件')
             }
@@ -1046,6 +1066,10 @@ onUnmounted(() => {
 
   // 移除窗口大小变化监听器
   window.removeEventListener('resize', handleResize)
+
+  // Fix P2-54: 清理已提醒的邮件 ID 集合
+  notifiedEmailIds.clear()
+  pageLoadComplete.value = false
 })
 </script>
 
