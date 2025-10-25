@@ -18,22 +18,15 @@ const settingService = {
 
 	async refresh(c) {
 		const settingRow = await orm(c).select().from(setting).get();
-		console.log('[DEBUG refresh] 从数据库读取的设置:', {
-			title: settingRow.globalAnnouncementTitle,
-			content: settingRow.globalAnnouncementContent ? settingRow.globalAnnouncementContent.substring(0, 50) : null
-		});
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
 		c.set('setting', settingRow);
 		// 优雅处理 KV 不可用的情况
 		if (c.env.kv) {
 			try {
 				await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
-				console.log('[DEBUG refresh] KV 写入成功');
 			} catch (error) {
 				console.warn('KV 写入失败:', error.message);
 			}
-		} else {
-			console.warn('[DEBUG refresh] KV 不可用');
 		}
 	},
 

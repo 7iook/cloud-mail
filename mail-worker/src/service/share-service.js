@@ -880,7 +880,6 @@ const shareService = {
 		// 新增：邮件数量限制验证
 		if (latestEmailCount !== undefined && latestEmailCount !== null) {
 			const count = parseInt(latestEmailCount);
-			console.log('邮件数量验证:', { latestEmailCount, count, isNaN: isNaN(count) });
 			if (isNaN(count) || count < 1 || count > 100) {
 				throw new BizError('最新邮件显示数量必须在 1-100 之间', 400);
 			}
@@ -894,7 +893,6 @@ const shareService = {
 		}
 		if (autoRefreshInterval !== undefined) {
 			const interval = parseInt(autoRefreshInterval);
-			console.log('自动刷新间隔验证:', { autoRefreshInterval, interval, isNaN: isNaN(interval) });
 			if (isNaN(interval) || interval < 10 || interval > 3600) {
 				throw new BizError('自动刷新间隔必须在 10-3600 秒之间', 400);
 			}
@@ -908,7 +906,6 @@ const shareService = {
 		}
 		if (cooldownSeconds !== undefined) {
 			const seconds = parseInt(cooldownSeconds);
-			console.log('冷却时间验证:', { cooldownSeconds, seconds, isNaN: isNaN(seconds) });
 			if (isNaN(seconds) || seconds < 1 || seconds > 300) {
 				throw new BizError('冷却时间必须在 1-300 秒之间', 400);
 			}

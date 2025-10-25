@@ -36,8 +36,6 @@ export default {
 					return env.assets ? env.assets.fetch(req) : new Response('Not Found', { status: 404 });
 					
 				} catch (error) {
-					console.log(`=== SHARE TOKEN INVALID: ${shareToken}, Error: ${error.message} ===`);
-
 					// 🔒 安全策略：禁用/无效的分享链接直接返回404
 					// 完全不渲染任何HTML内容，防止域名和系统信息泄露
 					// 无论是禁用、过期还是不存在，都统一返回404

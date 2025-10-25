@@ -1093,7 +1093,6 @@ const loadShareList = async () => {
     // 如果后端没有返回统计数据，使用前端计算（向后兼容）
     if (!response?.stats) {
       updateStats(list);
-      console.log('Using frontend stats calculation');
     }
 
     // 更新搜索结果计数

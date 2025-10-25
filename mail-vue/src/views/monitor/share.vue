@@ -659,7 +659,6 @@ const handleEmailVerification = async () => {
 
     ElMessage.success('邮箱验证成功')
   } catch (err) {
-    console.error('Email verification failed:', err)
     // Fix P1-46: 改进错误消息显示，提供有用的反馈
     // 根据错误类型提供不同的错误信息
     if (err.message && err.message.includes('不在此分享的授权列表中')) {

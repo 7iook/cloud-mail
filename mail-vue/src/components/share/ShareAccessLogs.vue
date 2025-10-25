@@ -419,7 +419,6 @@ const handleShareChange = (shareId) => {
       // 使用nextTick确保DOM更新
       await nextTick();
     } catch (error) {
-      console.error('Handle share change error:', error);
       ElMessage.error('切换分享记录失败');
     }
   }, 300);
@@ -516,7 +515,6 @@ const loadShareStats = async (shareId) => {
       selectedShareStats.value = null;
     }
   } catch (error) {
-    console.error('Load share stats error:', error);
     // 不显示错误提示，因为可能是权限问题或分享不存在
     selectedShareStats.value = null;
   }
@@ -562,7 +560,6 @@ const loadGlobalStats = async () => {
       }
     }
   } catch (error) {
-    console.error('Load global stats error:', error);
     ElMessage.error('加载全局统计失败');
     selectedShareStats.value = null;
   } finally {

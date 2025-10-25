@@ -457,15 +457,15 @@
             v-if="form.autoRefreshInterval === 0 && form.autoRefreshEnabled"
             v-model.number="customAutoRefreshInterval"
             type="number"
-            placeholder="输入秒数(1-3600)"
+            placeholder="输入秒数(10-3600)"
             style="width: 120px; margin-left: 12px"
-            :min="1"
+            :min="10"
             :max="3600"
             @input="validateCustomAutoRefreshInterval"
           />
         </div>
         <div class="form-tip">
-          启用后，访问者的页面会自动刷新获取最新邮件。自定义间隔范围：1-3600秒。
+          启用后，访问者的页面会自动刷新获取最新邮件。自定义间隔范围：10-3600秒。
         </div>
         <div v-if="autoRefreshIntervalError" class="form-error">
           {{ autoRefreshIntervalError }}
@@ -1308,8 +1308,8 @@ const validateCustomAutoRefreshInterval = () => {
     return false;
   }
 
-  if (value < 1 || value > 3600) {
-    autoRefreshIntervalError.value = '刷新间隔必须在1-3600秒之间';
+  if (value < 10 || value > 3600) {
+    autoRefreshIntervalError.value = '刷新间隔必须在10-3600秒之间';
     return false;
   }
 
@@ -1509,13 +1509,6 @@ const handleSubmit = async () => {
     }
 
     submitting.value = true;
-
-    // 调试日志：打印用户选择的域名
-    console.log('=== 创建分享调试信息 ===');
-    console.log('域名选择模式:', domainSelectionMode.value);
-    console.log('用户选择的域名:', form.shareDomain);
-    console.log('可用域名列表:', availableDomains.value);
-    console.log('表单数据:', JSON.stringify(form, null, 2));
 
     const expireTime = form.expireTime || dayjs().add(7, 'day').toISOString();
     const results = [];
