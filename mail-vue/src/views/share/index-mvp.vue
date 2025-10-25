@@ -367,6 +367,7 @@
             style="width: 100%"
             v-loading="loading"
             @selection-change="handleSelectionChange"
+            @expand-change="handleExpandChange"
             row-key="groupKey"
           >
             <!-- 展开列 - 显示分组内的分享 -->
@@ -1686,6 +1687,50 @@ const copyShareUrl = (url) => {
     successMessage: '分享链接已复制到剪贴板',
     errorMessage: '复制失败，请重试'
   });
+};
+
+// 防抖函数 - 用于展开行时的滚动优化
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+// 处理展开行变更 - 展开时向下滚动到展开行
+const handleExpandChange = (row, expandedRows) => {
+  if (expandedRows.length > 0) {
+    // 使用防抖延迟滚动，确保DOM已更新
+    const scrollToExpandedRow = debounce(() => {
+      nextTick(() => {
+        const tableBody = document.querySelector('.el-table__body-wrapper');
+        if (tableBody && row) {
+          // 找到展开行对应的DOM元素
+          const expandedRow = document.querySelector(`[data-key="${row.groupKey}"]`);
+          if (expandedRow) {
+            // 计算滚动位置，使展开行的内容在视口中间
+            const rowTop = expandedRow.offsetTop;
+            const rowHeight = expandedRow.offsetHeight;
+            const viewportHeight = tableBody.clientHeight;
+            const scrollTop = rowTop + rowHeight - viewportHeight / 2;
+
+            // 平滑滚动到展开行
+            tableBody.scrollTo({
+              top: Math.max(0, scrollTop),
+              behavior: 'smooth'
+            });
+          }
+        }
+      });
+    }, 100);
+
+    scrollToExpandedRow();
+  }
 };
 
 // 处理选择变更
