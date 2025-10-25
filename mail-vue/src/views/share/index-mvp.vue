@@ -373,7 +373,8 @@
             <!-- 展开列 - 显示分组内的分享 -->
             <el-table-column type="expand" width="50">
               <template #default="scope">
-                <div v-if="scope.row.count > 1" class="group-expand-content">
+                <transition name="accordion-expand" @enter="onAccordionEnter" @leave="onAccordionLeave">
+                  <div v-if="scope.row.count > 1" class="group-expand-content" :key="`expand-${scope.row.groupKey}`">
                   <el-table
                     :data="scope.row.shares"
                     style="width: 100%"
@@ -578,6 +579,7 @@
                     </el-table-column>
                   </el-table>
                 </div>
+                </transition>
               </template>
             </el-table-column>
 
@@ -1747,6 +1749,39 @@ const handleExpandChange = (row, expandedRows) => {
 
     scrollToExpandedRow();
   }
+};
+
+// 手风琴式展开动画 - enter 钩子
+const onAccordionEnter = (el) => {
+  el.style.maxHeight = '0';
+  el.style.opacity = '0';
+  el.style.overflow = 'hidden';
+
+  // 触发重排以确保初始状态被应用
+  el.offsetHeight;
+
+  // 获取实际内容高度
+  const contentHeight = el.scrollHeight;
+
+  // 开始过渡
+  el.style.transition = 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease';
+  el.style.maxHeight = contentHeight + 'px';
+  el.style.opacity = '1';
+};
+
+// 手风琴式展开动画 - leave 钩子
+const onAccordionLeave = (el) => {
+  el.style.maxHeight = el.scrollHeight + 'px';
+  el.style.opacity = '1';
+  el.style.overflow = 'hidden';
+
+  // 触发重排
+  el.offsetHeight;
+
+  // 开始过渡
+  el.style.transition = 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease';
+  el.style.maxHeight = '0';
+  el.style.opacity = '0';
 };
 
 // 处理选择变更
@@ -3314,27 +3349,27 @@ const cancelEditExpire = (row) => {
   }
 }
 
-/* 需求 4：分组显示样式 */
+/* 需求 4：分组显示样式 - 手风琴式展开 */
 .group-expand-content {
   padding: 12px 0;
   background-color: #f5f7fa;
   border-radius: 4px;
-  /* 添加过渡动画 */
-  animation: expandSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  opacity: 0;
-  transform: translateY(-10px);
+  /* 初始状态由 JavaScript 钩子控制 */
+  overflow: hidden;
 }
 
-/* 展开行进入动画 */
-@keyframes expandSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* 手风琴式展开过渡 - enter 状态 */
+.accordion-expand-enter-active {
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.35s ease;
+  overflow: hidden;
+}
+
+/* 手风琴式展开过渡 - leave 状态 */
+.accordion-expand-leave-active {
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.35s ease;
+  overflow: hidden;
 }
 
 /* 展开行内部表格的过渡效果 */
