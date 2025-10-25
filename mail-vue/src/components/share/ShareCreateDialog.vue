@@ -827,7 +827,8 @@ const totalEmails = ref(0);
 const currentPage = ref(1);
 const pageSize = ref(20);
 const searchKeyword = ref('');
-const sortBy = ref('email');
+// Fix P3-1: 改为默认按最后来件时间排序，而不是按邮箱排序
+const sortBy = ref('time');
 
 // 批量输入相关
 const batchEmailInput = ref('');
