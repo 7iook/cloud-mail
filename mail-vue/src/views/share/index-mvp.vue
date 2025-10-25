@@ -762,7 +762,10 @@
               :key="index"
               closable
               @close="handleRemoveAuthorizedEmail(index)"
+              @click="handleCopyAuthorizedEmail(email)"
               class="email-tag"
+              style="cursor: pointer;"
+              :title="`点击复制: ${email}`"
             >
               {{ email }}
             </el-tag>
@@ -1227,6 +1230,17 @@ const getAuthorizedEmails = (row) => {
 // 需求 3：移除授权邮箱（仅在对话框中显示，不实际删除）
 const handleRemoveAuthorizedEmail = (index) => {
   ElMessage.info('如需修改授权邮箱，请使用高级设置功能');
+};
+
+// Fix P1-52: 需求 3：复制授权邮箱地址
+const handleCopyAuthorizedEmail = (email) => {
+  if (!email) return;
+
+  navigator.clipboard.writeText(email).then(() => {
+    ElMessage.success(`已复制邮箱: ${email}`);
+  }).catch(() => {
+    ElMessage.error('复制失败，请重试');
+  });
 };
 
 // 搜索处理函数（基于all-email页面的300ms防抖模式）

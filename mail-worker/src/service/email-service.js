@@ -828,8 +828,9 @@ const emailService = {
 			// }
 
 			// 添加搜索条件
+			// Fix P1-51: 改为子字符串匹配，支持搜索 "abc" 匹配 "test.abc@gmail.com"
 			if (search) {
-				whereClause += ` AND to_email LIKE '${search}%'`;
+				whereClause += ` AND to_email LIKE '%${search}%'`;
 			}
 
 			// 排序字段

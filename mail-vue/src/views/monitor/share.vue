@@ -410,15 +410,10 @@ const loadShareInfo = async () => {
           startAutoRefresh()
         })
       }
-    } else if (info.shareType === 2) {
-      // Fix: 类型2分享也启动自动刷新（如果启用）
-      // 即使用户还没有验证邮箱，自动刷新也应该准备好
-      if (autoRefreshEnabled.value) {
-        nextTick(() => {
-          startAutoRefresh()
-        })
-      }
     }
+    // Fix P1-50: 类型2分享不在此处启动自动刷新
+    // 自动刷新应该在邮箱验证成功后启动（见 handleEmailVerification 第 645-648 行）
+    // 原因：验证前 emailsVerified 为 false，getEmailList 会返回空列表
 
     // 清除频率限制错误
     rateLimitError.value = null
