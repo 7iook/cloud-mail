@@ -363,27 +363,81 @@
         <div class="share-content">
           <el-table
             ref="tableRef"
-            :data="shareList"
+            :data="groupedShares"
             style="width: 100%"
             v-loading="loading"
             @selection-change="handleSelectionChange"
-            row-key="shareId"
+            row-key="groupKey"
           >
+            <!-- 展开列 - 显示分组内的分享 -->
+            <el-table-column type="expand" width="50">
+              <template #default="scope">
+                <div v-if="scope.row.count > 1" class="group-expand-content">
+                  <el-table
+                    :data="scope.row.shares"
+                    style="width: 100%"
+                    :show-header="false"
+                    row-key="shareId"
+                  >
+                    <el-table-column prop="shareName" label="分享名称" min-width="150">
+                      <template #default="innerScope">
+                        <div class="group-item-name">
+                          {{ innerScope.row.shareName }}
+                          <span class="group-item-time">
+                            创建于 {{ tzDayjs(innerScope.row.createTime).format('YYYY-MM-DD HH:mm') }}
+                          </span>
+                        </div>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="200" align="right">
+                      <template #default="innerScope">
+                        <el-button
+                          size="small"
+                          type="primary"
+                          @click="editAdvancedSettings(innerScope.row)"
+                          v-perm="'share:create'"
+                        >
+                          编辑
+                        </el-button>
+                        <el-button
+                          type="danger"
+                          size="small"
+                          @click="handleDeleteShare(innerScope.row)"
+                          v-perm="'share:delete'"
+                        >
+                          删除
+                        </el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+              </template>
+            </el-table-column>
+
             <!-- 多选列 - 参考截图第一列 -->
             <el-table-column type="selection" width="55" />
 
-            <!-- ID列 -->
-            <el-table-column prop="shareId" label="ID" width="80" />
+            <!-- ID列 - 显示分组内最新分享的ID -->
+            <el-table-column label="ID" width="80">
+              <template #default="scope">
+                <div class="group-info">
+                  <div class="group-count" v-if="scope.row.count > 1">
+                    {{ scope.row.count }}个分享
+                  </div>
+                  <div class="latest-id">{{ scope.row.latestShare.shareId }}</div>
+                </div>
+              </template>
+            </el-table-column>
 
-            <!-- 状态列 - 参考截图的状态显示 -->
+            <!-- 状态列 - 显示分组内最新分享的状态 -->
             <el-table-column label="状态" width="120">
               <template #default="scope">
-                <el-tag :type="getStatusType(scope.row)" size="small">
-                  {{ getStatusText(scope.row) }}
+                <el-tag :type="getStatusType(scope.row.latestShare)" size="small">
+                  {{ getStatusText(scope.row.latestShare) }}
                 </el-tag>
                 <!-- 剩余天数提示 -->
-                <div class="expire-tip" v-if="scope.row.daysRemaining !== undefined">
-                  {{ getExpireTip(scope.row) }}
+                <div class="expire-tip" v-if="scope.row.latestShare.daysRemaining !== undefined">
+                  {{ getExpireTip(scope.row.latestShare) }}
                 </div>
               </template>
             </el-table-column>
@@ -404,15 +458,15 @@
             <el-table-column label="目标邮箱" min-width="200">
               <template #default="scope">
                 <div v-if="scope.row.shareType === 1" class="email-cell">
-                  {{ scope.row.targetEmail }}
+                  {{ scope.row.displayName }}
                 </div>
                 <div v-else class="email-cell multi-email">
-                  <span class="email-count">{{ getAuthorizedEmailCount(scope.row) }}个授权邮箱</span>
+                  <span class="email-count">{{ getAuthorizedEmailCount(scope.row.latestShare) }}个授权邮箱</span>
                   <el-button
                     link
                     type="primary"
                     size="small"
-                    @click="openAuthorizedEmailsDialog(scope.row)"
+                    @click="openAuthorizedEmailsDialog(scope.row.latestShare)"
                   >
                     查看详情
                   </el-button>
@@ -420,25 +474,25 @@
               </template>
             </el-table-column>
 
-            <!-- 分享名称 - 支持内联编辑 -->
+            <!-- 分享名称 - 显示分组内最新分享的名称 -->
             <el-table-column label="分享名称" min-width="150">
               <template #default="scope">
                 <div 
-                  v-if="!scope.row.editingName" 
-                  @dblclick="startEditName(scope.row)"
+                  v-if="!scope.row.latestShare.editingName" 
+                  @dblclick="startEditName(scope.row.latestShare)"
                   class="editable-cell"
-                  :title="scope.row.shareName"
+                  :title="scope.row.latestShare.shareName"
                 >
-                  {{ scope.row.shareName }}
+                  {{ scope.row.latestShare.shareName }}
                   <Icon icon="material-symbols:edit" class="edit-icon" />
                 </div>
                 <el-input
                   v-else
-                  v-model="scope.row.tempShareName"
+                  v-model="scope.row.latestShare.tempShareName"
                   size="small"
-                  @blur="saveShareName(scope.row)"
-                  @keyup.enter="saveShareName(scope.row)"
-                  @keyup.esc="cancelEditName(scope.row)"
+                  @blur="saveShareName(scope.row.latestShare)"
+                  @keyup.enter="saveShareName(scope.row.latestShare)"
+                  @keyup.esc="cancelEditName(scope.row.latestShare)"
                   ref="nameInput"
                   maxlength="100"
                   show-word-limit
@@ -446,27 +500,27 @@
               </template>
             </el-table-column>
 
-            <!-- 今日访问统计 - 支持内联编辑限制 -->
+            <!-- 今日访问统计 - 显示分组内最新分享的访问统计 -->
             <el-table-column label="今日访问" width="170" align="center">
               <template #default="scope">
-                <div v-if="scope.row.otpLimitEnabled === 1">
+                <div v-if="scope.row.latestShare.otpLimitEnabled === 1">
                   <el-progress
-                    :percentage="getOtpPercentage(scope.row)"
-                    :color="getProgressColor(scope.row)"
+                    :percentage="getOtpPercentage(scope.row.latestShare)"
+                    :color="getProgressColor(scope.row.latestShare)"
                     :stroke-width="12"
                     :show-text="false"
                   />
                   <div class="otp-count">
-                    {{ scope.row.otpCountDaily || 0 }} /
+                    {{ scope.row.latestShare.otpCountDaily || 0 }} /
 
                     <!-- 查看模式 -->
                     <span
-                      v-if="!scope.row.editingLimit"
-                      @click.stop="startEditLimit(scope.row)"
+                      v-if="!scope.row.latestShare.editingLimit"
+                      @click.stop="startEditLimit(scope.row.latestShare)"
                       class="editable-limit"
                       :title="'单击编辑每日访问限制'"
                     >
-                      {{ scope.row.otpLimitDaily || 100 }}
+                      {{ scope.row.latestShare.otpLimitDaily || 100 }}
                       <Icon
                         icon="material-symbols:edit"
                         class="edit-icon-small"
@@ -476,13 +530,13 @@
                     <!-- 编辑模式 -->
                     <div v-else class="inline-edit-wrapper">
                       <el-input-number
-                        v-model="scope.row.tempOtpLimit"
+                        v-model="scope.row.latestShare.tempOtpLimit"
                         size="default"
                         :min="1"
                         :max="10000"
-                        :loading="scope.row.savingLimit"
-                        @keyup.enter="saveOtpLimit(scope.row)"
-                        @keyup.esc="cancelEditLimit(scope.row)"
+                        :loading="scope.row.latestShare.savingLimit"
+                        @keyup.enter="saveOtpLimit(scope.row.latestShare)"
+                        @keyup.esc="cancelEditLimit(scope.row.latestShare)"
                         ref="limitInput"
                         style="width: 150px;"
                         class="inline-edit-input"
@@ -490,7 +544,7 @@
                       <div class="inline-edit-actions-below">
                         <el-button
                           size="small"
-                          @click="cancelEditLimit(scope.row)"
+                          @click="cancelEditLimit(scope.row.latestShare)"
                           class="action-btn-below"
                           :icon="''"
                           title="取消编辑 (Esc)"
@@ -500,8 +554,8 @@
                         <el-button
                           size="small"
                           type="primary"
-                          @click="saveOtpLimit(scope.row)"
-                          :loading="scope.row.savingLimit"
+                          @click="saveOtpLimit(scope.row.latestShare)"
+                          :loading="scope.row.latestShare.savingLimit"
                           class="action-btn-below"
                           :icon="''"
                           title="保存 (Enter)"
@@ -514,20 +568,20 @@
                 </div>
                 <div v-else class="limit-disabled">
                   <el-tag type="info" size="small">无限制</el-tag>
-                  <div class="otp-count-text">{{ scope.row.otpCountDaily || 0 }} 次</div>
+                  <div class="otp-count-text">{{ scope.row.latestShare.otpCountDaily || 0 }} 次</div>
                 </div>
               </template>
             </el-table-column>
 
-            <!-- 显示限制 - 支持内联编辑 -->
+            <!-- 显示限制 - 显示分组内最新分享的显示限制 -->
             <el-table-column label="显示限制" width="140" align="center">
               <template #default="scope">
-                <div v-if="scope.row.verificationCodeLimitEnabled === 1">
+                <div v-if="scope.row.latestShare.verificationCodeLimitEnabled === 1">
                   <!-- 查看模式 -->
                   <div
-                    v-if="!scope.row.editingDisplayLimit"
+                    v-if="!scope.row.latestShare.editingDisplayLimit"
                     class="inline-edit-container"
-                    @click.stop="startEditDisplayLimit(scope.row)"
+                    @click.stop="startEditDisplayLimit(scope.row.latestShare)"
                     :title="'单击编辑显示限制'"
                     style="cursor: pointer;"
                   >
@@ -536,7 +590,7 @@
                       size="small"
                       class="editable-tag"
                     >
-                      最多 {{ scope.row.verificationCodeLimit || 100 }} 条
+                      最多 {{ scope.row.latestShare.verificationCodeLimit || 100 }} 条
                       <Icon
                         icon="material-symbols:edit"
                         class="edit-icon-small"
@@ -547,13 +601,13 @@
                   <!-- 编辑模式 -->
                   <div v-else class="inline-edit-active">
                     <el-input-number
-                      v-model="scope.row.tempDisplayLimit"
+                      v-model="scope.row.latestShare.tempDisplayLimit"
                       size="default"
                       :min="1"
                       :max="1000"
-                      :loading="scope.row.savingDisplayLimit"
-                      @keyup.enter="saveDisplayLimit(scope.row)"
-                      @keyup.esc="cancelEditDisplayLimit(scope.row)"
+                      :loading="scope.row.latestShare.savingDisplayLimit"
+                      @keyup.enter="saveDisplayLimit(scope.row.latestShare)"
+                      @keyup.esc="cancelEditDisplayLimit(scope.row.latestShare)"
                       ref="displayLimitInput"
                       style="width: 150px;"
                       class="inline-edit-input"
@@ -561,7 +615,7 @@
                     <div class="inline-edit-actions-below">
                       <el-button
                         size="small"
-                        @click="cancelEditDisplayLimit(scope.row)"
+                        @click="cancelEditDisplayLimit(scope.row.latestShare)"
                         class="action-btn-below"
                         :icon="''"
                         title="取消编辑 (Esc)"
@@ -571,8 +625,8 @@
                       <el-button
                         size="small"
                         type="primary"
-                        @click="saveDisplayLimit(scope.row)"
-                        :loading="scope.row.savingDisplayLimit"
+                        @click="saveDisplayLimit(scope.row.latestShare)"
+                        :loading="scope.row.latestShare.savingDisplayLimit"
                         class="action-btn-below"
                         :icon="''"
                         title="保存 (Enter)"
@@ -588,44 +642,44 @@
               </template>
             </el-table-column>
 
-            <!-- Token令牌 - 参考截图显示部分token -->
+            <!-- Token令牌 - 显示分组内最新分享的token -->
             <el-table-column label="Token令牌" width="150">
               <template #default="scope">
-                <el-tooltip :content="scope.row.shareToken" placement="top">
-                  <code class="token-display">{{ scope.row.shareToken?.substring(0, 12) }}...</code>
+                <el-tooltip :content="scope.row.latestShare.shareToken" placement="top">
+                  <code class="token-display">{{ scope.row.latestShare.shareToken?.substring(0, 12) }}...</code>
                 </el-tooltip>
               </template>
             </el-table-column>
 
-            <!-- 创建时间 -->
-            <el-table-column prop="createTime" label="创建时间" width="180">
+            <!-- 创建时间 - 显示分组内最新分享的创建时间 -->
+            <el-table-column label="创建时间" width="180">
               <template #default="scope">
-                {{ tzDayjs(scope.row.createTime).format('YYYY-MM-DD HH:mm') }}
+                {{ tzDayjs(scope.row.latestShare.createTime).format('YYYY-MM-DD HH:mm') }}
               </template>
             </el-table-column>
 
-            <!-- 过期时间 - 支持内联编辑 -->
+            <!-- 过期时间 - 显示分组内最新分享的过期时间 -->
             <el-table-column label="过期时间" width="200">
               <template #default="scope">
                 <div 
-                  v-if="!scope.row.editingExpire"
-                  @dblclick="startEditExpire(scope.row)"
+                  v-if="!scope.row.latestShare.editingExpire"
+                  @dblclick="startEditExpire(scope.row.latestShare)"
                   class="editable-cell"
-                  :class="{'expire-warning': isExpiringSoon(scope.row)}"
+                  :class="{'expire-warning': isExpiringSoon(scope.row.latestShare)}"
                   :title="'双击编辑过期时间'"
                 >
-                  {{ tzDayjs(scope.row.expireTime).format('YYYY-MM-DD HH:mm') }}
+                  {{ tzDayjs(scope.row.latestShare.expireTime).format('YYYY-MM-DD HH:mm') }}
                   <Icon icon="material-symbols:edit" class="edit-icon" />
                 </div>
                 <el-date-picker
                   v-else
-                  v-model="scope.row.tempExpireTime"
+                  v-model="scope.row.latestShare.tempExpireTime"
                   type="datetime"
                   size="small"
                   format="YYYY-MM-DD HH:mm"
                   value-format="YYYY-MM-DD HH:mm:ss"
-                  @blur="saveExpireTime(scope.row)"
-                  @change="saveExpireTime(scope.row)"
+                  @blur="saveExpireTime(scope.row.latestShare)"
+                  @change="saveExpireTime(scope.row.latestShare)"
                   ref="expireInput"
                   style="width: 180px;"
                   :disabled-date="(date) => date < new Date()"
@@ -633,23 +687,23 @@
               </template>
             </el-table-column>
 
-            <!-- 分享链接 - 超链接化 -->
+            <!-- 分享链接 - 显示分组内最新分享的链接 -->
             <el-table-column label="分享链接" min-width="280">
               <template #default="scope">
                 <div class="share-url-cell">
                   <div class="share-url-container">
                     <a
-                      :href="scope.row.shareUrl"
+                      :href="scope.row.latestShare.shareUrl"
                       target="_blank"
                       class="share-url-link"
                       :title="'点击在新标签页中打开分享页面'"
                     >
-                      {{ scope.row.shareUrl }}
+                      {{ scope.row.latestShare.shareUrl }}
                     </a>
                   </div>
                   <el-button
                     size="small"
-                    @click="copyShareUrl(scope.row.shareUrl)"
+                    @click="copyShareUrl(scope.row.latestShare.shareUrl)"
                     class="copy-btn"
                     :title="'复制分享链接'"
                   >
@@ -666,7 +720,7 @@
                 <el-button
                   size="small"
                   type="primary"
-                  @click="handleRefreshToken(scope.row)"
+                  @click="handleRefreshToken(scope.row.latestShare)"
                   v-perm="'share:create'"
                   :icon="Refresh"
                 >
@@ -677,7 +731,7 @@
                 <el-button
                   size="small"
                   type="warning"
-                  @click="editAdvancedSettings(scope.row)"
+                  @click="editAdvancedSettings(scope.row.latestShare)"
                   v-perm="'share:create'"
                   :icon="Setting"
                 >
@@ -687,7 +741,7 @@
                 <!-- 访问日志 -->
                 <el-button
                   size="small"
-                  @click="viewAccessLogs(scope.row)"
+                  @click="viewAccessLogs(scope.row.latestShare)"
                   v-perm="'share:create'"
                 >
                   访问日志
@@ -697,7 +751,7 @@
                 <el-button
                   type="danger"
                   size="small"
-                  @click="handleDeleteShare(scope.row)"
+                  @click="handleDeleteShare(scope.row.latestShare)"
                   v-perm="'share:delete'"
                   :icon="Delete"
                 >
@@ -858,6 +912,9 @@ const currentAccessLogShare = ref(null);
 const showAuthorizedEmailsDialog = ref(false);
 const currentAuthorizedEmailsShare = ref(null);
 
+// 需求 4：分组显示功能
+const groupExpandedState = reactive(new Map()); // 存储分组的展开/折叠状态
+
 // Table ref for Element Plus API access
 const tableRef = ref();
 const filterStatus = ref(''); // '', 'active', 'expired', 'disabled'
@@ -978,6 +1035,95 @@ const activeFilterTags = computed(() => {
 
   return tags;
 });
+
+// 需求 4：分组显示功能 - 标准化邮箱列表用于分组
+const normalizeEmails = (emails) => {
+  if (!emails) return '';
+  try {
+    const emailArray = typeof emails === 'string' ? JSON.parse(emails) : emails;
+    if (!Array.isArray(emailArray)) return '';
+    return JSON.stringify(
+      emailArray
+        .map(e => (e || '').toLowerCase().trim())
+        .filter(e => e)
+        .sort()
+    );
+  } catch {
+    return '';
+  }
+};
+
+// 需求 4：获取分组键
+const getGroupKey = (share) => {
+  if (share.shareType === 1) {
+    return `type1_${share.targetEmail}`;
+  } else {
+    return `type2_${normalizeEmails(share.authorizedEmails)}`;
+  }
+};
+
+// 需求 4：获取分组显示名称
+const getGroupDisplayName = (share) => {
+  if (share.shareType === 1) {
+    return share.targetEmail;
+  } else {
+    try {
+      const emails = typeof share.authorizedEmails === 'string'
+        ? JSON.parse(share.authorizedEmails)
+        : share.authorizedEmails;
+      if (!Array.isArray(emails) || emails.length === 0) return '无授权邮箱';
+      if (emails.length <= 5) {
+        return emails.join(', ');
+      } else {
+        return `${emails.slice(0, 5).join(', ')} 及其他 ${emails.length - 5} 个邮箱`;
+      }
+    } catch {
+      return '多邮箱分享';
+    }
+  }
+};
+
+// 需求 4：分组计算属性
+const groupedShares = computed(() => {
+  if (!shareList.value || shareList.value.length === 0) return [];
+
+  const groups = new Map();
+
+  // 按分组键分组
+  shareList.value.forEach(share => {
+    const key = getGroupKey(share);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        groupKey: key,
+        shareType: share.shareType,
+        displayName: getGroupDisplayName(share),
+        shares: [],
+        expanded: groupExpandedState.get(key) || false
+      });
+    }
+    groups.get(key).shares.push(share);
+  });
+
+  // 对每个分组内的分享按创建时间倒序排列
+  groups.forEach(group => {
+    group.shares.sort((a, b) =>
+      new Date(b.createTime) - new Date(a.createTime)
+    );
+    group.latestShare = group.shares[0];
+    group.count = group.shares.length;
+  });
+
+  // 转换为数组并按最新分享时间倒序排列
+  return Array.from(groups.values()).sort((a, b) =>
+    new Date(b.latestShare.createTime) - new Date(a.latestShare.createTime)
+  );
+});
+
+// 需求 4：切换分组展开状态
+const toggleGroupExpand = (groupKey) => {
+  const currentState = groupExpandedState.get(groupKey) || false;
+  groupExpandedState.set(groupKey, !currentState);
+};
 
 // 页面加载
 onMounted(() => {
@@ -2955,5 +3101,41 @@ const cancelEditExpire = (row) => {
       font-size: 14px;
     }
   }
+}
+
+/* 需求 4：分组显示样式 */
+.group-expand-content {
+  padding: 12px 0;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.group-item-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.group-item-time {
+  font-size: 12px;
+  color: #909399;
+}
+
+.group-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.group-count {
+  font-size: 12px;
+  color: #409eff;
+  font-weight: 500;
+}
+
+.latest-id {
+  font-size: 14px;
+  color: #333;
 }
 </style>
