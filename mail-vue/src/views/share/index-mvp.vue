@@ -383,19 +383,25 @@
                     <!-- 状态列 -->
                     <el-table-column label="状态" width="120">
                       <template #default="innerScope">
-                        <generic>
-                          <generic>{{ innerScope.row.status === 'active' ? '使用中' : innerScope.row.status === 'expired' ? '已过期' : '已禁用' }}</generic>
-                          <generic v-if="innerScope.row.daysRemaining !== null">
-                            {{ innerScope.row.daysRemaining === 0 ? '今天到期' : `还剩 ${innerScope.row.daysRemaining} 天` }}
-                          </generic>
-                        </generic>
+                        <el-tag :type="getStatusType(innerScope.row)" size="small">
+                          {{ getStatusText(innerScope.row) }}
+                        </el-tag>
+                        <!-- 剩余天数提示 -->
+                        <div class="expire-tip" v-if="innerScope.row.daysRemaining !== undefined">
+                          {{ getExpireTip(innerScope.row) }}
+                        </div>
                       </template>
                     </el-table-column>
 
                     <!-- 分享类型列 -->
-                    <el-table-column label="分享类型" width="100">
+                    <el-table-column label="分享类型" width="120" align="center">
                       <template #default="innerScope">
-                        {{ innerScope.row.shareType === 1 ? '单邮箱分享' : '多邮箱分享' }}
+                        <el-tag
+                          :type="innerScope.row.shareType === 1 ? 'primary' : 'success'"
+                          size="small"
+                        >
+                          {{ innerScope.row.shareType === 1 ? '单邮箱分享' : '多邮箱分享' }}
+                        </el-tag>
                       </template>
                     </el-table-column>
 
@@ -459,28 +465,35 @@
                     </el-table-column>
 
                     <!-- 显示限制列 -->
-                    <el-table-column label="显示限制" width="120">
+                    <el-table-column label="显示限制" width="140" align="center">
                       <template #default="innerScope">
-                        <generic
-                          @click="editVerificationCodeLimit(innerScope.row)"
-                          style="cursor: pointer; color: #409eff"
-                          title="单击编辑显示限制"
+                        <div
+                          class="inline-edit-container"
+                          @click.stop="startEditDisplayLimit(innerScope.row)"
+                          :title="'单击编辑显示限制'"
+                          style="cursor: pointer;"
                         >
-                          最多 {{ innerScope.row.verificationCodeLimit || 100 }} 条
-                          <Icon icon="material-symbols:edit" style="font-size: 12px; margin-left: 2px" />
-                        </generic>
+                          <el-tag
+                            type="success"
+                            size="small"
+                            class="editable-tag"
+                          >
+                            最多 {{ innerScope.row.verificationCodeLimit || 100 }} 条
+                            <Icon
+                              icon="material-symbols:edit"
+                              class="edit-icon-small"
+                            />
+                          </el-tag>
+                        </div>
                       </template>
                     </el-table-column>
 
                     <!-- Token列 -->
-                    <el-table-column label="Token令牌" width="120">
+                    <el-table-column label="Token令牌" width="150">
                       <template #default="innerScope">
-                        <code
-                          @click="copyToClipboard(innerScope.row.shareToken)"
-                          style="cursor: pointer"
-                        >
-                          {{ innerScope.row.shareToken.substring(0, 12) }}...
-                        </code>
+                        <el-tooltip :content="innerScope.row.shareToken" placement="top">
+                          <code class="token-display">{{ innerScope.row.shareToken?.substring(0, 12) }}...</code>
+                        </el-tooltip>
                       </template>
                     </el-table-column>
 
@@ -525,27 +538,30 @@
                     </el-table-column>
 
                     <!-- 操作列 -->
-                    <el-table-column label="操作" width="200" align="right" fixed="right">
+                    <el-table-column label="操作" width="280" fixed="right">
                       <template #default="innerScope">
                         <el-button
                           size="small"
-                          @click="refreshToken(innerScope.row)"
+                          type="primary"
+                          @click="handleRefreshToken(innerScope.row)"
                           v-perm="'share:create'"
+                          :icon="Refresh"
                         >
-                          <Icon icon="material-symbols:refresh" style="font-size: 14px; margin-right: 4px" />
                           刷新Token
                         </el-button>
                         <el-button
                           size="small"
+                          type="warning"
                           @click="editAdvancedSettings(innerScope.row)"
                           v-perm="'share:create'"
+                          :icon="Setting"
                         >
-                          <Icon icon="material-symbols:settings" style="font-size: 14px; margin-right: 4px" />
                           高级设置
                         </el-button>
                         <el-button
                           size="small"
-                          @click="showAccessLogs(innerScope.row)"
+                          @click="viewAccessLogs(innerScope.row)"
+                          v-perm="'share:create'"
                         >
                           访问日志
                         </el-button>
@@ -554,8 +570,8 @@
                           size="small"
                           @click="handleDeleteShare(innerScope.row)"
                           v-perm="'share:delete'"
+                          :icon="Delete"
                         >
-                          <Icon icon="material-symbols:delete" style="font-size: 14px; margin-right: 4px" />
                           删除
                         </el-button>
                       </template>
